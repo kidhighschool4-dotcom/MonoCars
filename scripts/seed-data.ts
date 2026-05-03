@@ -5,9 +5,9 @@
 
 import { createClient } from '@supabase/supabase-js'
 
-const SUPABASE_URL = 'https://tgnlpmgeswsowvhhhedb.supabase.co'
+const SUPABASE_URL = 'https://kxsnwdvpkfbyuklflcvf.supabase.co'
 const SERVICE_ROLE_KEY =
-  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRnbmxwbWdlc3dzb3d2aGhoZWRiIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3NTY2Mzc3OSwiZXhwIjoyMDkxMjM5Nzc5fQ.QlhGblNz2NXGs5inpc454CsqWR8MeBGQ_rVm75iFMq4'
+  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imt4c253ZHZwa2ZieXVrbGZsY3ZmIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3Nzc4MTk5NSwiZXhwIjoyMDkzMzU3OTk1fQ.j15UPZFSq2bnAJ3pEL4LW-dDmalMmFgauR2zz3pgTLo'
 
 const sb = createClient(SUPABASE_URL, SERVICE_ROLE_KEY, {
   auth: { autoRefreshToken: false, persistSession: false },
@@ -457,7 +457,77 @@ async function seed() {
     inserted++
   }
 
-  console.log(`\n✅ Done! Inserted ${inserted}/${CARS.length} cars.`)
+  console.log(`\n✅ Cars: inserted ${inserted}/${CARS.length}`)
+
+  // 4. Insert events
+  console.log('\nInserting events...')
+  const EVENTS = [
+    {
+      title: 'Phnom Penh Motor Show 2026',
+      location: 'Diamond Island Convention & Exhibition Center, Phnom Penh',
+      event_date: '2026-06-15T09:00:00+07:00',
+      description: "Cambodia's biggest automotive showcase featuring the latest models from top brands. Test drives, special promotions, and entertainment for the whole family.",
+      image_url: 'https://images.unsplash.com/photo-1503376780353-7e6692767b70?w=800',
+      category: 'Motor Show',
+      attendee_count: 5200,
+      is_published: true,
+    },
+    {
+      title: 'Sunday Classic Car Meet',
+      location: 'Riverside Park, Phnom Penh',
+      event_date: '2026-06-08T07:00:00+07:00',
+      description: 'Monthly gathering of classic and vintage car enthusiasts. Show off your restored classics, swap stories, and enjoy breakfast together.',
+      image_url: 'https://images.unsplash.com/photo-1568605117036-5fe5e7bab0b7?w=800',
+      category: 'Car Meet',
+      attendee_count: 340,
+      is_published: true,
+    },
+    {
+      title: 'Siem Reap Speed Festival',
+      location: 'Siem Reap Circuit, Siem Reap',
+      event_date: '2026-07-20T08:00:00+07:00',
+      description: 'Annual motorsport festival in Siem Reap. Drag racing, drift exhibition, and autocross competitions. Open to all skill levels.',
+      image_url: 'https://images.unsplash.com/photo-1533473359331-0135ef1b58bf?w=800',
+      category: 'Racing',
+      attendee_count: 1800,
+      is_published: true,
+    },
+    {
+      title: 'Electric Vehicle Showcase',
+      location: 'Aeon Mall Sen Sok, Phnom Penh',
+      event_date: '2026-07-28T10:00:00+07:00',
+      description: 'Discover the future of mobility in Cambodia. EV test drives, charging infrastructure demos, and talks from leading EV importers.',
+      image_url: 'https://images.unsplash.com/photo-1617654112368-307921291f42?w=800',
+      category: 'EV Show',
+      attendee_count: 920,
+      is_published: true,
+    },
+    {
+      title: 'Kampot Coastal Drive',
+      location: 'Starting from Kampot Town, Kampot',
+      event_date: '2026-08-12T06:30:00+07:00',
+      description: 'Scenic coastal group drive from Kampot to Kep and back. Open to all car types. Beautiful route through rural Cambodia with stunning views.',
+      image_url: 'https://images.unsplash.com/photo-1552519507-da3b142c6e3d?w=800',
+      category: 'Group Drive',
+      attendee_count: 215,
+      is_published: true,
+    },
+    {
+      title: 'Cambodia 4x4 Off-Road Challenge',
+      location: 'Kirirom National Park, Kampong Speu',
+      event_date: '2026-08-25T07:00:00+07:00',
+      description: "The ultimate off-road adventure through Kirirom's challenging terrain. Participants must have 4WD capable vehicles. Recovery gear required.",
+      image_url: 'https://images.unsplash.com/photo-1494976388531-d1058494cdd8?w=800',
+      category: 'Off-Road',
+      attendee_count: 156,
+      is_published: true,
+    },
+  ]
+
+  const { error: evErr } = await sb.from('events').upsert(EVENTS, { onConflict: 'title' })
+  if (evErr) console.error('Events:', evErr.message)
+  else console.log(`✅ Events: inserted ${EVENTS.length}`)
+
   console.log('\nNext step: run embeddings')
   console.log('  curl -X POST http://localhost:3000/api/embed')
 }

@@ -175,7 +175,7 @@ export default function SubmitPage() {
                 <Button variant="primary" size="lg" fullWidth>View Your Listing</Button>
               </Link>
             )}
-            <Button variant="outline" size="lg" fullWidth onClick={() => {
+            <Button variant="secondary" size="lg" fullWidth onClick={() => {
               setSubmitted(false)
               setForm({ make: '', model: '', year: '', price: '', mileage: '', type: '',
                 fuel: '', transmission: '', location: '', color: '', seats: '5',

@@ -1,4 +1,5 @@
 import { mockPosts, mockEvents } from '@/lib/mockData'
+import { getPosts, getFeaturedEvents } from '@/lib/db'
 import PostCard from '@/components/community/PostCard'
 import PostForm from '@/components/community/PostForm'
 import Link from 'next/link'
@@ -15,8 +16,11 @@ const trendingTopics = [
   'Phnom Penh Traffic',
 ]
 
-export default function CommunityPage() {
-  const upcomingEvents = mockEvents.slice(0, 3)
+export default async function CommunityPage() {
+  const [dbPosts, dbEvents] = await Promise.all([getPosts(20), getFeaturedEvents(3)])
+
+  const posts    = dbPosts.length  ? dbPosts  : mockPosts
+  const upcoming = dbEvents.length ? dbEvents : mockEvents.slice(0, 3)
 
   return (
     <div className="min-h-screen bg-[#F8F5F0]">
@@ -40,11 +44,8 @@ export default function CommunityPage() {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           {/* Feed */}
           <div className="lg:col-span-2 space-y-5">
-            {/* Post Form */}
-            <PostForm isAuthenticated={false} />
-
-            {/* Posts */}
-            {mockPosts.map((post) => (
+            <PostForm />
+            {posts.map((post) => (
               <PostCard key={post.id} post={post} />
             ))}
           </div>
@@ -104,7 +105,7 @@ export default function CommunityPage() {
                 </Link>
               </div>
               <div className="space-y-3">
-                {upcomingEvents.map((event) => (
+                {upcoming.map((event) => (
                   <Link
                     key={event.id}
                     href={`/events/${event.id}`}

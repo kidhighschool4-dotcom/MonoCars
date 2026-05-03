@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
-import { Menu, X, Car, Calendar, Users, PlusCircle, LogOut, Sparkles } from 'lucide-react'
+import { Menu, X, Car, Calendar, Users, PlusCircle, LogOut, Sparkles, MessageCircle } from 'lucide-react'
 import clsx from 'clsx'
 import { useAuth } from '@/lib/auth-context'
 
@@ -70,6 +70,18 @@ export default function Header() {
             {!loading && (
               user ? (
                 <div className="hidden md:flex items-center gap-2">
+                  <Link
+                    href="/messages"
+                    className={clsx(
+                      'flex items-center gap-1.5 px-3 py-2 text-sm font-medium rounded-lg transition-all duration-200',
+                      pathname === '/messages'
+                        ? 'text-[#CBA135] bg-amber-50'
+                        : 'text-gray-600 hover:text-[#1A1A1A] hover:bg-gray-50'
+                    )}
+                  >
+                    <MessageCircle className="w-4 h-4" />
+                    Messages
+                  </Link>
                   <div className="w-8 h-8 rounded-full bg-[#CBA135] flex items-center justify-center">
                     <span className="text-[#1A1A1A] font-bold text-xs">{initials}</span>
                   </div>
@@ -124,13 +136,26 @@ export default function Header() {
               </Link>
             ))}
             {user ? (
-              <button
-                onClick={handleSignOut}
-                className="flex items-center gap-2 px-4 py-3 rounded-xl text-sm font-medium text-red-600 hover:bg-red-50 transition-all w-full text-left"
-              >
-                <LogOut className="w-4 h-4" />
-                Sign Out
-              </button>
+              <>
+                <Link
+                  href="/messages"
+                  onClick={() => setMobileOpen(false)}
+                  className={clsx(
+                    'flex items-center gap-2 px-4 py-3 rounded-xl text-sm font-medium transition-all',
+                    pathname === '/messages' ? 'text-[#CBA135] bg-amber-50' : 'text-gray-700 hover:bg-gray-50'
+                  )}
+                >
+                  <MessageCircle className="w-4 h-4" />
+                  Messages
+                </Link>
+                <button
+                  onClick={handleSignOut}
+                  className="flex items-center gap-2 px-4 py-3 rounded-xl text-sm font-medium text-red-600 hover:bg-red-50 transition-all w-full text-left"
+                >
+                  <LogOut className="w-4 h-4" />
+                  Sign Out
+                </button>
+              </>
             ) : (
               <Link
                 href="/auth"

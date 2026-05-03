@@ -1,6 +1,7 @@
 import { notFound } from 'next/navigation'
 import Link from 'next/link'
 import { Calendar, MapPin, Users, ArrowLeft, Tag } from 'lucide-react'
+import { getEvent, getFeaturedEvents } from '@/lib/db'
 import { mockEvents } from '@/lib/mockData'
 
 interface PageProps {
@@ -25,11 +26,19 @@ function formatTime(dateString: string) {
 
 export default async function EventDetailPage({ params }: PageProps) {
   const { id } = await params
-  const event = mockEvents.find((e) => e.id === id)
 
-  if (!event) notFound()
+  // Try DB first, fall back to mock (covers old integer IDs during transition)
+  let event = await getEvent(id)
+  if (!event) {
+    const mock = mockEvents.find((e) => e.id === id)
+    if (!mock) notFound()
+    event = mock
+  }
 
-  const related = mockEvents.filter((e) => e.id !== event.id).slice(0, 2)
+  const dbRelated = await getFeaturedEvents(3)
+  const related = (dbRelated.length ? dbRelated : mockEvents)
+    .filter((e) => e.id !== event!.id)
+    .slice(0, 2)
 
   return (
     <div className="min-h-screen bg-[#F8F5F0]">

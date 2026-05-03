@@ -1,5 +1,5 @@
 import { supabaseAdmin } from '@/lib/supabase-server'
-import type { Car } from '@/types'
+import type { Car, CarEvent, Post } from '@/types'
 
 // ─── Types returned by Supabase joins ───────────────────────────────────────
 
@@ -209,7 +209,124 @@ export async function getCarsByIds(ids: string[]): Promise<Car[]> {
   return ids.map((id) => map.get(id)).filter(Boolean) as Car[]
 }
 
-// Builds the text content used to generate an embedding for a car
+// ─── Events ─────────────────────────────────────────────────────────────────
+
+interface DbEventRow {
+  id: string
+  title: string
+  location: string
+  event_date: string
+  description: string
+  image_url: string | null
+  category: string
+  attendee_count: number
+}
+
+function toAppEvent(row: DbEventRow): CarEvent {
+  return {
+    id: row.id,
+    title: row.title,
+    location: row.location,
+    date: row.event_date,
+    description: row.description,
+    image: row.image_url ?? '',
+    category: row.category,
+    attendees: row.attendee_count,
+  }
+}
+
+const EVENT_SELECT = 'id, title, location, event_date, description, image_url, category, attendee_count'
+
+export async function getEvents(): Promise<CarEvent[]> {
+  const { data, error } = await supabaseAdmin
+    .from('events')
+    .select(EVENT_SELECT)
+    .eq('is_published', true)
+    .order('event_date', { ascending: true })
+  if (error) { console.error('[db.getEvents]', error); return [] }
+  return (data as DbEventRow[]).map(toAppEvent)
+}
+
+export async function getEvent(id: string): Promise<CarEvent | null> {
+  const { data, error } = await supabaseAdmin
+    .from('events')
+    .select(EVENT_SELECT)
+    .eq('id', id)
+    .eq('is_published', true)
+    .single()
+  if (error || !data) return null
+  return toAppEvent(data as DbEventRow)
+}
+
+export async function getFeaturedEvents(limit = 3): Promise<CarEvent[]> {
+  const { data, error } = await supabaseAdmin
+    .from('events')
+    .select(EVENT_SELECT)
+    .eq('is_published', true)
+    .order('event_date', { ascending: true })
+    .limit(limit)
+  if (error) return []
+  return (data as DbEventRow[]).map(toAppEvent)
+}
+
+// ─── Community posts ─────────────────────────────────────────────────────────
+
+interface DbPostRow {
+  id: string
+  user_id: string
+  content: string
+  post_type: string
+  like_count: number
+  created_at: string
+  post_images: { url: string; display_order: number }[]
+  post_comments: { id: string; user_id: string; content: string; created_at: string }[]
+}
+
+interface DbProfile { id: string; full_name: string | null; avatar_url: string | null }
+
+export async function getPosts(limit = 20): Promise<Post[]> {
+  const { data, error } = await supabaseAdmin
+    .from('community_posts')
+    .select('id, user_id, content, post_type, like_count, created_at, post_images(url, display_order), post_comments(id, user_id, content, created_at)')
+    .order('created_at', { ascending: false })
+    .limit(limit)
+  if (error || !data?.length) return []
+
+  const rows = data as unknown as DbPostRow[]
+
+  const userIds = [...new Set([
+    ...rows.map((p) => p.user_id),
+    ...rows.flatMap((p) => p.post_comments.map((c) => c.user_id)),
+  ])]
+
+  const { data: profiles } = await supabaseAdmin
+    .from('profiles')
+    .select('id, full_name, avatar_url')
+    .in('id', userIds)
+
+  const pm = Object.fromEntries(((profiles ?? []) as DbProfile[]).map((p) => [p.id, p]))
+
+  return rows.map((row) => ({
+    id: row.id,
+    userId: row.user_id,
+    userName: pm[row.user_id]?.full_name ?? 'Community Member',
+    userAvatar: pm[row.user_id]?.avatar_url ?? '',
+    content: row.content,
+    images: [...(row.post_images ?? [])].sort((a, b) => a.display_order - b.display_order).map((i) => i.url),
+    likes: row.like_count,
+    comments: (row.post_comments ?? []).map((c) => ({
+      id: c.id,
+      userId: c.user_id,
+      userName: pm[c.user_id]?.full_name ?? 'Community Member',
+      content: c.content,
+      createdAt: c.created_at,
+    })),
+    createdAt: row.created_at,
+    type: row.post_type as Post['type'],
+  }))
+}
+
+// ─── Builds the text content used to generate an embedding for a car
 export function buildCarEmbeddingContent(car: Car & { fuel?: string; transmission?: string }): string {
   return [
     `${car.make} ${car.model} ${car.year}`,

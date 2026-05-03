@@ -1,18 +1,29 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { mockEvents } from '@/lib/mockData'
 import EventCard from '@/components/events/EventCard'
 import { Calendar } from 'lucide-react'
+import type { CarEvent } from '@/types'
 
 const categories = ['All', 'Motor Show', 'Car Meet', 'Racing', 'EV Show', 'Group Drive', 'Off-Road']
 
 export default function EventsPage() {
   const [activeCategory, setActiveCategory] = useState('All')
+  const [events, setEvents] = useState<CarEvent[]>(mockEvents)
+
+  useEffect(() => {
+    fetch('/api/events')
+      .then((r) => r.json())
+      .then(({ events: dbEvents }) => {
+        if (dbEvents?.length) setEvents(dbEvents)
+      })
+      .catch(() => {})
+  }, [])
 
   const filtered = activeCategory === 'All'
-    ? mockEvents
-    : mockEvents.filter((e) => e.category === activeCategory)
+    ? events
+    : events.filter((e) => e.category === activeCategory)
 
   return (
     <div className="min-h-screen bg-[#F8F5F0]">
