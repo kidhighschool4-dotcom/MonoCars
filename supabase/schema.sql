@@ -7,12 +7,46 @@
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 CREATE EXTENSION IF NOT EXISTS vector;
 
+-- ─── USER PROFILES ─────────────────────────────────────────
+
+CREATE TABLE IF NOT EXISTS profiles (
+  id          uuid PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
+  full_name   text,
+  phone       text,
+  avatar_url  text,
+  created_at  timestamptz DEFAULT now(),
+  updated_at  timestamptz DEFAULT now()
+);
+
+-- Auto-create a profile row whenever a new auth user is created
+CREATE OR REPLACE FUNCTION handle_new_user()
+RETURNS trigger LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
+BEGIN
+  INSERT INTO public.profiles (id, full_name)
+  VALUES (NEW.id, NEW.raw_user_meta_data->>'full_name')
+  ON CONFLICT (id) DO NOTHING;
+  RETURN NEW;
+END;
+$$;
+
+DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
+CREATE TRIGGER on_auth_user_created
+  AFTER INSERT ON auth.users
+  FOR EACH ROW EXECUTE PROCEDURE handle_new_user();
+
+ALTER TABLE profiles ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "public_read_profiles" ON profiles FOR SELECT USING (true);
+CREATE POLICY "owner_update_profile" ON profiles FOR UPDATE TO authenticated USING (id = auth.uid());
+CREATE POLICY "service_all_profiles" ON profiles FOR ALL TO service_role USING (true);
+
 -- ─── LOOKUP TABLES ─────────────────────────────────────────
 
 CREATE TABLE IF NOT EXISTS brands (
   id        uuid PRIMARY KEY DEFAULT uuid_generate_v4(),
   name      text NOT NULL UNIQUE,
   country   text NOT NULL,
+  logo_url  text,
   created_at timestamptz DEFAULT now()
 );
 
@@ -84,6 +118,37 @@ CREATE TABLE IF NOT EXISTS car_embeddings (
   created_at timestamptz DEFAULT now()
 );
 
+-- ─── CHAT ──────────────────────────────────────────────────
+
+CREATE TABLE IF NOT EXISTS conversations (
+  id          uuid PRIMARY KEY DEFAULT uuid_generate_v4(),
+  car_id      uuid NOT NULL REFERENCES cars(id)       ON DELETE CASCADE,
+  buyer_id    uuid NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  seller_id   uuid NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  created_at  timestamptz DEFAULT now(),
+  updated_at  timestamptz DEFAULT now(),
+  UNIQUE (car_id, buyer_id)
+);
+
+CREATE TABLE IF NOT EXISTS messages (
+  id              uuid    PRIMARY KEY DEFAULT uuid_generate_v4(),
+  conversation_id uuid    NOT NULL REFERENCES conversations(id) ON DELETE CASCADE,
+  sender_id       uuid    NOT NULL REFERENCES auth.users(id)    ON DELETE CASCADE,
+  message_type    text    NOT NULL DEFAULT 'text'
+                          CHECK (message_type IN ('text', 'voice', 'file')),
+  content         text,
+  file_url        text,
+  file_name       text,
+  file_size       integer,
+  duration_secs   integer,
+  is_read         boolean NOT NULL DEFAULT false,
+  created_at      timestamptz DEFAULT now(),
+  CONSTRAINT content_or_file CHECK (
+    (message_type = 'text'              AND content  IS NOT NULL AND content  != '') OR
+    (message_type IN ('voice', 'file')  AND file_url IS NOT NULL)
+  )
+);
+
 -- ─── INDEXES ───────────────────────────────────────────────
 
 CREATE INDEX IF NOT EXISTS idx_cars_brand       ON cars(brand_id);
@@ -96,6 +161,14 @@ CREATE INDEX IF NOT EXISTS idx_cars_featured    ON cars(is_featured);
 CREATE INDEX IF NOT EXISTS idx_cars_created     ON cars(created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_car_images_car   ON car_images(car_id);
 CREATE INDEX IF NOT EXISTS idx_car_features_car ON car_features(car_id);
+
+CREATE INDEX IF NOT EXISTS idx_conversations_buyer   ON conversations(buyer_id);
+CREATE INDEX IF NOT EXISTS idx_conversations_seller  ON conversations(seller_id);
+CREATE INDEX IF NOT EXISTS idx_conversations_car     ON conversations(car_id);
+CREATE INDEX IF NOT EXISTS idx_messages_conversation ON messages(conversation_id);
+CREATE INDEX IF NOT EXISTS idx_messages_created      ON messages(created_at DESC);
+
+ALTER PUBLICATION supabase_realtime ADD TABLE messages;
 
 -- Approximate nearest-neighbour vector index (cosine similarity)
 CREATE INDEX IF NOT EXISTS idx_car_embeddings_vector
@@ -129,6 +202,7 @@ $$;
 
 -- ─── ROW LEVEL SECURITY ────────────────────────────────────
 
+-- profiles RLS already set above
 ALTER TABLE brands         ENABLE ROW LEVEL SECURITY;
 ALTER TABLE car_types      ENABLE ROW LEVEL SECURITY;
 ALTER TABLE fuel_types     ENABLE ROW LEVEL SECURITY;
@@ -163,28 +237,223 @@ CREATE POLICY "auth_insert_cars"     ON cars FOR INSERT TO authenticated WITH CH
 CREATE POLICY "auth_update_own_cars" ON cars FOR UPDATE TO authenticated USING      (seller_id = auth.uid());
 CREATE POLICY "auth_delete_own_cars" ON cars FOR DELETE TO authenticated USING      (seller_id = auth.uid());
 
+ALTER TABLE conversations ENABLE ROW LEVEL SECURITY;
+ALTER TABLE messages       ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "participants_read_conversations"   ON conversations FOR SELECT TO authenticated
+  USING (buyer_id = auth.uid() OR seller_id = auth.uid());
+CREATE POLICY "buyer_insert_conversation"         ON conversations FOR INSERT TO authenticated
+  WITH CHECK (buyer_id = auth.uid());
+CREATE POLICY "participants_update_conversations" ON conversations FOR UPDATE TO authenticated
+  USING (buyer_id = auth.uid() OR seller_id = auth.uid());
+CREATE POLICY "service_all_conversations"         ON conversations FOR ALL TO service_role USING (true);
+
+CREATE POLICY "participants_read_messages" ON messages FOR SELECT TO authenticated
+  USING (EXISTS (SELECT 1 FROM conversations WHERE id = conversation_id AND (buyer_id = auth.uid() OR seller_id = auth.uid())));
+CREATE POLICY "participants_insert_messages" ON messages FOR INSERT TO authenticated
+  WITH CHECK (sender_id = auth.uid() AND EXISTS (SELECT 1 FROM conversations WHERE id = conversation_id AND (buyer_id = auth.uid() OR seller_id = auth.uid())));
+CREATE POLICY "recipient_mark_read" ON messages FOR UPDATE TO authenticated
+  USING (sender_id != auth.uid() AND EXISTS (SELECT 1 FROM conversations WHERE id = conversation_id AND (buyer_id = auth.uid() OR seller_id = auth.uid())));
+CREATE POLICY "service_all_messages" ON messages FOR ALL TO service_role USING (true);
+
+-- ─── STORAGE BUCKET ────────────────────────────────────────
+
+INSERT INTO storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+VALUES (
+  'chat-media', 'chat-media', true, 52428800,
+  ARRAY[
+    'audio/webm','audio/mp4','audio/ogg','audio/wav','audio/mpeg',
+    'image/jpeg','image/png','image/gif','image/webp',
+    'application/pdf','text/plain',
+    'application/msword',
+    'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    'application/vnd.ms-excel',
+    'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+  ]
+) ON CONFLICT (id) DO NOTHING;
+
+CREATE POLICY "auth_upload_chat_media" ON storage.objects
+  FOR INSERT TO authenticated
+  WITH CHECK (bucket_id = 'chat-media');
+
+CREATE POLICY "auth_read_chat_media" ON storage.objects
+  FOR SELECT TO authenticated
+  USING (bucket_id = 'chat-media');
+
+CREATE POLICY "owner_delete_chat_media" ON storage.objects
+  FOR DELETE TO authenticated
+  USING (bucket_id = 'chat-media' AND owner = auth.uid());
+
+-- ─── DB FUNCTIONS ──────────────────────────────────────────
+
+-- Send any message type; validates participant, inserts, bumps conversation
+CREATE OR REPLACE FUNCTION send_chat_message(
+  p_conversation_id uuid,
+  p_message_type    text    DEFAULT 'text',
+  p_content         text    DEFAULT NULL,
+  p_file_url        text    DEFAULT NULL,
+  p_file_name       text    DEFAULT NULL,
+  p_file_size       integer DEFAULT NULL,
+  p_duration_secs   integer DEFAULT NULL
+)
+RETURNS TABLE (
+  id uuid, conversation_id uuid, sender_id uuid, message_type text,
+  content text, file_url text, file_name text, file_size integer,
+  duration_secs integer, is_read boolean, created_at timestamptz
+)
+LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM conversations c
+    WHERE c.id = p_conversation_id
+      AND (c.buyer_id = auth.uid() OR c.seller_id = auth.uid())
+  ) THEN
+    RAISE EXCEPTION 'Not a participant';
+  END IF;
+
+  RETURN QUERY
+  INSERT INTO messages (conversation_id, sender_id, message_type, content,
+                        file_url, file_name, file_size, duration_secs)
+  VALUES (p_conversation_id, auth.uid(), p_message_type, p_content,
+          p_file_url, p_file_name, p_file_size, p_duration_secs)
+  RETURNING id, conversation_id, sender_id, message_type, content,
+            file_url, file_name, file_size, duration_secs, is_read, created_at;
+
+  UPDATE conversations SET updated_at = now() WHERE id = p_conversation_id;
+END;
+$$;
+
+-- Mark all messages from the other participant as read
+CREATE OR REPLACE FUNCTION mark_messages_read(p_conversation_id uuid)
+RETURNS void LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM conversations c
+    WHERE c.id = p_conversation_id
+      AND (c.buyer_id = auth.uid() OR c.seller_id = auth.uid())
+  ) THEN
+    RAISE EXCEPTION 'Not a participant';
+  END IF;
+
+  UPDATE messages SET is_read = true
+  WHERE conversation_id = p_conversation_id
+    AND is_read = false
+    AND sender_id != auth.uid();
+END;
+$$;
+
+-- Total unread messages for the current user across all conversations
+CREATE OR REPLACE FUNCTION get_unread_count()
+RETURNS integer LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
+DECLARE v_count integer;
+BEGIN
+  SELECT COUNT(*) INTO v_count
+  FROM messages m
+  JOIN conversations c ON m.conversation_id = c.id
+  WHERE (c.buyer_id = auth.uid() OR c.seller_id = auth.uid())
+    AND m.sender_id != auth.uid()
+    AND m.is_read = false;
+  RETURN v_count;
+END;
+$$;
+
 -- ─── SEED: LOOKUP DATA ─────────────────────────────────────
 
 INSERT INTO brands (name, country) VALUES
-  ('Toyota',        'Japan'),
-  ('Honda',         'Japan'),
-  ('Lexus',         'Japan'),
+  ('212',           'China'),
+  ('AEOLUS',        'China'),
+  ('AION',          'China'),
+  ('AIQAR',         'China'),
+  ('AITO',          'China'),
+  ('Alfa Romeo',    'Italy'),
+  ('Aston Martin',  'United Kingdom'),
+  ('Audi',          'Germany'),
+  ('AVATR',         'China'),
+  ('BAIC',          'China'),
+  ('BAW',           'China'),
+  ('Bentley',       'United Kingdom'),
+  ('BESTUNE',       'China'),
   ('BMW',           'Germany'),
-  ('Mercedes-Benz', 'Germany'),
-  ('Hyundai',       'South Korea'),
-  ('Kia',           'South Korea'),
+  ('Buick',         'United States'),
+  ('BYD',           'China'),
+  ('Cadillac',      'United States'),
+  ('Changhe',       'China'),
+  ('CHANGAN',       'China'),
+  ('CHERY',         'China'),
+  ('Chevrolet',     'United States'),
+  ('Chrysler',      'United States'),
+  ('Daewoo',        'South Korea'),
+  ('Daihatsu',      'Japan'),
+  ('DENZA',         'China'),
+  ('DFSK',          'China'),
+  ('Dodge',         'United States'),
+  ('Ferrari',       'Italy'),
   ('Ford',          'United States'),
+  ('FORTHING',      'China'),
+  ('Foton',         'China'),
+  ('GAC',           'China'),
+  ('GEELY',         'China'),
+  ('GMC',           'United States'),
+  ('Great Wall',    'China'),
+  ('GTV',           'China'),
+  ('GWM',           'China'),
+  ('Hawtai Motor',  'China'),
+  ('Honda',         'Japan'),
+  ('HONGQI',        'China'),
+  ('HUMMER',        'United States'),
+  ('Hyundai',       'South Korea'),
+  ('iCar',          'China'),
+  ('IM',            'China'),
+  ('Infiniti',      'Japan'),
+  ('Isuzu',         'Japan'),
+  ('JAC',           'China'),
+  ('Jaguar',        'United Kingdom'),
+  ('JETOUR',        'China'),
+  ('JMC',           'China'),
+  ('Jeep',          'United States'),
+  ('Kia',           'South Korea'),
+  ('Lamborghini',   'Italy'),
+  ('Land Rover',    'United Kingdom'),
+  ('Leapmotor',     'China'),
+  ('Lexus',         'Japan'),
+  ('Li',            'China'),
+  ('Lotus',         'United Kingdom'),
+  ('Maserati',      'Italy'),
+  ('MAXUS',         'China'),
+  ('Mazda',         'Japan'),
+  ('McLaren',       'United Kingdom'),
+  ('Mercedes-Benz', 'Germany'),
+  ('MG',            'China'),
+  ('Mini',          'United Kingdom'),
   ('Mitsubishi',    'Japan'),
   ('Nissan',        'Japan'),
-  ('Mazda',         'Japan'),
-  ('Audi',          'Germany'),
-  ('Isuzu',         'Japan'),
-  ('Land Rover',    'United Kingdom'),
-  ('Porsche',       'Germany')
+  ('ORA',           'China'),
+  ('Peugeot',       'France'),
+  ('Porsche',       'Germany'),
+  ('Ram',           'United States'),
+  ('Rolls-Royce',   'United Kingdom'),
+  ('SOUEAST',       'China'),
+  ('SsangYong',     'South Korea'),
+  ('Subaru',        'Japan'),
+  ('Suzuki',        'Japan'),
+  ('Tesla',         'United States'),
+  ('Toyota',        'Japan'),
+  ('VENUCIA',       'China'),
+  ('Volkswagen',    'Germany'),
+  ('Volvo',         'Sweden'),
+  ('VOYAH',         'China'),
+  ('WULING',        'China'),
+  ('Xiaomi',        'China'),
+  ('XPENG',         'China'),
+  ('ZEEKR',         'China'),
+  ('ZOTYE',         'China'),
+  ('ZX AUTO',       'China'),
+  ('Other',         'Other')
 ON CONFLICT (name) DO NOTHING;
 
 INSERT INTO car_types (name) VALUES
-  ('Sedan'), ('SUV'), ('Pickup'), ('Hatchback'), ('Van'), ('Coupe'), ('Crossover')
+  ('Sedan'), ('Hatchback'), ('Pickup'), ('SUV'),
+  ('Convertible'), ('MPV (Minivan)'), ('Sports'), ('Station Wagon'), ('Other')
 ON CONFLICT (name) DO NOTHING;
 
 INSERT INTO fuel_types (name) VALUES
@@ -210,8 +479,7 @@ DECLARE
   b_isuzu       uuid;
 
   -- Type IDs
-  t_sedan  uuid; t_suv   uuid; t_pickup uuid;
-  t_hatch  uuid; t_van   uuid; t_coupe  uuid; t_cross uuid;
+  t_sedan  uuid; t_suv  uuid; t_pickup uuid; t_hatch uuid;
 
   -- Fuel IDs
   f_gasoline uuid; f_diesel uuid; f_hybrid uuid;
@@ -241,9 +509,6 @@ BEGIN
   SELECT id INTO t_suv    FROM car_types WHERE name='SUV';
   SELECT id INTO t_pickup FROM car_types WHERE name='Pickup';
   SELECT id INTO t_hatch  FROM car_types WHERE name='Hatchback';
-  SELECT id INTO t_van    FROM car_types WHERE name='Van';
-  SELECT id INTO t_coupe  FROM car_types WHERE name='Coupe';
-  SELECT id INTO t_cross  FROM car_types WHERE name='Crossover';
 
   -- Load fuel IDs
   SELECT id INTO f_gasoline FROM fuel_types WHERE name='Gasoline';

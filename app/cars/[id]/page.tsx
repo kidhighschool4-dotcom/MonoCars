@@ -7,6 +7,7 @@ import PriceAnalysis from '@/components/cars/PriceAnalysis'
 import CarCard from '@/components/cars/CarCard'
 import Badge from '@/components/ui/Badge'
 import ImageGallery from '@/components/cars/ImageGallery'
+import MessageSellerButton from '@/components/chat/MessageSellerButton'
 
 interface PageProps {
   params: Promise<{ id: string }>
@@ -149,6 +150,9 @@ export default async function CarDetailPage({ params }: PageProps) {
                 </div>
               </div>
 
+              {car.sellerId && (
+                <MessageSellerButton carId={car.id} sellerId={car.sellerId} />
+              )}
               {/* Call button */}
               <a
                 href={`tel:${car.sellerPhone.replace(/\s/g, '')}`}

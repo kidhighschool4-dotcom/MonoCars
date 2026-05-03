@@ -21,6 +21,7 @@ interface DbCarRow {
   is_featured: boolean
   seller_name: string
   seller_phone: string
+  seller_id: string | null
   created_at: string
   brands: { name: string }
   car_types: { name: string }
@@ -62,6 +63,7 @@ function toAppCar(row: DbCarRow): Car {
     cons,
     sellerName: row.seller_name,
     sellerPhone: row.seller_phone,
+    sellerId: row.seller_id ?? undefined,
     source: row.source as Car['source'],
     createdAt: row.created_at,
     // Extra fields from DB
@@ -76,7 +78,7 @@ function toAppCar(row: DbCarRow): Car {
 const CAR_SELECT = `
   id, title, model, year, price_usd, estimated_value_usd, price_label,
   mileage_km, color, engine_cc, seats, location, description, source,
-  is_featured, seller_name, seller_phone, created_at,
+  is_featured, seller_name, seller_phone, seller_id, created_at,
   brands(name),
   car_types(name),
   fuel_types(name),

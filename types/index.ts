@@ -14,6 +14,7 @@ export interface Car {
   cons: string[]
   sellerName: string
   sellerPhone: string
+  sellerId?: string
   estimatedValue: number
   source: 'scraped' | 'user'
   createdAt: string
