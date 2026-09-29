@@ -46,37 +46,42 @@ export default async function CarDetailPage({ params }: PageProps) {
           All cars
         </Link>
 
-        {/* Title row */}
-        <div className="mt-5 mb-6 flex flex-col md:flex-row md:items-end md:justify-between gap-4">
-          <div>
-            <div className="flex flex-wrap items-center gap-2 mb-3">
-              <Badge label={car.priceLabel} size="sm" />
-              <span className="text-xs font-medium text-muted bg-surface border border-line px-2.5 py-1 rounded-full">{car.type}</span>
-            </div>
-            <h1 className="text-3xl md:text-5xl font-semibold tracking-tight text-ink">
-              {car.year} {car.make} {car.model}
-            </h1>
-            <p className="mt-2 flex items-center gap-1.5 text-muted">
-              <MapPin className="w-4 h-4" /> {car.location}
-            </p>
-          </div>
-          <div className="md:text-right">
-            <p className="text-4xl md:text-5xl font-semibold tracking-tight text-ink tnum">${car.price.toLocaleString()}</p>
-            <p className="text-sm text-muted mt-1 tnum">≈ ៛{(car.price * KHR_PER_USD).toLocaleString()}</p>
-          </div>
-        </div>
-
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 lg:gap-8">
           {/* Main */}
           <div className="lg:col-span-2 space-y-6">
-            <ImageGallery images={car.images} alt={`${car.year} ${car.make} ${car.model}`} />
+            {/* Everything the listing-intelligence evaluator screenshots — no seller identity inside */}
+            <div data-testid="listing-evidence" className="space-y-6 bg-paper">
+              <div className="mt-5 flex flex-col md:flex-row md:items-end md:justify-between gap-4">
+                <div>
+                  <div className="flex flex-wrap items-center gap-2 mb-3">
+                    <Badge label={car.priceLabel} size="sm" />
+                    <span data-testid="listing-type" className="text-xs font-medium text-muted bg-surface border border-line px-2.5 py-1 rounded-full">{car.type}</span>
+                  </div>
+                  <h1 data-testid="listing-title" className="text-3xl md:text-5xl font-semibold tracking-tight text-ink">
+                    {car.year} {car.make} {car.model}
+                  </h1>
+                  <p data-testid="listing-location" className="mt-2 flex items-center gap-1.5 text-muted">
+                    <MapPin className="w-4 h-4" /> {car.location}
+                  </p>
+                  <time data-testid="listing-published" dateTime={car.createdAt} className="sr-only">
+                    Listed {new Date(car.createdAt).toISOString().slice(0, 10)}
+                  </time>
+                </div>
+                <div className="md:text-right">
+                  <p data-testid="listing-price" className="text-4xl md:text-5xl font-semibold tracking-tight text-ink tnum">${car.price.toLocaleString()}</p>
+                  <p className="text-sm text-muted mt-1 tnum">≈ ៛{(car.price * KHR_PER_USD).toLocaleString()}</p>
+                </div>
+              </div>
+              <div data-testid="listing-gallery">
+                <ImageGallery images={car.images} alt={`${car.year} ${car.make} ${car.model}`} />
+              </div>
 
-            {/* Specs */}
-            <section className="bg-surface rounded-3xl border border-line p-6 md:p-8">
+              {/* Specs */}
+              <section className="bg-surface rounded-3xl border border-line p-6 md:p-8">
               <h2 className="font-semibold text-ink text-lg mb-5">Key details</h2>
               <dl className="grid grid-cols-2 sm:grid-cols-3 gap-x-6 gap-y-5">
                 {specs.map(({ icon: Icon, label, value }) => (
-                  <div key={label} className="flex items-start gap-3">
+                  <div key={label} data-testid="listing-spec" data-spec={label.toLowerCase().replace(/\s+/g, '_')} className="flex items-start gap-3">
                     <span className="w-10 h-10 rounded-xl bg-paper flex items-center justify-center flex-shrink-0">
                       <Icon className="w-5 h-5 text-muted" />
                     </span>
@@ -90,9 +95,10 @@ export default async function CarDetailPage({ params }: PageProps) {
 
               <div className="mt-8 pt-6 border-t border-line">
                 <h2 className="font-semibold text-ink text-lg mb-3">About this car</h2>
-                <p className="text-muted text-[17px] leading-relaxed">{car.description}</p>
+                <p data-testid="listing-description" className="text-muted text-[17px] leading-relaxed">{car.description}</p>
               </div>
             </section>
+            </div>
 
             {/* Pros & cons */}
             {(car.pros.length > 0 || car.cons.length > 0) && (

@@ -1,17 +1,23 @@
 import { mockCars, mockEvents, mockPosts } from '@/lib/mockData'
 import type { Car, CarEvent, Post } from '@/types'
 import type { CarFilters } from '@/lib/db'
+import { parseSearch } from '@/lib/search'
 
 // Preview mode: set MONOCARS_MOCK_DATA=1 to serve lib/mockData.ts instead of Supabase.
 // Lets the UI run locally without database credentials.
 export const USE_MOCK_DATA = process.env.MONOCARS_MOCK_DATA === '1'
 
 export function mockGetCars(filters: CarFilters = {}): Car[] {
+  const search = parseSearch(filters.q)
+  const type = filters.type && filters.type !== 'all' ? filters.type : search.type
+  const location = filters.location ?? search.location
   let cars = mockCars.filter((c) =>
+    (!type || c.type === type) &&
+    (!location || c.location.includes(location)) &&
+    search.tokens.every((t) => `${c.make} ${c.model} ${c.description}`.toLowerCase().includes(t)) &&
     (!filters.priceMin || c.price >= filters.priceMin) &&
     (!filters.priceMax || c.price <= filters.priceMax) &&
     (!filters.seats || (c.seats ?? 5) >= filters.seats) &&
-    (!filters.type || filters.type === 'all' || c.type === filters.type) &&
     (!filters.fuel || filters.fuel === 'all' || c.fuel === filters.fuel)
   )
 

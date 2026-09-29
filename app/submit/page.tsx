@@ -3,12 +3,13 @@
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { Plus, Minus, CheckCircle, LogIn } from 'lucide-react'
+import { Plus, Minus, CheckCircle, LogIn, Store } from 'lucide-react'
 import { useAuth } from '@/lib/auth-context'
 import Input from '@/components/ui/Input'
 import Button from '@/components/ui/Button'
 import Badge from '@/components/ui/Badge'
 import { estimatePrice, getPriceLabel } from '@/lib/priceEstimation'
+import SwitchRoleButton from '@/components/account/SwitchRoleButton'
 
 const makes = [
   '212', 'AEOLUS', 'AION', 'AIQAR', 'AITO', 'Alfa Romeo', 'Aston Martin', 'Audi', 'AVATR',
@@ -150,9 +151,27 @@ export default function SubmitPage() {
           <p className="text-muted text-sm leading-relaxed mb-6">
             You need an FBM account to submit a car listing. It only takes a minute.
           </p>
-          <Link href="/auth?next=/submit">
+          <Link href="/auth?type=seller&next=/submit">
             <Button variant="primary" size="lg" fullWidth>Sign In / Sign Up</Button>
           </Link>
+        </div>
+      </div>
+    )
+  }
+
+  // Seller gate — only seller accounts can list cars (also enforced by the API and database)
+  if (!loading && user && profile && profile.role !== 'seller') {
+    return (
+      <div className="min-h-screen bg-paper flex items-center justify-center px-4">
+        <div className="bg-white rounded-3xl border border-line p-10 max-w-md w-full text-center">
+          <div className="w-16 h-16 rounded-full bg-brand-soft flex items-center justify-center mx-auto mb-5">
+            <Store className="w-8 h-8 text-brand" />
+          </div>
+          <h2 className="text-2xl font-semibold tracking-tight text-ink mb-3">Switch to a seller account</h2>
+          <p className="text-muted text-sm leading-relaxed mb-6">
+            Your account is set up for buying. Switch to a seller account to list cars — you can still browse and message sellers.
+          </p>
+          <SwitchRoleButton to="seller" label="Switch to seller" />
         </div>
       </div>
     )

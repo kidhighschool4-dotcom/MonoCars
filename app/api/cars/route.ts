@@ -15,6 +15,7 @@ export async function GET(request: NextRequest) {
     fuel:      searchParams.get('fuel')      ?? undefined,
     seats:     searchParams.get('seats')     ? Number(searchParams.get('seats'))     : undefined,
     location:  searchParams.get('location')  ?? undefined,
+    q:         searchParams.get('q')         ?? undefined,
     sortBy:    (searchParams.get('sort') as CarFilters['sortBy']) ?? 'newest',
     limit:     searchParams.get('limit')     ? Number(searchParams.get('limit'))     : 50,
     offset:    searchParams.get('offset')    ? Number(searchParams.get('offset'))    : undefined,
@@ -47,6 +48,12 @@ export async function POST(request: NextRequest) {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  }
+
+  // Only seller accounts can list cars
+  const { data: profile } = await supabaseAdmin.from('profiles').select('role').eq('id', user.id).single()
+  if (profile?.role !== 'seller') {
+    return NextResponse.json({ error: 'Only seller accounts can list cars. Switch to a seller account first.' }, { status: 403 })
   }
 
   const body = await request.json()

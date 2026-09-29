@@ -1,0 +1,11 @@
+"""Every version that can change a decision (architecture §4.6). Bump when behaviour changes."""
+
+PIPELINE_VERSION = "pipeline-v1"
+PLANNER_VERSION = "planner-v1"
+SEED_PLANNER_VERSION = "seed-v1"
+SCREENSHOT_POLICY_VERSION = "crop-listing-container-v1"
+VISION_PROMPT_VERSION = "vision-eval-v1"
+VISION_SCHEMA_VERSION = "1.0"
+RUBRIC_VERSION = "rubric-v1"
+ELIGIBILITY_POLICY_VERSION = "eligibility-v1"
+RANKING_POLICY_VERSION = "rank-v1"

@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
-import { Menu, X, Car, Calendar, Users, PlusCircle, LogOut, Sparkles, MessageCircle, ArrowUpRight } from 'lucide-react'
+import { Menu, X, Car, Calendar, Users, PlusCircle, LogOut, Sparkles, MessageCircle, ArrowUpRight, UserRound, Store } from 'lucide-react'
 import clsx from 'clsx'
 import { useAuth } from '@/lib/auth-context'
 import Logo from '@/components/brand/Logo'
@@ -19,7 +19,9 @@ export default function Header() {
   const [mobileOpen, setMobileOpen] = useState(false)
   const pathname = usePathname()
   const router = useRouter()
-  const { user, signOut, loading } = useAuth()
+  const { user, profile, signOut, loading } = useAuth()
+  const isSeller = profile?.role === 'seller'
+  const isAdminUser = user?.app_metadata?.role === 'admin'
 
   const isActive = (href: string) => pathname === href || pathname.startsWith(`${href}/`)
 
@@ -81,9 +83,19 @@ export default function Header() {
                   >
                     <LogOut className="w-5 h-5" />
                   </button>
-                  <div className="w-9 h-9 rounded-full bg-ink flex items-center justify-center ml-1" title={user.email ?? ''}>
+                  {isAdminUser && (
+                    <Link href="/admin/intelligence" className={clsx('px-3 py-2 rounded-full text-sm font-medium transition-colors', isActive('/admin') ? 'text-brand bg-brand-soft' : 'text-muted hover:text-ink')}>
+                      Intelligence
+                    </Link>
+                  )}
+                  {isSeller && (
+                    <Link href="/seller" className={clsx('px-3 py-2 rounded-full text-sm font-medium transition-colors', isActive('/seller') ? 'text-brand bg-brand-soft' : 'text-muted hover:text-ink')}>
+                      My listings
+                    </Link>
+                  )}
+                  <Link href="/account" aria-label="Your account" className="w-9 h-9 rounded-full bg-ink flex items-center justify-center ml-1 hover:bg-brand transition-colors" title={user.email ?? ''}>
                     <span className="text-white font-semibold text-xs">{initials}</span>
-                  </div>
+                  </Link>
                 </div>
               ) : (
                 <Link
@@ -119,7 +131,11 @@ export default function Header() {
       {mobileOpen && (
         <div className="md:hidden border-t border-line bg-white">
           <nav className="px-4 py-4 space-y-1" aria-label="Mobile">
-            {[...navLinks, ...(user ? [{ href: '/messages', label: 'Messages', icon: MessageCircle }] : [])].map((link) => (
+            {[
+              ...navLinks,
+              ...(user ? [{ href: '/messages', label: 'Messages', icon: MessageCircle }, { href: '/account', label: 'Account', icon: UserRound }] : []),
+              ...(isSeller ? [{ href: '/seller', label: 'My listings', icon: Store }] : []),
+            ].map((link) => (
               <Link
                 key={link.href}
                 href={link.href}

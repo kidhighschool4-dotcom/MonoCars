@@ -1,0 +1,32 @@
+[project]
+name = "fbm-intel"
+version = "0.1.0"
+description = "FBM Public Listing Intelligence System — discover, capture, evaluate and rank public car listings in Cambodia."
+requires-python = ">=3.11"
+dependencies = [
+  "playwright>=1.48",
+  "pydantic>=2.8",
+  "httpx>=0.27",
+  "pillow>=10",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8"]
+
+[project.scripts]
+fbm-intel = "fbm_intel.cli:main"
+
+[build-system]
+requires = ["setuptools>=69"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+include = ["fbm_intel*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+markers = [
+  "live: talks to real Supabase / OpenClaw (run with -m live)",
+  "browser: launches a real Playwright browser against local fixtures",
+]
+addopts = "-m 'not live'"

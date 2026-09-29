@@ -1,6 +1,7 @@
 import { supabaseAdmin } from '@/lib/supabase-server'
 import type { Car, CarEvent, Post } from '@/types'
 import * as mock from '@/lib/mockDb'
+import { parseSearch } from '@/lib/search'
 
 // ─── Types returned by Supabase joins ───────────────────────────────────────
 
@@ -97,6 +98,7 @@ export interface CarFilters {
   fuel?: string
   seats?: number
   location?: string
+  q?: string
   sortBy?: 'newest' | 'price-asc' | 'price-desc' | 'mileage-asc'
   limit?: number
   offset?: number
@@ -113,13 +115,23 @@ export async function getCars(filters: CarFilters = {}): Promise<Car[]> {
   if (filters.priceMax) query = query.lte('price_usd', filters.priceMax)
   if (filters.seats)    query = query.gte('seats', filters.seats)
 
+  // Keyword search: every remaining word must appear in the title, model or description
+  const search = parseSearch(filters.q)
+  if (search.type && (!filters.type || filters.type === 'all')) filters = { ...filters, type: search.type }
+  const location = filters.location ?? search.location
+  if (location) query = query.ilike('location', `%${location}%`)
+  for (const token of search.tokens) {
+    query = query.or(`title.ilike.%${token}%,model.ilike.%${token}%,description.ilike.%${token}%`)
+  }
+
   if (filters.type && filters.type !== 'all') {
     const { data: typeRow } = await supabaseAdmin
       .from('car_types')
       .select('id')
       .eq('name', filters.type)
       .single()
-    if (typeRow) query = query.eq('car_type_id', typeRow.id)
+    if (!typeRow) return [] // unknown body type matches nothing (not everything)
+    query = query.eq('car_type_id', typeRow.id)
   }
 
   if (filters.fuel && filters.fuel !== 'all') {

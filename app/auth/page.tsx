@@ -1,10 +1,11 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import Logo from '@/components/brand/Logo'
 import { useRouter } from 'next/navigation'
-import { Eye, EyeOff, ArrowLeft } from 'lucide-react'
+import { Eye, EyeOff, ArrowLeft, ShoppingBag, Store } from 'lucide-react'
+import clsx from 'clsx'
 import { supabase } from '@/lib/supabase'
 import Input from '@/components/ui/Input'
 import Button from '@/components/ui/Button'
@@ -12,6 +13,15 @@ import Button from '@/components/ui/Button'
 export default function AuthPage() {
   const router = useRouter()
   const [isSignIn, setIsSignIn] = useState(true)
+  const [accountType, setAccountType] = useState<'customer' | 'seller'>('customer')
+
+  // /auth?type=seller opens straight into seller sign-up (read after mount to avoid hydration mismatch)
+  useEffect(() => {
+    if (new URLSearchParams(window.location.search).get('type') === 'seller') {
+      setAccountType('seller')
+      setIsSignIn(false)
+    }
+  }, [])
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [name, setName] = useState('')
@@ -40,7 +50,7 @@ export default function AuthPage() {
           email,
           password,
           options: {
-            data: { full_name: name },
+            data: { full_name: name, account_type: accountType },
             emailRedirectTo: `${window.location.origin}/auth/callback`,
           },
         })
@@ -117,6 +127,38 @@ export default function AuthPage() {
             )}
 
             <form onSubmit={handleSubmit} className="space-y-4">
+              {!isSignIn && (
+                <fieldset>
+                  <legend className="text-sm font-medium text-ink mb-2">I want to</legend>
+                  <div className="grid grid-cols-2 gap-2">
+                    {([
+                      { value: 'customer', label: 'Buy a car', note: 'Browse, compare, message sellers', Icon: ShoppingBag },
+                      { value: 'seller', label: 'Sell cars', note: 'List cars and reach buyers', Icon: Store },
+                    ] as const).map(({ value, label, note, Icon }) => (
+                      <label
+                        key={value}
+                        className={clsx(
+                          'cursor-pointer rounded-2xl border p-4 transition-colors',
+                          accountType === value ? 'border-brand bg-brand-soft' : 'border-line hover:border-ink'
+                        )}
+                      >
+                        <input
+                          type="radio"
+                          name="account_type"
+                          value={value}
+                          checked={accountType === value}
+                          onChange={() => setAccountType(value)}
+                          className="sr-only"
+                        />
+                        <Icon className={clsx('w-5 h-5 mb-2', accountType === value ? 'text-brand' : 'text-muted')} />
+                        <span className="block font-semibold text-ink text-sm">{label}</span>
+                        <span className="block text-xs text-muted mt-0.5">{note}</span>
+                      </label>
+                    ))}
+                  </div>
+                  <p className="text-xs text-muted mt-2">You can switch later in your account.</p>
+                </fieldset>
+              )}
               {!isSignIn && (
                 <Input
                   label="Full Name"

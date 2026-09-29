@@ -21,6 +21,9 @@ export default function CarCard({ car }: CarCardProps) {
   return (
     <Link
       href={`/cars/${car.id}`}
+      data-testid="listing-card"
+      data-listing-id={car.id}
+      aria-label={`${car.year} ${title}`}
       className="group block bg-surface rounded-2xl border border-line overflow-hidden hover:border-brand-tint hover:shadow-[0_12px_40px_-12px_rgba(20,34,79,0.18)] transition-all duration-300"
     >
       {/* Image */}

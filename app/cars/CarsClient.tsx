@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useSearchParams } from 'next/navigation'
 import Link from 'next/link'
-import { Sparkles, SearchX } from 'lucide-react'
+import { Sparkles, SearchX, Search } from 'lucide-react'
 import CarCard from '@/components/cars/CarCard'
 import CarFilters, { FilterState } from '@/components/cars/CarFilters'
 import { PRICE_RANGES } from '@/lib/carFilters'
@@ -35,6 +35,8 @@ export default function CarsClient() {
     carType:    searchParams.get('carType') || 'all',
     sortBy:     'newest',
   })
+  const [query, setQuery]     = useState(searchParams.get('q') ?? '')
+  const [draft, setDraft]     = useState(query)
   const [cars, setCars]       = useState<Car[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError]     = useState('')
@@ -48,6 +50,7 @@ export default function CarsClient() {
       if (range.min) params.set('priceMin', String(range.min))
       if (range.max) params.set('priceMax', String(range.max))
       if (filters.carType !== 'all') params.set('type', filters.carType)
+      if (query.trim()) params.set('q', query.trim())
       params.set('sort', filters.sortBy)
       params.set('limit', '60')
 
@@ -59,7 +62,7 @@ export default function CarsClient() {
     } finally {
       setLoading(false)
     }
-  }, [filters])
+  }, [filters, query])
 
   useEffect(() => { fetchCars() }, [fetchCars])
 
@@ -84,13 +87,34 @@ export default function CarsClient() {
               Help me choose
             </Link>
           </div>
+          <form
+            role="search"
+            onSubmit={(e) => { e.preventDefault(); setQuery(draft) }}
+            className="mb-4 flex items-center gap-2 max-w-2xl"
+          >
+            <label className="relative flex-1">
+              <span className="sr-only">Search cars</span>
+              <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-muted" />
+              <input
+                type="search"
+                name="q"
+                value={draft}
+                onChange={(e) => setDraft(e.target.value)}
+                placeholder="Search make, model or place — e.g. Camry ភ្នំពេញ"
+                className="w-full rounded-full border border-line bg-surface pl-12 pr-4 py-3 text-[15px] text-ink placeholder:text-subtle focus:outline-none focus:border-brand"
+              />
+            </label>
+            <button type="submit" className="px-5 py-3 rounded-full bg-ink text-white text-sm font-semibold hover:bg-brand transition-colors">
+              Search
+            </button>
+          </form>
           <CarFilters filters={filters} onChange={setFilters} />
         </div>
       </div>
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 md:py-10">
         {!loading && !error && (
-          <p className="text-sm text-muted mb-6" aria-live="polite">
+          <p className="text-sm text-muted mb-6" aria-live="polite" data-testid={cars.length ? 'results-count' : 'results-empty'}>
             <span className="font-semibold text-ink tnum">{cars.length}</span> {cars.length === 1 ? 'car' : 'cars'} found
           </p>
         )}
