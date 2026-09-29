@@ -1,5 +1,5 @@
 {
-  "_comment": "Defaults for the open owner decisions in PUBLIC_LISTING_INTELLIGENCE_ARCHITECTURE.md §21. Change here, bump `version`, run `fbm-intel init`.",
+  "_comment": "Defaults for the open owner decisions in PUBLIC_LISTING_INTELLIGENCE_ARCHITECTURE.md §21. Change here, bump `version`, run `fbm-intel init`. v2: max listing age 90→365 days (FBM's own listings stay current while available).",
   "product_brief": {
     "slug": "fbm-curated-used-cars",
     "name": "FBM curated used-car listings",
@@ -21,22 +21,45 @@
       "Listing is sold or no longer available",
       "Not a vehicle"
     ],
-    "supported_locations": ["Phnom Penh", "Kandal", "Siem Reap", "Battambang", "Sihanoukville", "Kampot"],
-    "supported_categories": ["sedan", "suv", "pickup", "hatchback", "mpv"],
+    "supported_locations": [
+      "Phnom Penh",
+      "Kandal",
+      "Siem Reap",
+      "Battambang",
+      "Sihanoukville",
+      "Kampot"
+    ],
+    "supported_categories": [
+      "sedan",
+      "suv",
+      "pickup",
+      "hatchback",
+      "mpv"
+    ],
     "version": 1
   },
   "search_profile": {
     "slug": "cambodia-used-cars",
     "name": "Cambodia used cars",
     "intent": "Used cars for sale in Cambodia",
-    "languages": ["km", "en", "mixed"],
-    "locations": ["Phnom Penh", "Siem Reap", "Battambang"],
-    "platforms": ["fbm"],
+    "languages": [
+      "km",
+      "en",
+      "mixed"
+    ],
+    "locations": [
+      "Phnom Penh",
+      "Siem Reap",
+      "Battambang"
+    ],
+    "platforms": [
+      "fbm"
+    ],
     "max_queries_per_run": 12,
     "max_pages_per_query": 1,
     "max_listings_per_run": 40,
-    "maximum_listing_age_days": 90,
-    "version": 1,
+    "maximum_listing_age_days": 365,
+    "version": 2,
     "enabled": true
   }
 }

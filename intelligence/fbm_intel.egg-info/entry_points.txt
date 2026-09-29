@@ -1,0 +1,2 @@
+[console_scripts]
+fbm-intel = fbm_intel.cli:main

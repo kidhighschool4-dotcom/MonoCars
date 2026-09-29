@@ -172,3 +172,24 @@ def test_vision_failure_is_recorded_not_dropped(fixture_site, brief, profile):
     assert listing["lifecycle_status"] == "terminal_error"
     assert store.t["job_failures"][0]["error_class"] == "VisionSchemaError"
     assert store.t["review_tasks"][0]["reason"] == "vision_evaluation_failed"  # §14.3 never silently dropped
+
+
+def test_policy_change_reprefilter(fixture_site, brief, profile):
+    """Listings rejected as stale under v1 are re-checked under v2 without re-crawling or re-paying."""
+    store = MemoryStore()
+    provider = StaticVisionProvider(default=GOOD_OUTPUT)
+    strict = profile.model_copy(update={"maximum_listing_age_days": 1})
+    pipe = Pipeline(store, provider, brief, strict)
+    run = store.create_crawl_run(profile.id, "test")
+    report = RunReport(crawl_run_id=run["id"])
+    pipe.crawl(FbmAdapter(fixture_site), [{"id": "t1", "text": "camry"}], report)
+    stale = [l for l in store.t["listings"] if l["status_reason"] == "stale_listing"]
+    assert {l["source_listing_id"] for l in stale} >= {"ok-camry", "km-prius"} and provider.calls == 0
+
+    relaxed = Pipeline(store, provider, brief, profile.model_copy(update={"maximum_listing_age_days": 3650, "version": 2}))
+    r2 = RunReport()
+    n = relaxed.reprefilter(r2)
+    assert n >= len(stale)
+    states = {l["source_listing_id"]: l["lifecycle_status"] for l in store.t["listings"]}
+    assert states["ok-camry"] == "vision_pending" and states["rental-camry"] == "prefilter_rejected"
+    assert states["dup-camry"] == "duplicate"

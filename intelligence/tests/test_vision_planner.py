@@ -143,3 +143,11 @@ class TestPlanner:
         plan = seed_plan(profile, brief)
         assert len(plan.queries) <= profile.max_queries_per_run
         assert {q.language for q in plan.queries} >= {"en", "mixed"}
+
+
+def test_seed_plan_covers_every_category_before_repeating(brief, profile):
+    p = profile.model_copy(update={"locations": ["Phnom Penh", "Siem Reap"], "max_queries_per_run": 4})
+    b = brief.model_copy(update={"supported_categories": ["sedan", "suv"]})
+    texts = [q.text.lower() for q in seed_plan(p, b).queries]
+    assert sum("sedan" in t for t in texts) == 2 and sum("suv" in t for t in texts) == 2
+    assert len({q.language for q in seed_plan(p, b).queries}) >= 2  # rotates phrasing

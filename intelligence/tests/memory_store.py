@@ -7,6 +7,7 @@ from __future__ import annotations
 import uuid
 from datetime import datetime, timezone
 
+from fbm_intel.normalize import fold
 from fbm_intel.prefilter import KnownListing
 from fbm_intel.state import check_transition
 
@@ -69,7 +70,8 @@ class MemoryStore:
 
     def add_observation(self, listing_id, run_id, obs, content_hash):
         if not self._find("listing_observations", listing_id=listing_id, content_hash=content_hash):
-            self._add("listing_observations", {"listing_id": listing_id, "crawl_run_id": run_id, "content_hash": content_hash})
+            self._add("listing_observations", {"listing_id": listing_id, "crawl_run_id": run_id, "content_hash": content_hash,
+                                               "observation_payload": obs.model_dump(mode="json")})
 
     def store_evidence(self, listing, ev):
         existing = self._find("listing_assets", listing_id=listing["id"], checksum_sha256=ev.checksum_sha256)
@@ -83,6 +85,10 @@ class MemoryStore:
     def download_evidence(self, path):
         return self.blobs[path]
 
+    def latest_observation(self, listing_id):
+        rows = [o for o in self.t["listing_observations"] if o["listing_id"] == listing_id]
+        return rows[-1] if rows else None
+
     def latest_asset(self, listing_id):
         rows = [a for a in self.t["listing_assets"] if a["listing_id"] == listing_id]
         return rows[-1] if rows else None
@@ -94,7 +100,7 @@ class MemoryStore:
                 continue
             a = self.latest_asset(r["id"])
             out.append(KnownListing(r["id"], r["canonical_url_hash"], r["source_platform"], r["source_listing_id"],
-                                    r["content_hash"], a["perceptual_hash"] if a else None))
+                                    r["content_hash"], a["perceptual_hash"] if a else None, fold(r.get("title_raw"))))
         return out
 
     def listings_in_state(self, states, ids=None):

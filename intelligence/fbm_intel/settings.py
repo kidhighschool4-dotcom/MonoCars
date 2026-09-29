@@ -53,7 +53,7 @@ class Settings:
             openclaw_base_url=os.environ.get("OPENCLAW_BASE_URL", "http://127.0.0.1:18789"),
             openclaw_token=os.environ.get("OPENCLAW_GATEWAY_TOKEN") or _openclaw_token_from_config(),
             openclaw_agent=os.environ.get("OPENCLAW_VISION_AGENT", "listing-eval"),
-            openclaw_backend_model=os.environ.get("OPENCLAW_VISION_MODEL", "openai/gpt-5.4-mini"),
+            openclaw_backend_model=os.environ.get("OPENCLAW_VISION_MODEL", "openai/gpt-5.5"),
             fbm_base_url=os.environ.get("FBM_BASE_URL", "https://fbm-pied.vercel.app"),
             manual_url_hosts=frozenset(h.strip() for h in os.environ.get(
                 "MANUAL_URL_HOSTS", "fbm-pied.vercel.app,khmer24.com").split(",") if h.strip()),

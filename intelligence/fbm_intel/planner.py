@@ -22,12 +22,14 @@ FORBIDDEN_QUERY_PATTERNS = [
 DEFAULT_NEGATIVE_TERMS = ["rental", "for rent", "ជួល", "spare parts", "គ្រឿងបន្លាស់", "wanted to buy", "ត្រូវការទិញ"]
 
 # Reviewed seed vocabulary (fixed, versioned). Used when no LLM plan is approved yet.
+# Category-bearing templates rotate across (category, location) pairs.
+# Khmer body-type words are deliberately NOT invented here; add them only after a fluent speaker reviews them (§6.3).
 SEED_TEMPLATES = [
     ("{cat} for sale {loc}", "en", "generic", 90),
     ("ឡាន {cat} លក់ {loc_km}", "mixed", "generic", 95),
-    ("ឡានលក់ {loc_km}", "km", "generic", 85),
-    ("used car {loc}", "en", "generic", 70),
+    ("used {cat} {loc}", "en", "generic", 70),
 ]
+SEED_LOCATION_TEMPLATE = ("ឡានលក់ {loc_km}", "km", "location", 85)
 SEED_MODELS = ["Toyota Camry", "Toyota Prius", "Lexus RX", "Toyota Highlander", "Honda CR-V", "Toyota Land Cruiser"]
 KM_LOCATION = {"Phnom Penh": "ភ្នំពេញ", "Kandal": "កណ្តាល", "Siem Reap": "សៀមរាប", "Battambang": "បាត់ដំបង"}
 
@@ -36,7 +38,8 @@ class PlanValidationError(Exception):
     pass
 
 
-def validate_plan(raw: dict, profile: SearchProfile, brief: ProductBrief, planner_version: str) -> SearchPlan:
+def validate_plan(raw: dict, profile: SearchProfile, brief: ProductBrief, planner_version: str,
+                  keep_order: bool = False) -> SearchPlan:
     """Normalize, dedupe, cap and reject disallowed queries. Raises if nothing usable remains."""
     queries_in = raw.get("queries")
     if not isinstance(queries_in, list):
@@ -62,7 +65,8 @@ def validate_plan(raw: dict, profile: SearchProfile, brief: ProductBrief, planne
             continue  # unsupported geography
         seen.add(key)
         kept.append(sq)
-    kept.sort(key=lambda q: (-q.priority, fold(q.text)))
+    if not keep_order:
+        kept.sort(key=lambda q: (-q.priority, fold(q.text)))
     kept = kept[: profile.max_queries_per_run]
     if not kept:
         raise PlanValidationError("no valid queries after validation")
@@ -73,17 +77,29 @@ def validate_plan(raw: dict, profile: SearchProfile, brief: ProductBrief, planne
 
 
 def seed_plan(profile: SearchProfile, brief: ProductBrief) -> SearchPlan:
-    """Deterministic reviewed vocabulary — no model call."""
-    queries = []
+    """Deterministic reviewed vocabulary — no model call.
+
+    Ordered for coverage: every (category, location) pair gets one query before any pair gets a second,
+    and templates rotate so the budget spans Khmer, English and mixed phrasing.
+    """
     cats = brief.supported_categories or ["car"]
-    for loc in profile.locations or brief.supported_locations:
-        for cat in cats:
-            for tpl, lang, category, prio in SEED_TEMPLATES:
-                queries.append({"text": tpl.format(cat=cat, loc=loc, loc_km=KM_LOCATION.get(loc, loc)),
-                                "language": lang, "category": category, "priority": prio})
-        for model in SEED_MODELS:
-            queries.append({"text": f"{model} លក់ {KM_LOCATION.get(loc, loc)}", "language": "mixed", "category": "model", "priority": 80})
-    return validate_plan({"queries": queries}, profile, brief, versions.SEED_PLANNER_VERSION)
+    locs = profile.locations or brief.supported_locations
+    pairs = [(c, l) for c in cats for l in locs]
+    ordered: list[dict] = []
+    for rnd in range(len(SEED_TEMPLATES)):
+        for i, (cat, loc) in enumerate(pairs):
+            tpl, lang, category, prio = SEED_TEMPLATES[(i + rnd) % len(SEED_TEMPLATES)]
+            ordered.append({"text": tpl.format(cat=cat, loc=loc, loc_km=KM_LOCATION.get(loc, loc)),
+                            "language": lang, "category": category, "priority": prio})
+        if rnd == 0:  # one pure-Khmer query per province, then model names
+            tpl, lang, category, prio = SEED_LOCATION_TEMPLATE
+            ordered += [{"text": tpl.format(loc_km=KM_LOCATION.get(loc, loc)), "language": lang, "category": category,
+                         "priority": prio} for loc in locs]
+            for j, model in enumerate(SEED_MODELS):
+                loc = locs[j % len(locs)]
+                ordered.append({"text": f"{model} លក់ {KM_LOCATION.get(loc, loc)}", "language": "mixed",
+                                "category": "model", "priority": 80})
+    return validate_plan({"queries": ordered}, profile, brief, versions.SEED_PLANNER_VERSION, keep_order=True)
 
 
 PLANNER_SYSTEM = """Generate a bounded multilingual search plan for approved public vehicle-listing sources in Cambodia.

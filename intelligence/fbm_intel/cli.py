@@ -5,6 +5,7 @@
   fbm-intel approve-plan --by NAME       approve the pending LLM plan after a human has reviewed the Khmer terms
   fbm-intel run [--planner seed|llm] [--limit N]   crawl → capture → prefilter → vision → score → rank
   fbm-intel submit-url URL               manual URL capture + evaluation (§13 fallback)
+  fbm-intel reprocess                    re-apply prefilter after a policy change, then evaluate/score/rank
   fbm-intel rank                         re-run deterministic ranking only
   fbm-intel status                       pipeline counts + latest ranking
   fbm-intel grant-admin EMAIL            let a user open /admin/intelligence (sets app_metadata.role=admin)
@@ -128,6 +129,20 @@ def cmd_submit_url(a, st: Settings) -> None:
             "evaluated": report.evaluated, "scored": report.scored, "blocked": report.blocked})
 
 
+def cmd_reprocess(a, st: Settings) -> None:
+    """Re-apply the prefilter under the current profile/brief versions, then evaluate, score and rank."""
+    store, brief, profile = _load(st)
+    pipe = Pipeline(store, _provider(st), brief, profile)
+    report = RunReport()
+    n = pipe.reprefilter(report)
+    pipe.evaluate_pending(report)
+    pipe.score_evaluated(report)
+    pipe.rank_profile(report)
+    _print({"reprefiltered": n, "still_rejected": report.counters.prefilter_rejected,
+            "duplicates": report.counters.duplicates, "evaluated": report.evaluated,
+            "vision_errors": report.vision_errors, "scored": report.scored, "ranking": report.ranking})
+
+
 def cmd_rank(a, st: Settings) -> None:
     store, brief, profile = _load(st)
     _print(Pipeline(store, _provider(st), brief, profile).rank_profile(RunReport()))
@@ -167,12 +182,13 @@ def main(argv: list[str] | None = None) -> None:
     ap = sub.add_parser("approve-plan"); ap.add_argument("--by", required=True)
     rn = sub.add_parser("run"); rn.add_argument("--planner", choices=["seed", "llm"], default="seed"); rn.add_argument("--limit", type=int)
     su = sub.add_parser("submit-url"); su.add_argument("url")
+    sub.add_parser("reprocess")
     sub.add_parser("rank")
     sub.add_parser("status")
     ga = sub.add_parser("grant-admin"); ga.add_argument("email")
     a = p.parse_args(argv)
     st = Settings.load()
-    {"init": cmd_init, "plan": cmd_plan, "approve-plan": cmd_approve, "run": cmd_run, "submit-url": cmd_submit_url,
+    {"init": cmd_init, "plan": cmd_plan, "approve-plan": cmd_approve, "run": cmd_run, "submit-url": cmd_submit_url, "reprocess": cmd_reprocess,
      "rank": cmd_rank, "status": cmd_status, "grant-admin": cmd_grant_admin}[a.cmd](a, st)
 
 

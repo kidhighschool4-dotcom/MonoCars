@@ -46,9 +46,14 @@ def test_duplicate_by_content_hash(brief):
     assert run(obs(), brief, [known(content_hash="c1")]).reason_codes == ["duplicate_content_hash"]
 
 
-def test_duplicate_by_near_identical_screenshot(brief):
-    r = run(obs(), brief, [known(perceptual_hash="0f0f0f0f0f0f0f0e")])  # 1 bit apart
+def test_duplicate_by_near_identical_screenshot_and_title(brief):
+    r = run(obs(), brief, [known(perceptual_hash="0f0f0f0f0f0f0f0e", title_key="2020 toyota camry")])  # 1 bit apart
     assert r.reason_codes == ["duplicate_screenshot_phash"]
+
+
+def test_shared_placeholder_photo_is_not_a_duplicate(brief):
+    # found in the live run: two different cars both showing "Photo coming soon"
+    assert run(obs(), brief, [known(perceptual_hash="0f0f0f0f0f0f0f0f", title_key="2021 honda accord")]).outcome == "pass"
 
 
 def test_different_screenshot_is_not_duplicate(brief):

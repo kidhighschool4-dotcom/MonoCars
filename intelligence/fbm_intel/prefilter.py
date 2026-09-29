@@ -34,6 +34,7 @@ class KnownListing:
     source_listing_id: str | None
     content_hash: str
     perceptual_hash: str | None
+    title_key: str = ""
 
 
 def detect_hard_rejections(*texts: str | None) -> list[str]:
@@ -66,7 +67,10 @@ def prefilter(
             return PrefilterResult("duplicate", ["duplicate_source_listing_id"], k.id)
         if k.content_hash == content_hash:
             return PrefilterResult("duplicate", ["duplicate_content_hash"], k.id)
-        if perceptual_hash and k.perceptual_hash and hamming(perceptual_hash, k.perceptual_hash) <= PHASH_DUPLICATE_MAX_DISTANCE:
+        # Near-identical screenshots alone are not enough (two listings can share a placeholder photo);
+        # the titles must match too.
+        if (perceptual_hash and k.perceptual_hash and k.title_key and k.title_key == fold(obs.title_raw)
+                and hamming(perceptual_hash, k.perceptual_hash) <= PHASH_DUPLICATE_MAX_DISTANCE):
             return PrefilterResult("duplicate", ["duplicate_screenshot_phash"], k.id)
 
     reasons: list[str] = []

@@ -2,7 +2,7 @@
 
 PIPELINE_VERSION = "pipeline-v1"
 PLANNER_VERSION = "planner-v1"
-SEED_PLANNER_VERSION = "seed-v1"
+SEED_PLANNER_VERSION = "seed-v2"
 SCREENSHOT_POLICY_VERSION = "crop-listing-container-v1"
 VISION_PROMPT_VERSION = "vision-eval-v1"
 VISION_SCHEMA_VERSION = "1.0"

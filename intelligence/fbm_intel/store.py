@@ -11,6 +11,7 @@ from typing import Any
 
 import httpx
 
+from .normalize import fold
 from .prefilter import KnownListing
 from .schemas import ProductBrief, RawListingObservation, ScreenshotEvidence, SearchPlan, SearchProfile, VisionEvaluation
 from .settings import Settings
@@ -180,13 +181,17 @@ class SupabaseStore:
             raise StoreError(f"evidence download failed: {r.status_code}")
         return r.content
 
+    def latest_observation(self, listing_id: str) -> dict | None:
+        rows = self.select("listing_observations", {"listing_id": f"eq.{listing_id}", "order": "captured_at.desc", "limit": "1"})
+        return rows[0] if rows else None
+
     def latest_asset(self, listing_id: str) -> dict | None:
         rows = self.select("listing_assets", {"listing_id": f"eq.{listing_id}", "order": "captured_at.desc", "limit": "1"})
         return rows[0] if rows else None
 
     def known_listings(self, exclude_ids: set[str] | None = None) -> list[KnownListing]:
         """Canonical (non-duplicate) listings with their latest screenshot hash, for dedupe."""
-        rows = self.select("listings", {"select": "id,canonical_url_hash,source_platform,source_listing_id,content_hash,"
+        rows = self.select("listings", {"select": "id,canonical_url_hash,source_platform,source_listing_id,content_hash,title_raw,"
                                         "listing_assets(perceptual_hash,captured_at)", "duplicate_of": "is.null",
                                         "lifecycle_status": "not.in.(duplicate,discovered)"})
         out = []
@@ -195,7 +200,8 @@ class SupabaseStore:
                 continue
             assets = sorted(r.get("listing_assets") or [], key=lambda a: a["captured_at"], reverse=True)
             out.append(KnownListing(r["id"], r["canonical_url_hash"], r["source_platform"], r["source_listing_id"],
-                                    r["content_hash"], assets[0]["perceptual_hash"] if assets else None))
+                                    r["content_hash"], assets[0]["perceptual_hash"] if assets else None,
+                                    fold(r.get("title_raw"))))
         return out
 
     def listings_in_state(self, states: list[str], ids: list[str] | None = None) -> list[dict]:
@@ -279,7 +285,11 @@ class SupabaseStore:
         return rr, True
 
     def profile_listing_ids(self, profile_id: str, since_iso: str) -> list[str]:
-        runs = self.select("crawl_runs", {"search_profile_id": f"eq.{profile_id}", "planned_at": f"gte.{since_iso}", "select": "id"})
+        """Listings observed by any version of this search profile (same slug) inside the window."""
+        me = self._one("search_profiles", id=profile_id)
+        versions_ = self.select("search_profiles", {"slug": f"eq.{me['slug']}", "select": "id"}) if me else []
+        ids = ",".join(v["id"] for v in versions_) or profile_id
+        runs = self.select("crawl_runs", {"search_profile_id": f"in.({ids})", "planned_at": f"gte.{since_iso}", "select": "id"})
         if not runs:
             return []
         obs = self.select("listing_observations", {"crawl_run_id": f"in.({','.join(r['id'] for r in runs)})", "select": "listing_id"})

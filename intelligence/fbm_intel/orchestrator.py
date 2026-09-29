@@ -149,6 +149,11 @@ class Pipeline:
         report.counters.listings_captured += 1
         report.captured_listing_ids.append(listing["id"])
 
+        self._prefilter(listing, obs, asset, url_hash, c_hash, report)
+        return listing["id"]
+
+    def _prefilter(self, listing: dict, obs: RawListingObservation, asset: dict | None, url_hash: str, c_hash: str,
+                   report: RunReport) -> None:
         known = self.store.known_listings(exclude_ids={listing["id"]})
         result = prefilter(obs, listing_id=listing["id"], canonical_url_hash=url_hash, content_hash=c_hash,
                            perceptual_hash=asset["perceptual_hash"] if asset else None, has_screenshot=asset is not None,
@@ -162,7 +167,26 @@ class Pipeline:
             self.store.transition(listing, S.PREFILTER_REJECTED.value, actor=ACTOR, reason=",".join(result.reason_codes))
         else:
             self.store.transition(listing, S.VISION_PENDING.value, actor=ACTOR)
-        return listing["id"]
+
+    def reprefilter(self, report: RunReport, states: tuple[str, ...] = (S.PREFILTER_REJECTED.value, S.DUPLICATE.value)) -> int:
+        """Re-run the deterministic prefilter under the CURRENT brief/profile versions, using stored evidence.
+
+        Used after a policy change (e.g. a new maximum listing age). No re-crawl, no vision call here.
+        """
+        n = 0
+        for listing in self.store.listings_in_state(list(states)):
+            o = self.store.latest_observation(listing["id"])
+            if not o:
+                continue
+            obs = RawListingObservation.model_validate(o["observation_payload"])
+            asset = self.store.latest_asset(listing["id"])
+            listing = self.store.transition(
+                listing, S.CAPTURED.value, actor=ACTOR,
+                reason=f"reprefilter:{self.profile.slug}@v{self.profile.version}",
+                extra={"duplicate_of": None})
+            self._prefilter(listing, obs, asset, listing["canonical_url_hash"], listing["content_hash"], report)
+            n += 1
+        return n
 
     # ── 10.3 screenshot evaluation ──────────────────────────────────────────
     def evaluate_pending(self, report: RunReport, listing_ids: list[str] | None = None, max_attempts: int = 2) -> None:
