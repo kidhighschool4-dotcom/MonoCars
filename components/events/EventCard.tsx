@@ -1,76 +1,56 @@
 import Link from 'next/link'
-import { Calendar, MapPin, Users } from 'lucide-react'
+import { MapPin, Users } from 'lucide-react'
 import type { CarEvent } from '@/types'
+import SafeImage from '@/components/ui/SafeImage'
 
 interface EventCardProps {
   event: CarEvent
 }
 
-function formatDate(dateString: string) {
-  return new Date(dateString).toLocaleDateString('en-US', {
-    weekday: 'short',
-    year: 'numeric',
-    month: 'long',
-    day: 'numeric',
-  })
-}
-
-const categoryColors: Record<string, string> = {
-  'Motor Show': 'bg-purple-100 text-purple-800',
-  'Car Meet': 'bg-blue-100 text-blue-800',
-  'Racing': 'bg-red-100 text-red-800',
-  'EV Show': 'bg-emerald-100 text-emerald-800',
-  'Group Drive': 'bg-amber-100 text-amber-800',
-  'Off-Road': 'bg-orange-100 text-orange-800',
-}
-
 export default function EventCard({ event }: EventCardProps) {
-  const categoryColor = categoryColors[event.category] || 'bg-gray-100 text-gray-800'
+  const date = new Date(event.date)
+  const month = date.toLocaleDateString('en-US', { month: 'short' })
+  const day = date.getDate()
+  const weekday = date.toLocaleDateString('en-US', { weekday: 'long' })
 
   return (
-    <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden group hover:shadow-xl hover:-translate-y-1 transition-all duration-300">
-      {/* Image */}
-      <div className="relative aspect-video overflow-hidden bg-gray-100">
-        <img
+    <Link
+      href={`/events/${event.id}`}
+      className="group block bg-surface rounded-2xl border border-line overflow-hidden hover:border-brand-tint hover:shadow-[0_12px_40px_-12px_rgba(20,34,79,0.18)] transition-all duration-300"
+    >
+      <div className="relative aspect-[16/10] overflow-hidden bg-paper">
+        <SafeImage
           src={event.image}
           alt={event.title}
-          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+          loading="lazy"
+          className="w-full h-full object-cover group-hover:scale-[1.04] transition-transform duration-500"
         />
-        <div className="absolute top-3 left-3">
-          <span className={`text-xs font-semibold px-2.5 py-1 rounded-full ${categoryColor}`}>
-            {event.category}
+        <span className="absolute top-3 left-3 text-xs font-semibold px-2.5 py-1 rounded-full bg-white/95 text-ink">
+          {event.category}
+        </span>
+        {/* Date tile */}
+        <div className="absolute bottom-3 left-3 w-14 rounded-xl bg-white text-center overflow-hidden shadow-lg">
+          <p className="bg-brand text-white text-[11px] font-semibold uppercase py-0.5">{month}</p>
+          <p className="text-xl font-bold text-ink py-1 tnum">{day}</p>
+        </div>
+      </div>
+
+      <div className="p-5">
+        <p className="text-sm text-muted">{weekday}</p>
+        <h3 className="mt-1 font-semibold text-ink text-lg leading-snug line-clamp-2 group-hover:text-brand transition-colors">
+          {event.title}
+        </h3>
+        <div className="mt-4 pt-4 border-t border-line flex items-center justify-between gap-3 text-sm text-muted">
+          <span className="flex items-center gap-1.5 min-w-0">
+            <MapPin className="w-4 h-4 flex-shrink-0" />
+            <span className="truncate">{event.location}</span>
+          </span>
+          <span className="flex items-center gap-1.5 flex-shrink-0 tnum">
+            <Users className="w-4 h-4" />
+            {event.attendees.toLocaleString()}
           </span>
         </div>
       </div>
-
-      {/* Content */}
-      <div className="p-5">
-        <h3 className="font-bold text-[#1A1A1A] text-base mb-3 leading-snug line-clamp-2">
-          {event.title}
-        </h3>
-
-        <div className="space-y-2 mb-4">
-          <div className="flex items-start gap-2 text-sm text-gray-500">
-            <Calendar className="w-4 h-4 text-[#CBA135] flex-shrink-0 mt-0.5" />
-            <span>{formatDate(event.date)}</span>
-          </div>
-          <div className="flex items-start gap-2 text-sm text-gray-500">
-            <MapPin className="w-4 h-4 text-[#CBA135] flex-shrink-0 mt-0.5" />
-            <span className="line-clamp-1">{event.location}</span>
-          </div>
-          <div className="flex items-center gap-2 text-sm text-gray-500">
-            <Users className="w-4 h-4 text-[#CBA135] flex-shrink-0" />
-            <span>{event.attendees.toLocaleString()} attending</span>
-          </div>
-        </div>
-
-        <Link
-          href={`/events/${event.id}`}
-          className="block w-full text-center py-2.5 px-4 bg-[#1A1A1A] text-white text-sm font-semibold rounded-xl hover:bg-[#CBA135] hover:text-[#1A1A1A] transition-all duration-200"
-        >
-          View Details
-        </Link>
-      </div>
-    </div>
+    </Link>
   )
 }

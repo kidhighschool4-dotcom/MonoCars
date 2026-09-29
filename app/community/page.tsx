@@ -3,7 +3,8 @@ import { getPosts, getFeaturedEvents } from '@/lib/db'
 import PostCard from '@/components/community/PostCard'
 import PostForm from '@/components/community/PostForm'
 import Link from 'next/link'
-import { TrendingUp, Calendar, Users } from 'lucide-react'
+import { TrendingUp, Calendar } from 'lucide-react'
+import PageHeader from '@/components/ui/PageHeader'
 
 const trendingTopics = [
   'Toyota Fortuner',
@@ -23,22 +24,12 @@ export default async function CommunityPage() {
   const upcoming = dbEvents.length ? dbEvents : mockEvents.slice(0, 3)
 
   return (
-    <div className="min-h-screen bg-[#F8F5F0]">
-      {/* Header */}
-      <div className="bg-[#1A1A1A] py-12 md:py-16">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center gap-3 mb-2">
-            <Users className="w-5 h-5 text-[#CBA135]" />
-            <p className="text-[#CBA135] text-sm font-semibold uppercase tracking-wider">
-              Community
-            </p>
-          </div>
-          <h1 className="text-3xl md:text-4xl font-black text-white">Car Enthusiast Feed</h1>
-          <p className="text-gray-400 mt-2 text-sm">
-            Connect with 8,000+ car enthusiasts across Cambodia
-          </p>
-        </div>
-      </div>
+    <div className="min-h-screen bg-paper">
+      <PageHeader
+        eyebrow="Community"
+        title="The FBM community"
+        description="Ask questions, share your car and get honest advice from 8,000+ drivers in Cambodia."
+      />
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
@@ -53,8 +44,8 @@ export default async function CommunityPage() {
           {/* Sidebar */}
           <div className="space-y-6">
             {/* Stats */}
-            <div className="bg-[#1A1A1A] rounded-2xl p-5 text-white">
-              <h3 className="font-bold text-sm uppercase tracking-wide text-[#CBA135] mb-4">
+            <div className="bg-ink rounded-2xl p-5 text-white">
+              <h3 className="font-bold text-sm uppercase tracking-wide text-brand mb-4">
                 Community Stats
               </h3>
               <div className="space-y-3">
@@ -72,10 +63,10 @@ export default async function CommunityPage() {
             </div>
 
             {/* Trending Topics */}
-            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5">
+            <div className="bg-white rounded-2xl shadow-sm border border-line p-5">
               <div className="flex items-center gap-2 mb-4">
-                <TrendingUp className="w-4 h-4 text-[#CBA135]" />
-                <h3 className="font-bold text-sm text-[#1A1A1A] uppercase tracking-wide">
+                <TrendingUp className="w-4 h-4 text-brand" />
+                <h3 className="font-bold text-sm text-ink uppercase tracking-wide">
                   Trending Topics
                 </h3>
               </div>
@@ -83,7 +74,7 @@ export default async function CommunityPage() {
                 {trendingTopics.map((topic) => (
                   <span
                     key={topic}
-                    className="text-xs px-3 py-1.5 bg-gray-50 border border-gray-200 text-gray-600 rounded-full hover:bg-[#CBA135]/10 hover:border-[#CBA135] hover:text-[#CBA135] cursor-pointer transition-all"
+                    className="text-xs px-3 py-1.5 bg-paper border border-line text-muted rounded-full hover:bg-brand/10 hover:border-brand hover:text-brand cursor-pointer transition-all"
                   >
                     #{topic.replace(/\s+/g, '')}
                   </span>
@@ -92,15 +83,15 @@ export default async function CommunityPage() {
             </div>
 
             {/* Upcoming Events */}
-            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5">
+            <div className="bg-white rounded-2xl shadow-sm border border-line p-5">
               <div className="flex items-center justify-between mb-4">
                 <div className="flex items-center gap-2">
-                  <Calendar className="w-4 h-4 text-[#CBA135]" />
-                  <h3 className="font-bold text-sm text-[#1A1A1A] uppercase tracking-wide">
+                  <Calendar className="w-4 h-4 text-brand" />
+                  <h3 className="font-bold text-sm text-ink uppercase tracking-wide">
                     Upcoming Events
                   </h3>
                 </div>
-                <Link href="/events" className="text-xs text-[#CBA135] hover:underline font-medium">
+                <Link href="/events" className="text-xs text-brand hover:underline font-medium">
                   See all
                 </Link>
               </div>
@@ -119,7 +110,7 @@ export default async function CommunityPage() {
                       />
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm font-semibold text-[#1A1A1A] truncate group-hover:text-[#CBA135] transition-colors">
+                      <p className="text-sm font-semibold text-ink truncate group-hover:text-brand transition-colors">
                         {event.title}
                       </p>
                       <p className="text-xs text-gray-400">

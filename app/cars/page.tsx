@@ -1,12 +1,12 @@
 import { Suspense } from 'react'
-import CarsClient from './CarsClient'
+import CarsClient, { CarGridSkeleton } from './CarsClient'
 
 export default function CarsPage() {
   return (
     <Suspense
       fallback={
-        <div className="min-h-screen bg-[#F8F5F0] flex items-center justify-center">
-          <div className="text-gray-500">Loading listings...</div>
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
+          <CarGridSkeleton />
         </div>
       }
     >

@@ -1,4 +1,5 @@
 import { TrendingDown, TrendingUp, Minus } from 'lucide-react'
+import clsx from 'clsx'
 import type { PriceAnalysis as PriceAnalysisType } from '@/types'
 import Badge from '@/components/ui/Badge'
 
@@ -12,80 +13,61 @@ export default function PriceAnalysis({ analysis }: PriceAnalysisProps) {
   const isGoodDeal = label === 'Good Deal'
   const isOverpriced = label === 'Overpriced'
 
-  const meterPosition = Math.min(
-    95,
-    Math.max(5, (askingPrice / estimatedValue) * 50)
-  )
+  // Centre of the bar = market value. ratio 0.5 → 0%, 1.0 → 50%, 1.5 → 100%
+  const ratio = askingPrice / estimatedValue
+  const meterPosition = Math.min(96, Math.max(4, (ratio - 0.5) * 100))
+
+  const tone = isGoodDeal
+    ? { box: 'bg-emerald-50 text-emerald-800', Icon: TrendingDown, text: `$${Math.abs(difference).toLocaleString()} below market value` }
+    : isOverpriced
+    ? { box: 'bg-rose-50 text-rose-800', Icon: TrendingUp, text: `$${Math.abs(difference).toLocaleString()} above market value` }
+    : { box: 'bg-sky-50 text-sky-800', Icon: Minus, text: 'Priced around market value' }
 
   return (
-    <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
-      <div className="flex items-center justify-between mb-5">
-        <h3 className="font-bold text-[#1A1A1A] text-lg">Price Analysis</h3>
-        <Badge label={label} />
+    <div className="bg-surface rounded-3xl border border-line p-6">
+      <div className="flex items-center justify-between gap-3 mb-6">
+        <h2 className="font-semibold text-ink text-lg">AI price check</h2>
+        <Badge label={label} size="sm" />
       </div>
 
-      {/* Gauge Meter */}
       <div className="mb-6">
-        <div className="relative h-4 bg-gradient-to-r from-emerald-400 via-amber-400 to-red-500 rounded-full overflow-visible mb-3">
-          {/* Marker */}
-          <div
-            className="absolute top-1/2 -translate-y-1/2 w-5 h-5 bg-white border-2 border-[#1A1A1A] rounded-full shadow-lg transition-all duration-700"
-            style={{ left: `${meterPosition}%`, transform: 'translateY(-50%) translateX(-50%)' }}
+        <div className="relative h-2.5 rounded-full bg-gradient-to-r from-emerald-400 via-sky-400 to-rose-400">
+          <span className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-0.5 h-5 bg-ink/20 rounded" aria-hidden="true" />
+          <span
+            className="absolute top-1/2 w-5 h-5 rounded-full bg-white ring-[3px] ring-ink shadow-md transition-all duration-700"
+            style={{ left: `${meterPosition}%`, transform: 'translate(-50%, -50%)' }}
+            aria-hidden="true"
           />
         </div>
-        <div className="flex justify-between text-xs text-gray-500">
-          <span>Great Deal</span>
-          <span>Fair Value</span>
-          <span>Overpriced</span>
+        <div className="mt-2.5 flex justify-between text-xs text-muted">
+          <span>Below market</span>
+          <span>Fair</span>
+          <span>Above market</span>
         </div>
       </div>
 
-      {/* Price Comparison */}
-      <div className="grid grid-cols-2 gap-4 mb-5">
-        <div className="bg-gray-50 rounded-xl p-4">
-          <p className="text-xs text-gray-500 mb-1">Asking Price</p>
-          <p className="text-xl font-black text-[#1A1A1A]">
-            ${askingPrice.toLocaleString()}
-          </p>
+      <dl className="grid grid-cols-2 gap-3 mb-4">
+        <div className="rounded-2xl bg-paper p-4">
+          <dt className="text-xs text-muted">Asking price</dt>
+          <dd className="text-xl font-semibold text-ink mt-1 tnum">${askingPrice.toLocaleString()}</dd>
         </div>
-        <div className="bg-gray-50 rounded-xl p-4">
-          <p className="text-xs text-gray-500 mb-1">Est. Market Value</p>
-          <p className="text-xl font-black text-[#CBA135]">
-            ${estimatedValue.toLocaleString()}
-          </p>
+        <div className="rounded-2xl bg-brand-soft p-4">
+          <dt className="text-xs text-brand">Market value</dt>
+          <dd className="text-xl font-semibold text-brand mt-1 tnum">${estimatedValue.toLocaleString()}</dd>
         </div>
+      </dl>
+
+      <div className={clsx('flex items-center justify-between gap-3 rounded-2xl px-4 py-3.5', tone.box)}>
+        <span className="flex items-center gap-2 text-sm font-semibold">
+          <tone.Icon className="w-4 h-4" />
+          {tone.text}
+        </span>
+        <span className="text-xs opacity-70 tnum whitespace-nowrap">{confidence}% sure</span>
       </div>
 
-      {/* Difference */}
-      <div
-        className={`flex items-center justify-between p-4 rounded-xl ${
-          isGoodDeal
-            ? 'bg-emerald-50 border border-emerald-100'
-            : isOverpriced
-            ? 'bg-red-50 border border-red-100'
-            : 'bg-amber-50 border border-amber-100'
-        }`}
-      >
-        <div className="flex items-center gap-2">
-          {isGoodDeal ? (
-            <TrendingDown className="w-5 h-5 text-emerald-600" />
-          ) : isOverpriced ? (
-            <TrendingUp className="w-5 h-5 text-red-600" />
-          ) : (
-            <Minus className="w-5 h-5 text-amber-600" />
-          )}
-          <span className={`text-sm font-semibold ${
-            isGoodDeal ? 'text-emerald-700' : isOverpriced ? 'text-red-700' : 'text-amber-700'
-          }`}>
-            {isGoodDeal
-              ? `$${Math.abs(difference).toLocaleString()} below market`
-              : isOverpriced
-              ? `$${Math.abs(difference).toLocaleString()} above market`
-              : 'At fair market value'}
-          </span>
-        </div>
-        <span className="text-xs text-gray-500">{confidence}% confidence</span>
-      </div>
+      <p className="mt-4 text-xs text-muted leading-relaxed">
+        Estimated from make, model, year and mileage against the Cambodian market. Use it as a guide when you negotiate.
+      </p>
     </div>
   )
 }

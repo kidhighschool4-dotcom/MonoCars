@@ -14,12 +14,12 @@ export default function PostForm() {
 
   if (!user) {
     return (
-      <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 text-center">
-        <div className="w-12 h-12 rounded-full bg-amber-50 flex items-center justify-center mx-auto mb-3">
-          <MessageSquare className="w-6 h-6 text-[#CBA135]" />
+      <div className="bg-white rounded-2xl shadow-sm border border-line p-6 text-center">
+        <div className="w-12 h-12 rounded-full bg-brand-soft flex items-center justify-center mx-auto mb-3">
+          <MessageSquare className="w-6 h-6 text-brand" />
         </div>
-        <h3 className="font-semibold text-[#1A1A1A] mb-1">Join the conversation</h3>
-        <p className="text-sm text-gray-500 mb-4">
+        <h3 className="font-semibold text-ink mb-1">Join the conversation</h3>
+        <p className="text-sm text-muted mb-4">
           Sign in to share your thoughts, ask questions, and connect with fellow car enthusiasts.
         </p>
         <Link href="/auth?next=/community">
@@ -50,8 +50,8 @@ export default function PostForm() {
   }
 
   return (
-    <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5">
-      <h3 className="font-semibold text-[#1A1A1A] mb-4">Share with the Community</h3>
+    <div className="bg-white rounded-2xl shadow-sm border border-line p-5">
+      <h3 className="font-semibold text-ink mb-4">Share with the Community</h3>
 
       {/* Type Selector */}
       <div className="flex gap-2 mb-4">
@@ -66,8 +66,8 @@ export default function PostForm() {
             onClick={() => setType(value)}
             className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
               type === value
-                ? 'bg-[#CBA135] text-[#1A1A1A]'
-                : 'bg-gray-50 text-gray-500 hover:bg-gray-100'
+                ? 'bg-brand text-white'
+                : 'bg-paper text-muted hover:bg-gray-100'
             }`}
           >
             <Icon className="w-3.5 h-3.5" />
@@ -82,7 +82,7 @@ export default function PostForm() {
           onChange={(e) => setContent(e.target.value)}
           placeholder="Share a photo, ask a question, or start a discussion..."
           rows={3}
-          className="w-full px-4 py-3 rounded-xl border border-gray-200 text-sm text-[#1A1A1A] placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-[#CBA135] focus:border-[#CBA135] resize-none mb-3"
+          className="w-full px-4 py-3 rounded-xl border border-line text-sm text-ink placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-brand focus:border-brand resize-none mb-3"
         />
 
         <div className="flex items-center justify-between">
@@ -90,7 +90,7 @@ export default function PostForm() {
           <button
             type="submit"
             disabled={!content.trim() || status === 'loading' || content.length > 1000}
-            className="px-5 py-2 bg-[#CBA135] text-[#1A1A1A] font-semibold rounded-xl text-sm hover:bg-[#b8922e] disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+            className="px-5 py-2 bg-brand text-white font-semibold rounded-xl text-sm hover:bg-brand-strong disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
           >
             {status === 'loading' ? 'Posting...' : 'Post'}
           </button>

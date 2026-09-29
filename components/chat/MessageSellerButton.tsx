@@ -42,10 +42,10 @@ export default function MessageSellerButton({ carId, sellerId }: Props) {
     <button
       onClick={handleClick}
       disabled={busy}
-      className="flex items-center justify-center gap-2 w-full py-3 bg-[#1A1A1A] text-white font-bold rounded-xl hover:bg-[#2a2a2a] transition-colors text-sm mb-2 disabled:opacity-60"
+      className="flex items-center justify-center gap-2 w-full py-3.5 bg-brand text-white font-semibold rounded-full hover:bg-brand-strong transition-colors disabled:opacity-60"
     >
       <MessageCircle className="w-4 h-4" />
-      {busy ? 'Opening chat...' : 'Message Seller'}
+      {busy ? 'Opening chat…' : 'Message seller'}
     </button>
   )
 }

@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import Link from 'next/link'
+import Logo from '@/components/brand/Logo'
 import { useRouter } from 'next/navigation'
 import { Eye, EyeOff, ArrowLeft } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
@@ -56,41 +57,36 @@ export default function AuthPage() {
   }
 
   return (
-    <div className="min-h-screen bg-[#F8F5F0] flex items-center justify-center px-4 py-12">
+    <div className="min-h-screen bg-paper flex items-center justify-center px-4 py-12">
       <div className="w-full max-w-md">
         {/* Back link */}
         <Link
           href="/"
-          className="inline-flex items-center gap-1.5 text-sm text-gray-500 hover:text-[#1A1A1A] transition-colors mb-8"
+          className="inline-flex items-center gap-1.5 text-sm text-muted hover:text-ink transition-colors mb-8"
         >
           <ArrowLeft className="w-4 h-4" />
-          Back to MonoCars
+          Back to FBM
         </Link>
 
-        <div className="bg-white rounded-3xl shadow-sm border border-gray-100 overflow-hidden">
+        <div className="bg-white rounded-3xl shadow-sm border border-line overflow-hidden">
           {/* Header */}
-          <div className="bg-[#1A1A1A] px-8 py-8 text-center">
+          <div className="bg-ink px-8 py-8 text-center">
             <Link href="/" className="inline-flex items-center gap-2.5 mb-4">
-              <div className="w-10 h-10 rounded-full bg-[#CBA135] flex items-center justify-center">
-                <span className="text-[#1A1A1A] font-black text-lg">M</span>
-              </div>
-              <span className="font-bold text-xl text-white tracking-tight">
-                Mono<span className="text-[#CBA135]">Cars</span>
-              </span>
+              <Logo tone="light" size="lg" />
             </Link>
             <p className="text-gray-400 text-sm">
-              {isSignIn ? 'Welcome back to MonoCars' : "Join Cambodia's car community"}
+              {isSignIn ? 'Welcome back to FBM' : "Join Cambodia's car community"}
             </p>
           </div>
 
           {/* Tab Toggle */}
-          <div className="flex border-b border-gray-100">
+          <div className="flex border-b border-line">
             <button
               onClick={() => { setIsSignIn(true); setError(''); setSuccess('') }}
               className={`flex-1 py-3 text-sm font-semibold transition-all ${
                 isSignIn
-                  ? 'text-[#CBA135] border-b-2 border-[#CBA135]'
-                  : 'text-gray-500 hover:text-gray-700'
+                  ? 'text-brand border-b-2 border-brand'
+                  : 'text-muted hover:text-gray-700'
               }`}
             >
               Sign In
@@ -99,8 +95,8 @@ export default function AuthPage() {
               onClick={() => { setIsSignIn(false); setError(''); setSuccess('') }}
               className={`flex-1 py-3 text-sm font-semibold transition-all ${
                 !isSignIn
-                  ? 'text-[#CBA135] border-b-2 border-[#CBA135]'
-                  : 'text-gray-500 hover:text-gray-700'
+                  ? 'text-brand border-b-2 border-brand'
+                  : 'text-muted hover:text-gray-700'
               }`}
             >
               Sign Up
@@ -142,7 +138,7 @@ export default function AuthPage() {
               />
 
               <div className="flex flex-col gap-1.5">
-                <label className="text-sm font-medium text-[#1A1A1A]">Password</label>
+                <label className="text-sm font-medium text-ink">Password</label>
                 <div className="relative">
                   <input
                     type={showPassword ? 'text' : 'password'}
@@ -151,12 +147,12 @@ export default function AuthPage() {
                     onChange={(e) => setPassword(e.target.value)}
                     required
                     minLength={isSignIn ? undefined : 8}
-                    className="w-full px-4 py-2.5 pr-10 rounded-xl border border-gray-200 text-[#1A1A1A] bg-white text-sm focus:outline-none focus:ring-2 focus:ring-[#CBA135] focus:border-[#CBA135] placeholder:text-gray-400"
+                    className="w-full px-4 py-2.5 pr-10 rounded-xl border border-line text-ink bg-white text-sm focus:outline-none focus:ring-2 focus:ring-brand focus:border-brand placeholder:text-gray-400"
                   />
                   <button
                     type="button"
                     onClick={() => setShowPassword(!showPassword)}
-                    className="absolute inset-y-0 right-3 flex items-center text-gray-400 hover:text-gray-600"
+                    className="absolute inset-y-0 right-3 flex items-center text-gray-400 hover:text-muted"
                   >
                     {showPassword ? (
                       <EyeOff className="w-4 h-4" />
@@ -169,7 +165,7 @@ export default function AuthPage() {
 
               {isSignIn && (
                 <div className="text-right">
-                  <button type="button" className="text-xs text-[#CBA135] hover:underline">
+                  <button type="button" className="text-xs text-brand hover:underline">
                     Forgot password?
                   </button>
                 </div>
@@ -190,12 +186,12 @@ export default function AuthPage() {
               </Button>
             </form>
 
-            <div className="mt-6 pt-6 border-t border-gray-100 text-center">
-              <p className="text-sm text-gray-500">
+            <div className="mt-6 pt-6 border-t border-line text-center">
+              <p className="text-sm text-muted">
                 {isSignIn ? "Don't have an account? " : 'Already have an account? '}
                 <button
                   onClick={() => { setIsSignIn(!isSignIn); setError(''); setSuccess('') }}
-                  className="font-semibold text-[#CBA135] hover:underline"
+                  className="font-semibold text-brand hover:underline"
                 >
                   {isSignIn ? 'Sign Up' : 'Sign In'}
                 </button>
@@ -205,7 +201,7 @@ export default function AuthPage() {
         </div>
 
         <p className="text-xs text-center text-gray-400 mt-6">
-          By signing in, you agree to MonoCars&apos; Terms of Service and Privacy Policy.
+          By signing in, you agree to FBM&apos;s Terms of Service and Privacy Policy.
         </p>
       </div>
     </div>

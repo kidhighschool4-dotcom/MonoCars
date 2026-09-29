@@ -1,10 +1,10 @@
 import { NextResponse, type NextRequest } from 'next/server'
 import OpenAI from 'openai'
+import { getOpenAI, openAINotConfigured } from '@/lib/openai'
 import { getCars, getCarsByIds } from '@/lib/db'
 import { supabaseAdmin } from '@/lib/supabase-server'
 import type { Car } from '@/types'
 
-const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY })
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -26,7 +26,7 @@ interface SearchPreferences {
 
 // ─── System prompt ──────────────────────────────────────────────────────────
 
-const SYSTEM_PROMPT = `You are an expert car advisor for MonoCars — Cambodia's premier car marketplace.
+const SYSTEM_PROMPT = `You are an expert car advisor for FBM — Cambodia's premier car marketplace.
 Your job: ask the user 4–5 focused questions to understand exactly what car they need, then find their best matches.
 
 Be conversational, friendly, and knowledgeable about the Cambodia car market.
@@ -56,7 +56,7 @@ const SEARCH_TOOL: OpenAI.Chat.Completions.ChatCompletionTool = {
   type: 'function',
   function: {
     name: 'search_cars',
-    description: 'Search the MonoCars database for cars matching user preferences. Call this once you have enough information.',
+    description: 'Search the FBM database for cars matching user preferences. Call this once you have enough information.',
     parameters: {
       type: 'object',
       properties: {
@@ -124,7 +124,7 @@ async function searchCars(prefs: SearchPreferences): Promise<Car[]> {
   // Step 2: Vector similarity — rank by semantic match
   if (prefs.description && pool.length > 0) {
     try {
-      const embeddingResponse = await openai.embeddings.create({
+      const embeddingResponse = await getOpenAI().embeddings.create({
         model: 'text-embedding-3-small',
         input: prefs.description,
         dimensions: 1536,
@@ -169,12 +169,15 @@ function encode(obj: object): Uint8Array {
 // ─── Route handler ───────────────────────────────────────────────────────────
 
 export async function POST(request: NextRequest) {
+  const notConfigured = openAINotConfigured()
+  if (notConfigured) return notConfigured
+
   const { messages }: { messages: ChatMessage[] } = await request.json()
 
   const stream = new ReadableStream({
     async start(controller) {
       try {
-        const response = await openai.chat.completions.create({
+        const response = await getOpenAI().chat.completions.create({
           model: 'gpt-4o-mini',
           messages: [
             { role: 'system', content: SYSTEM_PROMPT },
@@ -217,7 +220,7 @@ export async function POST(request: NextRequest) {
             const cars = await searchCars(prefs)
 
             // Ask GPT to write the recommendation summary
-            const summaryResp = await openai.chat.completions.create({
+            const summaryResp = await getOpenAI().chat.completions.create({
               model: 'gpt-4o-mini',
               messages: [
                 { role: 'system', content: SYSTEM_PROMPT },

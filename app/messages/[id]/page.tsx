@@ -234,8 +234,8 @@ export default function ChatPage() {
 
   if (loading || fetching) {
     return (
-      <div className="min-h-screen bg-[#F8F5F0] flex items-center justify-center">
-        <div className="w-6 h-6 border-2 border-[#CBA135] border-t-transparent rounded-full animate-spin" />
+      <div className="min-h-screen bg-paper flex items-center justify-center">
+        <div className="w-6 h-6 border-2 border-brand border-t-transparent rounded-full animate-spin" />
       </div>
     )
   }
@@ -244,9 +244,9 @@ export default function ChatPage() {
   const otherPerson = user?.id === conv?.buyer_id ? conv?.seller : conv?.buyer
 
   return (
-    <div className="min-h-screen bg-[#F8F5F0] flex flex-col">
+    <div className="min-h-screen bg-paper flex flex-col">
       {/* Header */}
-      <div className="bg-[#1A1A1A] px-4 py-4 flex items-center gap-3 sticky top-0 z-10">
+      <div className="bg-ink px-4 py-4 flex items-center gap-3 sticky top-0 z-10">
         <Link href="/messages" className="text-gray-400 hover:text-white transition-colors">
           <ArrowLeft className="w-5 h-5" />
         </Link>
@@ -255,7 +255,7 @@ export default function ChatPage() {
           <p className="text-gray-400 text-xs truncate">{conv?.cars?.title ?? 'Car Listing'}</p>
         </div>
         {conv?.cars?.id && (
-          <Link href={`/cars/${conv.cars.id}`} className="text-xs text-[#CBA135] hover:underline flex-shrink-0">
+          <Link href={`/cars/${conv.cars.id}`} className="text-xs text-brand hover:underline flex-shrink-0">
             View Car
           </Link>
         )}
@@ -263,7 +263,7 @@ export default function ChatPage() {
 
       {/* Car reference card */}
       {conv?.cars && (
-        <div className="bg-white border-b border-gray-100 px-4 py-3">
+        <div className="bg-white border-b border-line px-4 py-3">
           <div className="max-w-2xl mx-auto flex items-center gap-3">
             {carImage ? (
               <img src={carImage} alt={conv.cars.title} className="w-14 h-14 rounded-xl object-cover flex-shrink-0" />
@@ -272,8 +272,8 @@ export default function ChatPage() {
             )}
             <div className="min-w-0">
               <p className="text-xs text-gray-400 uppercase tracking-wide font-semibold mb-0.5">Enquiring about</p>
-              <p className="text-sm font-bold text-[#1A1A1A] truncate">{conv.cars.title}</p>
-              <p className="text-sm font-black text-[#CBA135]">${conv.cars.price_usd?.toLocaleString()}</p>
+              <p className="text-sm font-bold text-ink truncate">{conv.cars.title}</p>
+              <p className="text-sm font-semibold tracking-tight text-brand">${conv.cars.price_usd?.toLocaleString()}</p>
             </div>
           </div>
         </div>
@@ -291,11 +291,11 @@ export default function ChatPage() {
             const isMe = msg.sender_id === user?.id
             const bubbleBase = `max-w-[75%] rounded-2xl px-4 py-2.5 ${
               isMe
-                ? 'bg-[#CBA135] text-[#1A1A1A] rounded-br-sm'
-                : 'bg-white border border-gray-100 text-[#1A1A1A] rounded-bl-sm shadow-sm'
+                ? 'bg-brand text-white rounded-br-sm'
+                : 'bg-white border border-line text-ink rounded-bl-sm shadow-sm'
             }`
             const timeText = new Date(msg.created_at).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })
-            const timeClass = `text-[10px] mt-1 ${isMe ? 'text-[#1A1A1A]/60' : 'text-gray-400'}`
+            const timeClass = `text-[10px] mt-1 ${isMe ? 'text-ink/60' : 'text-gray-400'}`
 
             return (
               <div key={msg.id} className={`flex ${isMe ? 'justify-end' : 'justify-start'}`}>
@@ -360,7 +360,7 @@ export default function ChatPage() {
       </div>
 
       {/* Input area */}
-      <div className="bg-white border-t border-gray-100 px-4 py-3 sticky bottom-0">
+      <div className="bg-white border-t border-line px-4 py-3 sticky bottom-0">
         <div className="max-w-2xl mx-auto">
 
           {/* Recording indicator */}
@@ -373,7 +373,7 @@ export default function ChatPage() {
               <button
                 type="button"
                 onClick={cancelRecording}
-                className="text-gray-400 hover:text-gray-600 transition-colors"
+                className="text-gray-400 hover:text-muted transition-colors"
                 aria-label="Cancel recording"
               >
                 <X className="w-4 h-4" />
@@ -391,8 +391,8 @@ export default function ChatPage() {
           {/* Uploading indicator */}
           {uploading && (
             <div className="flex items-center gap-2 mb-2 px-1">
-              <div className="w-4 h-4 border-2 border-[#CBA135] border-t-transparent rounded-full animate-spin flex-shrink-0" />
-              <span className="text-sm text-gray-500">Uploading…</span>
+              <div className="w-4 h-4 border-2 border-brand border-t-transparent rounded-full animate-spin flex-shrink-0" />
+              <span className="text-sm text-muted">Uploading…</span>
             </div>
           )}
 
@@ -404,7 +404,7 @@ export default function ChatPage() {
                 type="button"
                 disabled={uploading}
                 onClick={() => fileInputRef.current?.click()}
-                className="w-10 h-10 rounded-xl border border-gray-200 flex items-center justify-center text-gray-400 hover:text-[#CBA135] hover:border-[#CBA135] transition-colors flex-shrink-0 disabled:opacity-40"
+                className="w-10 h-10 rounded-xl border border-line flex items-center justify-center text-gray-400 hover:text-brand hover:border-brand transition-colors flex-shrink-0 disabled:opacity-40"
                 aria-label="Attach file"
               >
                 <Paperclip className="w-4 h-4" />
@@ -415,7 +415,7 @@ export default function ChatPage() {
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
                 placeholder="Type a message…"
-                className="flex-1 px-4 py-2.5 rounded-xl border border-gray-200 text-[#1A1A1A] text-sm focus:outline-none focus:ring-2 focus:ring-[#CBA135] focus:border-[#CBA135] placeholder:text-gray-400"
+                className="flex-1 px-4 py-2.5 rounded-xl border border-line text-ink text-sm focus:outline-none focus:ring-2 focus:ring-brand focus:border-brand placeholder:text-gray-400"
               />
 
               {/* Mic or Send button depending on input content */}
@@ -423,17 +423,17 @@ export default function ChatPage() {
                 <button
                   type="submit"
                   disabled={sending || uploading}
-                  className="w-10 h-10 rounded-xl bg-[#CBA135] flex items-center justify-center disabled:opacity-40 hover:bg-[#b8922e] transition-colors flex-shrink-0"
+                  className="w-10 h-10 rounded-xl bg-brand flex items-center justify-center disabled:opacity-40 hover:bg-brand-strong transition-colors flex-shrink-0"
                   aria-label="Send message"
                 >
-                  <Send className="w-4 h-4 text-[#1A1A1A]" />
+                  <Send className="w-4 h-4 text-ink" />
                 </button>
               ) : (
                 <button
                   type="button"
                   disabled={uploading}
                   onClick={startRecording}
-                  className="w-10 h-10 rounded-xl border border-gray-200 flex items-center justify-center text-gray-400 hover:text-[#CBA135] hover:border-[#CBA135] transition-colors flex-shrink-0 disabled:opacity-40"
+                  className="w-10 h-10 rounded-xl border border-line flex items-center justify-center text-gray-400 hover:text-brand hover:border-brand transition-colors flex-shrink-0 disabled:opacity-40"
                   aria-label="Record voice message"
                 >
                   <Mic className="w-4 h-4" />

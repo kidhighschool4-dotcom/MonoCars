@@ -15,7 +15,7 @@ export default function Input({ label, error, helperText, className, id, ...prop
       {label && (
         <label
           htmlFor={inputId}
-          className="text-sm font-medium text-[#1A1A1A]"
+          className="text-sm font-medium text-ink"
         >
           {label}
         </label>
@@ -23,18 +23,18 @@ export default function Input({ label, error, helperText, className, id, ...prop
       <input
         id={inputId}
         className={clsx(
-          'w-full px-4 py-2.5 rounded-xl border text-[#1A1A1A] bg-white text-sm transition-all duration-200',
-          'focus:outline-none focus:ring-2 focus:ring-[#CBA135] focus:border-[#CBA135]',
+          'w-full px-4 py-2.5 rounded-xl border text-ink bg-white text-sm transition-all duration-200',
+          'focus:outline-none focus:ring-2 focus:ring-brand focus:border-brand',
           'placeholder:text-gray-400',
           error
             ? 'border-red-400 focus:ring-red-400 focus:border-red-400'
-            : 'border-gray-200 hover:border-gray-300',
+            : 'border-line hover:border-gray-300',
           className
         )}
         {...props}
       />
       {error && <p className="text-xs text-red-600">{error}</p>}
-      {helperText && !error && <p className="text-xs text-gray-500">{helperText}</p>}
+      {helperText && !error && <p className="text-xs text-muted">{helperText}</p>}
     </div>
   )
 }

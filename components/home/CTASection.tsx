@@ -1,57 +1,56 @@
 import Link from 'next/link'
-import { PlusCircle, Users } from 'lucide-react'
+import { ArrowUpRight, Check } from 'lucide-react'
+
+const sellPoints = ['Free to list', 'Instant AI price estimate', 'Buyers message you directly']
 
 export default function CTASection() {
   return (
-    <section className="py-16 md:py-20 bg-[#F8F5F0]">
+    <section className="pb-20 md:pb-28">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          {/* Sell CTA */}
-          <div className="relative overflow-hidden bg-[#1A1A1A] rounded-3xl p-8 md:p-10">
-            <div className="absolute top-0 right-0 w-48 h-48 rounded-full bg-[#CBA135]/10 -translate-y-12 translate-x-12" />
-            <div className="absolute bottom-0 left-0 w-32 h-32 rounded-full bg-[#7A1E1E]/20 translate-y-10 -translate-x-10" />
+        <div className="grid grid-cols-1 lg:grid-cols-5 gap-5">
+          {/* Sell */}
+          <div className="lg:col-span-3 relative overflow-hidden rounded-3xl bg-brand text-white p-8 md:p-12">
+            <div className="absolute -right-24 -top-24 w-80 h-80 rounded-full bg-white/10" aria-hidden="true" />
+            <div className="absolute right-16 -bottom-32 w-72 h-72 rounded-full bg-brand-deep/40" aria-hidden="true" />
             <div className="relative">
-              <div className="w-12 h-12 rounded-2xl bg-[#CBA135]/10 flex items-center justify-center mb-5">
-                <PlusCircle className="w-6 h-6 text-[#CBA135]" />
-              </div>
-              <h3 className="text-2xl md:text-3xl font-black text-white mb-3">
-                Have a car to sell?
+              <p className="text-white/70 text-sm font-medium">For sellers</p>
+              <h3 className="mt-3 text-3xl md:text-5xl font-semibold tracking-tight leading-[1.05] max-w-md">
+                Sell your car in days, not months.
               </h3>
-              <p className="text-gray-400 text-sm leading-relaxed mb-6 max-w-xs">
-                List your car for free and reach thousands of verified buyers across Cambodia.
-                Get smart pricing insights instantly.
-              </p>
+              <ul className="mt-6 space-y-2.5">
+                {sellPoints.map((p) => (
+                  <li key={p} className="flex items-center gap-2.5 text-white/90">
+                    <span className="w-5 h-5 rounded-full bg-white/20 flex items-center justify-center">
+                      <Check className="w-3 h-3" />
+                    </span>
+                    {p}
+                  </li>
+                ))}
+              </ul>
               <Link
                 href="/submit"
-                className="inline-flex items-center gap-2 px-6 py-3 bg-[#CBA135] text-[#1A1A1A] font-bold rounded-xl hover:bg-[#b8922e] transition-all duration-200 text-sm"
+                className="mt-8 inline-flex items-center gap-2 px-6 py-3.5 rounded-full bg-white text-ink font-semibold hover:bg-ink hover:text-white transition-colors"
               >
-                <PlusCircle className="w-4 h-4" />
-                Submit a Listing
+                List your car <ArrowUpRight className="w-4 h-4" />
               </Link>
             </div>
           </div>
 
-          {/* Community CTA */}
-          <div className="relative overflow-hidden bg-gradient-to-br from-[#7A1E1E] to-[#5a1616] rounded-3xl p-8 md:p-10">
-            <div className="absolute top-0 right-0 w-48 h-48 rounded-full bg-white/5 -translate-y-12 translate-x-12" />
-            <div className="absolute bottom-0 left-0 w-32 h-32 rounded-full bg-[#CBA135]/10 translate-y-10 -translate-x-10" />
-            <div className="relative">
-              <div className="w-12 h-12 rounded-2xl bg-white/10 flex items-center justify-center mb-5">
-                <Users className="w-6 h-6 text-white" />
-              </div>
-              <h3 className="text-2xl md:text-3xl font-black text-white mb-3">
-                Join the community
-              </h3>
-              <p className="text-red-200 text-sm leading-relaxed mb-6 max-w-xs">
-                Connect with 8,000+ car enthusiasts in Cambodia. Share reviews, get advice,
-                and discover great deals together.
-              </p>
+          {/* Community */}
+          <div className="lg:col-span-2 relative overflow-hidden rounded-3xl bg-surface border border-line p-8 md:p-12 flex flex-col">
+            <p className="text-muted text-sm font-medium">Community</p>
+            <h3 className="mt-3 text-3xl md:text-4xl font-semibold tracking-tight leading-[1.1] text-ink">
+              8,000+ drivers sharing honest advice.
+            </h3>
+            <p className="mt-4 text-muted leading-relaxed">
+              Ask about import taxes, EVs, or whether that price is fair — people who know Cambodia&apos;s market will answer.
+            </p>
+            <div className="mt-auto pt-8">
               <Link
                 href="/community"
-                className="inline-flex items-center gap-2 px-6 py-3 bg-white text-[#7A1E1E] font-bold rounded-xl hover:bg-gray-100 transition-all duration-200 text-sm"
+                className="inline-flex items-center gap-2 px-6 py-3.5 rounded-full bg-ink text-white font-semibold hover:bg-brand transition-colors"
               >
-                <Users className="w-4 h-4" />
-                Explore Community
+                Join the conversation <ArrowUpRight className="w-4 h-4" />
               </Link>
             </div>
           </div>

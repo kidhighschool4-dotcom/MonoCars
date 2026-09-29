@@ -1,13 +1,15 @@
 import { NextResponse, type NextRequest } from 'next/server'
-import OpenAI from 'openai'
+import { getOpenAI, openAINotConfigured } from '@/lib/openai'
 import { getCars, buildCarEmbeddingContent } from '@/lib/db'
 import { supabaseAdmin } from '@/lib/supabase-server'
 
-const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY })
 
 // POST /api/embed — generate and store embeddings for all cars
 // Protect with a secret header in production
 export async function POST(request: NextRequest) {
+  const notConfigured = openAINotConfigured()
+  if (notConfigured) return notConfigured
+
   const secret = request.headers.get('x-embed-secret')
   if (secret !== process.env.EMBED_SECRET && process.env.NODE_ENV === 'production') {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
@@ -24,7 +26,7 @@ export async function POST(request: NextRequest) {
     try {
       const content = buildCarEmbeddingContent(car as Parameters<typeof buildCarEmbeddingContent>[0])
 
-      const embeddingResponse = await openai.embeddings.create({
+      const embeddingResponse = await getOpenAI().embeddings.create({
         model: 'text-embedding-3-small',
         input: content,
         dimensions: 1536,

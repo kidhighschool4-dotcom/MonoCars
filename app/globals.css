@@ -1,52 +1,101 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
 @import "tailwindcss";
 
+/* ─── FBM design tokens ─────────────────────────────────────────────────────
+   Black + white + one electric blue. See .claude/skills/fbm-brand/SKILL.md */
 :root {
-  --background: #F8F5F0;
-  --foreground: #1A1A1A;
-  --gold: #CBA135;
-  --red: #7A1E1E;
-  --cream: #F8F5F0;
-  --dark: #1A1A1A;
+  --ink: #0a0a0b;          /* primary text, dark surfaces */
+  --ink-2: #17181c;        /* raised dark surface */
+  --ink-3: #26282e;        /* borders on dark */
+  --paper: #f5f7fb;        /* page background */
+  --surface: #ffffff;      /* cards */
+  --line: #e3e7ef;         /* hairlines on light */
+  --muted: #5b6272;        /* secondary text */
+  --subtle: #8b92a1;       /* tertiary text, captions */
+  --brand: #3a68ff;        /* the one accent */
+  --brand-strong: #2a52e0; /* hover / pressed */
+  --brand-deep: #14224f;   /* deep navy for gradients */
+  --brand-soft: #eef4ff;   /* tinted fills */
+  --brand-tint: #cfdcf6;   /* tinted borders */
 }
 
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --color-gold: var(--gold);
-  --color-red-deep: var(--red);
-  --color-cream: var(--cream);
-  --color-dark: var(--dark);
-  --font-sans: 'Inter', system-ui, -apple-system, sans-serif;
-  --radius-xl: 0.75rem;
-  --radius-2xl: 1rem;
-  --radius-3xl: 1.5rem;
+  --color-ink: var(--ink);
+  --color-ink-2: var(--ink-2);
+  --color-ink-3: var(--ink-3);
+  --color-paper: var(--paper);
+  --color-surface: var(--surface);
+  --color-line: var(--line);
+  --color-muted: var(--muted);
+  --color-subtle: var(--subtle);
+  --color-brand: var(--brand);
+  --color-brand-strong: var(--brand-strong);
+  --color-brand-deep: var(--brand-deep);
+  --color-brand-soft: var(--brand-soft);
+  --color-brand-tint: var(--brand-tint);
+  --font-sans: var(--font-parkinsans), var(--font-kantumruy), system-ui, -apple-system, sans-serif;
+  --font-khmer: var(--font-kantumruy), system-ui, sans-serif;
+  --radius-xl: 0.875rem;
+  --radius-2xl: 1.25rem;
+  --radius-3xl: 1.75rem;
 }
 
-* {
+html {
   scroll-behavior: smooth;
 }
 
 body {
-  background-color: #F8F5F0;
-  color: #1A1A1A;
-  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  background-color: var(--paper);
+  color: var(--ink);
+  font-family: var(--font-sans);
+  font-feature-settings: "ss01", "cv11";
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
 }
 
-/* Custom scrollbar */
-::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
+[lang="km"] {
+  font-family: var(--font-khmer);
+  line-height: 1.7;
 }
-::-webkit-scrollbar-track {
-  background: #F5F5F5;
+
+::selection {
+  background: var(--brand);
+  color: #fff;
 }
-::-webkit-scrollbar-thumb {
-  background: #CBA135;
-  border-radius: 10px;
+
+:focus-visible {
+  outline: 2px solid var(--brand);
+  outline-offset: 2px;
 }
-::-webkit-scrollbar-thumb:hover {
-  background: #a8852a;
+
+/* Tabular figures for prices and specs so numbers line up */
+.tnum {
+  font-variant-numeric: tabular-nums;
 }
+
+/* Subtle dot grid used on dark sections */
+.fbm-grid {
+  background-image: radial-gradient(rgba(255, 255, 255, 0.07) 1px, transparent 1px);
+  background-size: 22px 22px;
+}
+
+/* Infinite marquee (brand strip) */
+@keyframes fbm-marquee {
+  from { transform: translateX(0); }
+  to   { transform: translateX(-50%); }
+}
+.fbm-marquee {
+  animation: fbm-marquee 40s linear infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+  .fbm-marquee { animation: none; }
+  *, *::before, *::after { transition-duration: 0.01ms !important; }
+}
+
+/* Scrollbar */
+::-webkit-scrollbar { width: 8px; height: 8px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: #c9cfdb; border-radius: 10px; }
+::-webkit-scrollbar-thumb:hover { background: var(--brand); }

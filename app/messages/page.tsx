@@ -42,20 +42,20 @@ export default function MessagesPage() {
 
   if (loading || fetching) {
     return (
-      <div className="min-h-screen bg-[#F8F5F0] flex items-center justify-center">
-        <div className="w-6 h-6 border-2 border-[#CBA135] border-t-transparent rounded-full animate-spin" />
+      <div className="min-h-screen bg-paper flex items-center justify-center">
+        <div className="w-6 h-6 border-2 border-brand border-t-transparent rounded-full animate-spin" />
       </div>
     )
   }
 
   return (
-    <div className="min-h-screen bg-[#F8F5F0]">
-      <div className="bg-[#1A1A1A] py-10 md:py-14">
+    <div className="min-h-screen bg-paper">
+      <div className="bg-ink py-10 md:py-14">
         <div className="max-w-3xl mx-auto px-4 sm:px-6">
           <Link href="/" className="inline-flex items-center gap-1.5 text-sm text-gray-400 hover:text-white transition-colors mb-4">
             <ArrowLeft className="w-4 h-4" /> Back to Home
           </Link>
-          <h1 className="text-3xl font-black text-white">Messages</h1>
+          <h1 className="text-3xl font-semibold tracking-tight text-white">Messages</h1>
           <p className="text-gray-400 text-sm mt-1">{conversations.length} conversation{conversations.length !== 1 ? 's' : ''}</p>
         </div>
       </div>
@@ -64,9 +64,9 @@ export default function MessagesPage() {
         {conversations.length === 0 ? (
           <div className="text-center py-20">
             <MessageCircle className="w-12 h-12 text-gray-300 mx-auto mb-4" />
-            <p className="text-gray-500 font-medium">No messages yet</p>
+            <p className="text-muted font-medium">No messages yet</p>
             <p className="text-gray-400 text-sm mt-1">Browse cars and tap &quot;Message Seller&quot; to start a chat</p>
-            <Link href="/cars" className="inline-block mt-5 px-5 py-2.5 bg-[#CBA135] text-[#1A1A1A] font-bold rounded-xl text-sm hover:bg-[#b8922e] transition-colors">
+            <Link href="/cars" className="inline-block mt-5 px-5 py-2.5 bg-brand text-white font-bold rounded-xl text-sm hover:bg-brand-strong transition-colors">
               Browse Cars
             </Link>
           </div>
@@ -77,7 +77,7 @@ export default function MessagesPage() {
             const timeAgo = formatRelative(conv.updated_at)
             return (
               <Link key={conv.id} href={`/messages/${conv.id}`}
-                className="flex items-center gap-4 bg-white rounded-2xl border border-gray-100 shadow-sm p-4 hover:border-[#CBA135] transition-colors">
+                className="flex items-center gap-4 bg-white rounded-2xl border border-line shadow-sm p-4 hover:border-brand transition-colors">
                 {carImage ? (
                   <img src={carImage} alt={conv.cars?.title} className="w-16 h-16 rounded-xl object-cover flex-shrink-0" />
                 ) : (
@@ -86,9 +86,9 @@ export default function MessagesPage() {
                   </div>
                 )}
                 <div className="flex-1 min-w-0">
-                  <p className="font-semibold text-[#1A1A1A] text-sm truncate">{conv.cars?.title ?? 'Car Listing'}</p>
-                  <p className="text-xs text-[#CBA135] font-medium mb-1">${conv.cars?.price_usd?.toLocaleString()}</p>
-                  <p className="text-xs text-gray-500 truncate">
+                  <p className="font-semibold text-ink text-sm truncate">{conv.cars?.title ?? 'Car Listing'}</p>
+                  <p className="text-xs text-brand font-medium mb-1">${conv.cars?.price_usd?.toLocaleString()}</p>
+                  <p className="text-xs text-muted truncate">
                     {other?.full_name ?? 'Unknown'}
                   </p>
                 </div>

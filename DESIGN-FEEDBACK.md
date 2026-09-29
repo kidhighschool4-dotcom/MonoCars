@@ -1,5 +1,9 @@
 # MonoCars — Design & Quality Feedback Log
 
+> **Superseded (2026-09-30):** the site was rebranded to **FBM** with a black / white / electric-blue design system.
+> The gold + deep-red + cream palette below no longer applies. Follow `.claude/skills/fbm/SKILL.md` and the tokens in `app/globals.css`.
+> The rounds below are kept as history.
+
 > This file is maintained by the review agent. Each iteration appends a new round of findings.
 > Frontend agents must read this file before making UI changes and apply ALL open items.
 

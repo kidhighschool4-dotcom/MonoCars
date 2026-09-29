@@ -1,6 +1,8 @@
 'use client'
 
-import { SlidersHorizontal } from 'lucide-react'
+import clsx from 'clsx'
+import { ChevronDown } from 'lucide-react'
+import { BODY_TYPES, SORT_OPTIONS, priceOptions } from '@/lib/carFilters'
 
 export interface FilterState {
   priceRange: string
@@ -13,102 +15,74 @@ interface CarFiltersProps {
   onChange: (filters: FilterState) => void
 }
 
-const priceOptions = [
-  { value: 'all', label: 'Any Budget' },
-  { value: 'under5k', label: 'Under $5,000' },
-  { value: '5k-15k', label: '$5,000 – $15,000' },
-  { value: '15k-30k', label: '$15,000 – $30,000' },
-  { value: 'over30k', label: 'Over $30,000' },
-]
-
-const typeOptions = [
-  { value: 'all', label: 'All Types' },
-  { value: 'Sedan', label: 'Sedan' },
-  { value: 'SUV', label: 'SUV' },
-  { value: 'Truck', label: 'Truck' },
-  { value: 'Hatchback', label: 'Hatchback' },
-  { value: 'Van', label: 'Van' },
-  { value: 'Coupe', label: 'Coupe' },
-]
-
-const sortOptions = [
-  { value: 'newest', label: 'Newest First' },
-  { value: 'price-asc', label: 'Price: Low to High' },
-  { value: 'price-desc', label: 'Price: High to Low' },
-  { value: 'mileage-asc', label: 'Mileage: Low to High' },
-]
+function PillSelect({
+  label,
+  value,
+  onChange,
+  options,
+}: {
+  label: string
+  value: string
+  onChange: (v: string) => void
+  options: readonly { value: string; label: string }[]
+}) {
+  return (
+    <label className="relative inline-flex items-center">
+      <span className="sr-only">{label}</span>
+      <select
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        className="appearance-none bg-surface border border-line rounded-full pl-4 pr-10 py-2.5 text-sm font-medium text-ink hover:border-ink focus:outline-none focus:border-brand transition-colors cursor-pointer"
+      >
+        {options.map((opt) => (
+          <option key={opt.value} value={opt.value}>{opt.label}</option>
+        ))}
+      </select>
+      <ChevronDown className="pointer-events-none absolute right-3.5 w-4 h-4 text-muted" />
+    </label>
+  )
+}
 
 export default function CarFilters({ filters, onChange }: CarFiltersProps) {
-  const handleChange = (key: keyof FilterState, value: string) => {
-    onChange({ ...filters, [key]: value })
-  }
+  const set = (key: keyof FilterState, value: string) => onChange({ ...filters, [key]: value })
+  const types = ['all', ...BODY_TYPES]
 
   return (
-    <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4">
-      <div className="flex items-center gap-2 mb-4">
-        <SlidersHorizontal className="w-4 h-4 text-[#CBA135]" />
-        <span className="font-semibold text-sm text-[#1A1A1A]">Filter &amp; Sort</span>
+    <div className="space-y-4">
+      {/* Body type chips — scroll sideways on small screens */}
+      <div className="-mx-4 px-4 sm:mx-0 sm:px-0 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+        <div className="flex gap-2 w-max">
+          {types.map((t) => (
+            <button
+              key={t}
+              type="button"
+              onClick={() => set('carType', t)}
+              aria-pressed={filters.carType === t}
+              className={clsx(
+                'px-4 py-2.5 rounded-full text-sm font-medium border transition-colors whitespace-nowrap',
+                filters.carType === t
+                  ? 'bg-ink text-white border-ink'
+                  : 'bg-surface text-ink border-line hover:border-ink'
+              )}
+            >
+              {t === 'all' ? 'All types' : t}
+            </button>
+          ))}
+        </div>
       </div>
-      <div className="flex flex-col sm:flex-row gap-3">
-        {/* Price Range */}
-        <div className="flex-1 relative">
-          <select
-            value={filters.priceRange}
-            onChange={(e) => handleChange('priceRange', e.target.value)}
-            className="w-full px-4 py-2.5 rounded-xl border border-gray-200 text-sm text-[#1A1A1A] bg-white appearance-none focus:outline-none focus:ring-2 focus:ring-[#CBA135] focus:border-[#CBA135] hover:border-gray-300 transition-all"
-          >
-            {priceOptions.map((opt) => (
-              <option key={opt.value} value={opt.value}>
-                {opt.label}
-              </option>
-            ))}
-          </select>
-          <div className="pointer-events-none absolute inset-y-0 right-3 flex items-center">
-            <svg className="h-4 w-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-            </svg>
-          </div>
-        </div>
 
-        {/* Car Type */}
-        <div className="flex-1 relative">
-          <select
-            value={filters.carType}
-            onChange={(e) => handleChange('carType', e.target.value)}
-            className="w-full px-4 py-2.5 rounded-xl border border-gray-200 text-sm text-[#1A1A1A] bg-white appearance-none focus:outline-none focus:ring-2 focus:ring-[#CBA135] focus:border-[#CBA135] hover:border-gray-300 transition-all"
+      <div className="flex flex-wrap items-center gap-2">
+        <PillSelect label="Budget" value={filters.priceRange} onChange={(v) => set('priceRange', v)} options={priceOptions} />
+        <PillSelect label="Sort by" value={filters.sortBy} onChange={(v) => set('sortBy', v)} options={SORT_OPTIONS} />
+        {(filters.priceRange !== 'all' || filters.carType !== 'all') && (
+          <button
+            type="button"
+            onClick={() => onChange({ ...filters, priceRange: 'all', carType: 'all' })}
+            className="px-3 py-2.5 text-sm font-medium text-brand hover:underline underline-offset-4"
           >
-            {typeOptions.map((opt) => (
-              <option key={opt.value} value={opt.value}>
-                {opt.label}
-              </option>
-            ))}
-          </select>
-          <div className="pointer-events-none absolute inset-y-0 right-3 flex items-center">
-            <svg className="h-4 w-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-            </svg>
-          </div>
-        </div>
-
-        {/* Sort By */}
-        <div className="flex-1 relative">
-          <select
-            value={filters.sortBy}
-            onChange={(e) => handleChange('sortBy', e.target.value)}
-            className="w-full px-4 py-2.5 rounded-xl border border-gray-200 text-sm text-[#1A1A1A] bg-white appearance-none focus:outline-none focus:ring-2 focus:ring-[#CBA135] focus:border-[#CBA135] hover:border-gray-300 transition-all"
-          >
-            {sortOptions.map((opt) => (
-              <option key={opt.value} value={opt.value}>
-                {opt.label}
-              </option>
-            ))}
-          </select>
-          <div className="pointer-events-none absolute inset-y-0 right-3 flex items-center">
-            <svg className="h-4 w-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-            </svg>
-          </div>
-        </div>
+            Clear filters
+          </button>
+        )}
       </div>
     </div>
   )

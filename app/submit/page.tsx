@@ -141,14 +141,14 @@ export default function SubmitPage() {
   // Auth gate
   if (!loading && !user) {
     return (
-      <div className="min-h-screen bg-[#F8F5F0] flex items-center justify-center px-4">
-        <div className="bg-white rounded-3xl shadow-lg border border-gray-100 p-10 max-w-md w-full text-center">
-          <div className="w-16 h-16 rounded-full bg-[#CBA135]/10 flex items-center justify-center mx-auto mb-5">
-            <LogIn className="w-9 h-9 text-[#CBA135]" />
+      <div className="min-h-screen bg-paper flex items-center justify-center px-4">
+        <div className="bg-white rounded-3xl shadow-lg border border-line p-10 max-w-md w-full text-center">
+          <div className="w-16 h-16 rounded-full bg-brand/10 flex items-center justify-center mx-auto mb-5">
+            <LogIn className="w-9 h-9 text-brand" />
           </div>
-          <h2 className="text-2xl font-black text-[#1A1A1A] mb-3">Sign In to List Your Car</h2>
-          <p className="text-gray-500 text-sm leading-relaxed mb-6">
-            You need a MonoCars account to submit a car listing. It only takes a minute.
+          <h2 className="text-2xl font-semibold tracking-tight text-ink mb-3">Sign In to List Your Car</h2>
+          <p className="text-muted text-sm leading-relaxed mb-6">
+            You need an FBM account to submit a car listing. It only takes a minute.
           </p>
           <Link href="/auth?next=/submit">
             <Button variant="primary" size="lg" fullWidth>Sign In / Sign Up</Button>
@@ -160,14 +160,14 @@ export default function SubmitPage() {
 
   if (submitted) {
     return (
-      <div className="min-h-screen bg-[#F8F5F0] flex items-center justify-center px-4">
-        <div className="bg-white rounded-3xl shadow-lg border border-gray-100 p-10 max-w-md w-full text-center">
+      <div className="min-h-screen bg-paper flex items-center justify-center px-4">
+        <div className="bg-white rounded-3xl shadow-lg border border-line p-10 max-w-md w-full text-center">
           <div className="w-16 h-16 rounded-full bg-emerald-50 flex items-center justify-center mx-auto mb-5">
             <CheckCircle className="w-9 h-9 text-emerald-500" />
           </div>
-          <h2 className="text-2xl font-black text-[#1A1A1A] mb-3">Listing Submitted!</h2>
-          <p className="text-gray-500 text-sm leading-relaxed mb-6">
-            Your car listing is live on MonoCars. Buyers can contact you directly.
+          <h2 className="text-2xl font-semibold tracking-tight text-ink mb-3">Listing Submitted!</h2>
+          <p className="text-muted text-sm leading-relaxed mb-6">
+            Your car listing is live on FBM. Buyers can contact you directly.
           </p>
           <div className="flex flex-col gap-3">
             {newCarId && (
@@ -191,14 +191,14 @@ export default function SubmitPage() {
   }
 
   return (
-    <div className="min-h-screen bg-[#F8F5F0]">
+    <div className="min-h-screen bg-paper">
       {/* Header */}
-      <div className="bg-[#1A1A1A] py-12 md:py-16">
+      <div className="bg-ink py-12 md:py-16">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <p className="text-[#CBA135] text-sm font-semibold uppercase tracking-wider mb-2">
+          <p className="text-brand text-sm font-semibold uppercase tracking-wider mb-2">
             List Your Car
           </p>
-          <h1 className="text-3xl md:text-4xl font-black text-white">Submit a Listing</h1>
+          <h1 className="text-3xl md:text-4xl font-semibold tracking-tight text-white">Submit a Listing</h1>
           <p className="text-gray-400 mt-2 text-sm">
             Get smart pricing insights and reach thousands of buyers across Cambodia
           </p>
@@ -208,17 +208,17 @@ export default function SubmitPage() {
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
         <form onSubmit={handleSubmit} className="space-y-8">
           {/* Car Information */}
-          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
-            <h2 className="font-bold text-[#1A1A1A] text-lg mb-5 pb-4 border-b border-gray-100">
+          <div className="bg-white rounded-2xl shadow-sm border border-line p-6">
+            <h2 className="font-bold text-ink text-lg mb-5 pb-4 border-b border-line">
               Car Information
             </h2>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
               {/* Make */}
               <div className="flex flex-col gap-1.5">
-                <label className="text-sm font-medium text-[#1A1A1A]">Make *</label>
+                <label className="text-sm font-medium text-ink">Make *</label>
                 <div className="relative">
                   <select value={form.make} onChange={(e) => handleFormChange('make', e.target.value)} required
-                    className="w-full px-4 py-2.5 rounded-xl border border-gray-200 text-[#1A1A1A] bg-white text-sm appearance-none focus:outline-none focus:ring-2 focus:ring-[#CBA135] focus:border-[#CBA135]">
+                    className="w-full px-4 py-2.5 rounded-xl border border-line text-ink bg-white text-sm appearance-none focus:outline-none focus:ring-2 focus:ring-brand focus:border-brand">
                     <option value="">Select Make</option>
                     {makes.map((m) => <option key={m} value={m}>{m}</option>)}
                   </select>
@@ -258,10 +258,10 @@ export default function SubmitPage() {
 
               {/* Location */}
               <div className="flex flex-col gap-1.5 sm:col-span-2">
-                <label className="text-sm font-medium text-[#1A1A1A]">Location *</label>
+                <label className="text-sm font-medium text-ink">Location *</label>
                 <div className="relative">
                   <select value={form.location} onChange={(e) => handleFormChange('location', e.target.value)} required
-                    className="w-full px-4 py-2.5 rounded-xl border border-gray-200 text-[#1A1A1A] bg-white text-sm appearance-none focus:outline-none focus:ring-2 focus:ring-[#CBA135] focus:border-[#CBA135]">
+                    className="w-full px-4 py-2.5 rounded-xl border border-line text-ink bg-white text-sm appearance-none focus:outline-none focus:ring-2 focus:ring-brand focus:border-brand">
                     <option value="">Select Location</option>
                     {locations.map((l) => <option key={l} value={l}>{l}</option>)}
                   </select>
@@ -272,19 +272,19 @@ export default function SubmitPage() {
 
             {/* Price Estimation Preview */}
             {estimatedValue !== null && priceLabel !== null && (
-              <div className="mt-5 p-4 bg-gray-50 rounded-xl border border-gray-200">
-                <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">
+              <div className="mt-5 p-4 bg-paper rounded-xl border border-line">
+                <p className="text-xs font-semibold text-muted uppercase tracking-wide mb-3">
                   Real-Time Price Estimate
                 </p>
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-3">
                     <div>
                       <p className="text-xs text-gray-400">Estimated Market Value</p>
-                      <p className="text-lg font-black text-[#CBA135]">${estimatedValue.toLocaleString()}</p>
+                      <p className="text-lg font-semibold tracking-tight text-brand">${estimatedValue.toLocaleString()}</p>
                     </div>
                     <div>
                       <p className="text-xs text-gray-400">Your Price</p>
-                      <p className="text-lg font-black text-[#1A1A1A]">${parseInt(form.price).toLocaleString()}</p>
+                      <p className="text-lg font-semibold tracking-tight text-ink">${parseInt(form.price).toLocaleString()}</p>
                     </div>
                   </div>
                   <Badge label={priceLabel} />
@@ -294,21 +294,21 @@ export default function SubmitPage() {
           </div>
 
           {/* Description */}
-          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
-            <h2 className="font-bold text-[#1A1A1A] text-lg mb-5 pb-4 border-b border-gray-100">
+          <div className="bg-white rounded-2xl shadow-sm border border-line p-6">
+            <h2 className="font-bold text-ink text-lg mb-5 pb-4 border-b border-line">
               Description
             </h2>
             <div className="flex flex-col gap-1.5">
-              <label className="text-sm font-medium text-[#1A1A1A]">Car Description *</label>
+              <label className="text-sm font-medium text-ink">Car Description *</label>
               <textarea placeholder="Describe your car in detail — condition, history, features, why you're selling..." rows={4}
                 value={form.description} onChange={(e) => handleFormChange('description', e.target.value)} required
-                className="w-full px-4 py-2.5 rounded-xl border border-gray-200 text-[#1A1A1A] bg-white text-sm focus:outline-none focus:ring-2 focus:ring-[#CBA135] focus:border-[#CBA135] resize-none placeholder:text-gray-400" />
+                className="w-full px-4 py-2.5 rounded-xl border border-line text-ink bg-white text-sm focus:outline-none focus:ring-2 focus:ring-brand focus:border-brand resize-none placeholder:text-gray-400" />
             </div>
           </div>
 
           {/* Pros & Cons */}
-          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
-            <h2 className="font-bold text-[#1A1A1A] text-lg mb-5 pb-4 border-b border-gray-100">
+          <div className="bg-white rounded-2xl shadow-sm border border-line p-6">
+            <h2 className="font-bold text-ink text-lg mb-5 pb-4 border-b border-line">
               Pros &amp; Cons
             </h2>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
@@ -319,7 +319,7 @@ export default function SubmitPage() {
                     <div key={idx} className="flex gap-2">
                       <input type="text" value={pro} onChange={(e) => updatePro(idx, e.target.value)}
                         placeholder={`Pro ${idx + 1}`}
-                        className="flex-1 px-3 py-2 text-sm rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-emerald-400 focus:border-emerald-400" />
+                        className="flex-1 px-3 py-2 text-sm rounded-xl border border-line focus:outline-none focus:ring-2 focus:ring-emerald-400 focus:border-emerald-400" />
                       {pros.length > 1 && (
                         <button type="button" onClick={() => setPros(pros.filter((_, i) => i !== idx))}
                           className="p-2 text-gray-400 hover:text-red-500 transition-colors">
@@ -344,7 +344,7 @@ export default function SubmitPage() {
                     <div key={idx} className="flex gap-2">
                       <input type="text" value={con} onChange={(e) => updateCon(idx, e.target.value)}
                         placeholder={`Con ${idx + 1}`}
-                        className="flex-1 px-3 py-2 text-sm rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-red-300 focus:border-red-300" />
+                        className="flex-1 px-3 py-2 text-sm rounded-xl border border-line focus:outline-none focus:ring-2 focus:ring-red-300 focus:border-red-300" />
                       {cons.length > 1 && (
                         <button type="button" onClick={() => setCons(cons.filter((_, i) => i !== idx))}
                           className="p-2 text-gray-400 hover:text-red-500 transition-colors">
@@ -365,11 +365,11 @@ export default function SubmitPage() {
           </div>
 
           {/* Contact Info */}
-          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
-            <h2 className="font-bold text-[#1A1A1A] text-lg mb-5 pb-4 border-b border-gray-100">
+          <div className="bg-white rounded-2xl shadow-sm border border-line p-6">
+            <h2 className="font-bold text-ink text-lg mb-5 pb-4 border-b border-line">
               Contact Information
             </h2>
-            <p className="text-xs text-gray-500 mb-4">Auto-filled from your profile. You can update it below.</p>
+            <p className="text-xs text-muted mb-4">Auto-filled from your profile. You can update it below.</p>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
               <Input label="Your Name *" placeholder="Full name"
                 value={form.sellerName} onChange={(e) => handleFormChange('sellerName', e.target.value)} required />
@@ -379,8 +379,8 @@ export default function SubmitPage() {
           </div>
 
           {/* Images */}
-          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
-            <h2 className="font-bold text-[#1A1A1A] text-lg mb-5 pb-4 border-b border-gray-100">
+          <div className="bg-white rounded-2xl shadow-sm border border-line p-6">
+            <h2 className="font-bold text-ink text-lg mb-5 pb-4 border-b border-line">
               Images
             </h2>
             <Input label="Image URL" type="url" placeholder="https://example.com/car-photo.jpg"
@@ -400,8 +400,8 @@ export default function SubmitPage() {
               <p className="text-sm text-red-700">{error}</p>
             </div>
           )}
-          <div className="flex items-center justify-between bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
-            <p className="text-xs text-gray-500 max-w-xs">
+          <div className="flex items-center justify-between bg-white rounded-2xl shadow-sm border border-line p-6">
+            <p className="text-xs text-muted max-w-xs">
               By submitting, you agree to our terms of service. Listings go live immediately.
             </p>
             <Button type="submit" variant="primary" size="lg" disabled={submitting}>
@@ -430,10 +430,10 @@ function SelectField({ label, value, onChange, options, placeholder, required }:
 }) {
   return (
     <div className="flex flex-col gap-1.5">
-      <label className="text-sm font-medium text-[#1A1A1A]">{label}</label>
+      <label className="text-sm font-medium text-ink">{label}</label>
       <div className="relative">
         <select value={value} onChange={(e) => onChange(e.target.value)} required={required}
-          className="w-full px-4 py-2.5 rounded-xl border border-gray-200 text-[#1A1A1A] bg-white text-sm appearance-none focus:outline-none focus:ring-2 focus:ring-[#CBA135] focus:border-[#CBA135]">
+          className="w-full px-4 py-2.5 rounded-xl border border-line text-ink bg-white text-sm appearance-none focus:outline-none focus:ring-2 focus:ring-brand focus:border-brand">
           <option value="">{placeholder}</option>
           {options.map((o) => <option key={o} value={o}>{o}</option>)}
         </select>

@@ -460,7 +460,7 @@ export const mockPosts: Post[] = [
         id: 'c8',
         userId: 'user2',
         userName: 'Dara Keo',
-        content: 'Thank you for sharing! This is why platforms like MonoCars are important - vetted listings with price transparency.',
+        content: 'Thank you for sharing! This is why platforms like FBM are important - vetted listings with price transparency.',
         createdAt: '2024-11-11T14:00:00Z',
       },
     ],

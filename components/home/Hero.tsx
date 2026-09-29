@@ -1,155 +1,137 @@
 'use client'
 
 import { useState } from 'react'
+import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { Search, Car, TrendingUp, Users } from 'lucide-react'
-
-const budgetOptions = [
-  { value: '', label: 'Any Budget' },
-  { value: 'under5k', label: 'Under $5,000' },
-  { value: '5k-15k', label: '$5,000 – $15,000' },
-  { value: '15k-30k', label: '$15,000 – $30,000' },
-  { value: 'over30k', label: 'Over $30,000' },
-]
-
-const typeOptions = [
-  { value: '', label: 'All Types' },
-  { value: 'Sedan', label: 'Sedan' },
-  { value: 'SUV', label: 'SUV' },
-  { value: 'Truck', label: 'Truck' },
-  { value: 'Van', label: 'Van' },
-  { value: 'Coupe', label: 'Coupe' },
-]
+import { Search, Sparkles, ChevronDown } from 'lucide-react'
+import { BODY_TYPES, priceOptions } from '@/lib/carFilters'
 
 const stats = [
-  { icon: Car, label: '2,400+ Cars Listed' },
-  { icon: TrendingUp, label: '50+ Events' },
-  { icon: Users, label: '8,000+ Members' },
+  { value: '2,400+', label: 'Cars listed' },
+  { value: '8,000+', label: 'Members' },
+  { value: '50+', label: 'Events a year' },
 ]
+
+function HeroSelect({
+  label,
+  value,
+  onChange,
+  options,
+}: {
+  label: string
+  value: string
+  onChange: (v: string) => void
+  options: { value: string; label: string }[]
+}) {
+  return (
+    <label className="relative flex-1 min-w-0 block text-left px-5 py-3 rounded-2xl hover:bg-paper transition-colors cursor-pointer">
+      <span className="block text-xs font-medium text-subtle">{label}</span>
+      <select
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        className="w-full bg-transparent text-ink text-[15px] font-semibold appearance-none focus:outline-none cursor-pointer pr-6"
+      >
+        {options.map((opt) => (
+          <option key={opt.value} value={opt.value}>{opt.label}</option>
+        ))}
+      </select>
+      <ChevronDown className="pointer-events-none absolute right-5 bottom-3.5 w-4 h-4 text-subtle" />
+    </label>
+  )
+}
 
 export default function Hero() {
   const router = useRouter()
-  const [budget, setBudget] = useState('')
-  const [carType, setCarType] = useState('')
+  const [budget, setBudget] = useState('all')
+  const [carType, setCarType] = useState('all')
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault()
     const params = new URLSearchParams()
-    if (budget) params.set('priceRange', budget)
-    if (carType) params.set('carType', carType)
-    router.push(`/cars?${params.toString()}`)
+    if (budget !== 'all') params.set('priceRange', budget)
+    if (carType !== 'all') params.set('carType', carType)
+    const qs = params.toString()
+    router.push(qs ? `/cars?${qs}` : '/cars')
   }
 
   return (
-    <section className="relative overflow-hidden bg-[#1A1A1A] text-white min-h-[85vh] flex items-center">
-      {/* Background car image */}
+    <section className="relative overflow-hidden bg-ink text-white">
+      {/* Photo + gradients */}
       <div className="absolute inset-0">
         <img
-          src="https://images.unsplash.com/photo-1492144534655-ae79c964c9d7?w=1600&q=80"
+          src="https://images.unsplash.com/photo-1492144534655-ae79c964c9d7?w=2000&q=80"
           alt=""
-          className="w-full h-full object-cover opacity-30"
+          className="w-full h-full object-cover object-center opacity-60"
         />
+        <div className="absolute inset-0 bg-gradient-to-r from-ink via-ink/80 to-ink/20" />
+        <div className="absolute inset-0 bg-gradient-to-t from-ink via-transparent to-ink/40" />
+        <div className="absolute -bottom-40 -left-40 w-[36rem] h-[36rem] rounded-full bg-brand/25 blur-[120px]" />
       </div>
-      {/* Dark gradient overlay */}
-      <div className="absolute inset-0 bg-gradient-to-br from-[#1A1A1A]/95 via-[#1A1A1A]/85 to-[#7A1E1E]/40" />
-      {/* Gold shimmer line at top */}
-      <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-[#CBA135] to-transparent" />
 
-      <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-24 md:py-32">
-        <div className="max-w-3xl mx-auto text-center">
-          {/* Label */}
-          <div className="inline-flex items-center gap-2 bg-[#CBA135]/10 border border-[#CBA135]/30 rounded-full px-4 py-1.5 mb-6">
-            <div className="w-1.5 h-1.5 rounded-full bg-[#CBA135]" />
-            <span className="text-[#CBA135] text-xs font-semibold tracking-wider uppercase">
-              🇰🇭 Cambodia First
-            </span>
-          </div>
-
-          {/* Headline */}
-          <h1 className="text-4xl md:text-5xl lg:text-6xl font-black leading-tight mb-5 tracking-tight">
-            Find Your{' '}
-            <span className="text-[#CBA135]">Perfect Car</span>
-            <br />
-            in Cambodia
-          </h1>
-
-          {/* Subheadline */}
-          <p className="text-gray-300 text-lg md:text-xl leading-relaxed mb-10 max-w-2xl mx-auto">
-            Smart pricing insights, trusted listings, and a community that knows cars.
+      <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-20 pb-16 md:pt-28 md:pb-20">
+        <div className="max-w-3xl">
+          <p className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/5 backdrop-blur px-3.5 py-1.5 text-sm text-white/80">
+            <span className="w-1.5 h-1.5 rounded-full bg-brand" />
+            Cambodia&apos;s car marketplace
           </p>
 
-          {/* Search Form */}
-          <form
-            onSubmit={handleSearch}
-            className="bg-white/10 backdrop-blur-md border border-white/20 rounded-2xl p-2 flex flex-col sm:flex-row gap-2 max-w-2xl mx-auto mb-12"
-          >
-            <div className="flex-1 relative">
-              <select
-                value={budget}
-                onChange={(e) => setBudget(e.target.value)}
-                className="w-full px-4 py-3 rounded-xl bg-white text-[#1A1A1A] text-sm appearance-none focus:outline-none focus:ring-2 focus:ring-[#CBA135] font-medium"
-              >
-                {budgetOptions.map((opt) => (
-                  <option key={opt.value} value={opt.value}>
-                    {opt.label}
-                  </option>
-                ))}
-              </select>
-              <div className="pointer-events-none absolute inset-y-0 right-3 flex items-center">
-                <svg className="h-4 w-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                </svg>
-              </div>
-            </div>
+          <h1 className="mt-6 text-5xl sm:text-6xl lg:text-7xl font-semibold tracking-tight leading-[1.02]">
+            Find the right car.
+            <br />
+            <span className="text-brand">Pay the right price.</span>
+          </h1>
 
-            <div className="flex-1 relative">
-              <select
-                value={carType}
-                onChange={(e) => setCarType(e.target.value)}
-                className="w-full px-4 py-3 rounded-xl bg-white text-[#1A1A1A] text-sm appearance-none focus:outline-none focus:ring-2 focus:ring-[#CBA135] font-medium"
-              >
-                {typeOptions.map((opt) => (
-                  <option key={opt.value} value={opt.value}>
-                    {opt.label}
-                  </option>
-                ))}
-              </select>
-              <div className="pointer-events-none absolute inset-y-0 right-3 flex items-center">
-                <svg className="h-4 w-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                </svg>
-              </div>
-            </div>
-
-            <button
-              type="submit"
-              className="flex items-center justify-center gap-2 px-6 py-3 bg-[#CBA135] text-[#1A1A1A] font-bold rounded-xl hover:bg-[#b8922e] transition-colors text-sm whitespace-nowrap"
-            >
-              <Search className="w-4 h-4" />
-              Search Cars
-            </button>
-          </form>
-
-          {/* Stats */}
-          <div className="flex flex-col sm:flex-row items-center justify-center gap-8">
-            {stats.map(({ icon: Icon, label }, idx) => (
-              <div key={idx} className="flex items-center gap-2 text-gray-300">
-                <Icon className="w-4 h-4 text-[#CBA135]" />
-                <span className="text-sm font-medium">{label}</span>
-                {idx < stats.length - 1 && (
-                  <span className="hidden sm:block w-px h-4 bg-gray-600 ml-6" />
-                )}
-              </div>
-            ))}
-          </div>
+          <p className="mt-6 text-lg md:text-xl text-white/70 leading-relaxed max-w-xl">
+            Every listing gets an AI price check, so you know if it&apos;s a good deal before you call the seller.
+          </p>
+          <p className="mt-2 text-white/50" lang="km">រកឡានដែលត្រូវចិត្ត ក្នុងតម្លៃសមរម្យ</p>
         </div>
-      </div>
 
-      {/* Bottom wave */}
-      <div className="absolute bottom-0 left-0 right-0">
-        <svg viewBox="0 0 1440 60" fill="none" xmlns="http://www.w3.org/2000/svg">
-          <path d="M0 60L1440 60L1440 0C1200 40 960 60 720 60C480 60 240 40 0 0L0 60Z" fill="#F8F5F0" />
-        </svg>
+        {/* Search */}
+        <form
+          onSubmit={handleSearch}
+          className="mt-10 max-w-3xl bg-white rounded-3xl p-2 flex flex-col sm:flex-row sm:items-center gap-1 shadow-2xl shadow-black/30"
+        >
+          <HeroSelect label="Budget" value={budget} onChange={setBudget} options={priceOptions} />
+          <div className="hidden sm:block w-px h-10 bg-line" />
+          <HeroSelect
+            label="Body type"
+            value={carType}
+            onChange={setCarType}
+            options={[{ value: 'all', label: 'Any type' }, ...BODY_TYPES.map((t) => ({ value: t, label: t }))]}
+          />
+          <button
+            type="submit"
+            className="flex items-center justify-center gap-2 px-7 py-4 bg-brand text-white font-semibold rounded-2xl hover:bg-brand-strong transition-colors"
+          >
+            <Search className="w-5 h-5" />
+            Search cars
+          </button>
+        </form>
+
+        <div className="mt-5 flex flex-wrap items-center gap-x-5 gap-y-2 text-sm text-white/60">
+          <span>Popular:</span>
+          {['SUV', 'Sedan', 'Pickup'].map((t) => (
+            <Link key={t} href={`/cars?carType=${encodeURIComponent(t)}`} className="text-white/90 hover:text-brand underline-offset-4 hover:underline">
+              {t}
+            </Link>
+          ))}
+          <Link href="/recommend" className="inline-flex items-center gap-1.5 text-white/90 hover:text-brand">
+            <Sparkles className="w-4 h-4 text-brand" />
+            Not sure? Ask the AI Advisor
+          </Link>
+        </div>
+
+        {/* Stats */}
+        <dl className="mt-16 md:mt-24 grid grid-cols-3 max-w-2xl border-t border-white/10">
+          {stats.map((s) => (
+            <div key={s.label} className="pt-6 pr-4">
+              <dt className="sr-only">{s.label}</dt>
+              <dd className="text-3xl md:text-4xl font-semibold tracking-tight tnum">{s.value}</dd>
+              <dd className="text-sm text-white/55 mt-1">{s.label}</dd>
+            </div>
+          ))}
+        </dl>
       </div>
     </section>
   )

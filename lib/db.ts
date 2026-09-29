@@ -1,5 +1,6 @@
 import { supabaseAdmin } from '@/lib/supabase-server'
 import type { Car, CarEvent, Post } from '@/types'
+import * as mock from '@/lib/mockDb'
 
 // ─── Types returned by Supabase joins ───────────────────────────────────────
 
@@ -102,6 +103,7 @@ export interface CarFilters {
 }
 
 export async function getCars(filters: CarFilters = {}): Promise<Car[]> {
+  if (mock.USE_MOCK_DATA) return mock.mockGetCars(filters)
   let query = supabaseAdmin
     .from('cars')
     .select(CAR_SELECT)
@@ -148,6 +150,7 @@ export async function getCars(filters: CarFilters = {}): Promise<Car[]> {
 }
 
 export async function getCar(id: string): Promise<Car | null> {
+  if (mock.USE_MOCK_DATA) return mock.mockGetCar(id)
   const { data, error } = await supabaseAdmin
     .from('cars')
     .select(CAR_SELECT)
@@ -160,6 +163,7 @@ export async function getCar(id: string): Promise<Car | null> {
 }
 
 export async function getFeaturedCars(limit = 6): Promise<Car[]> {
+  if (mock.USE_MOCK_DATA) return mock.mockGetCars({ limit })
   const { data, error } = await supabaseAdmin
     .from('cars')
     .select(CAR_SELECT)
@@ -173,6 +177,7 @@ export async function getFeaturedCars(limit = 6): Promise<Car[]> {
 }
 
 export async function getRelatedCars(carId: string, type: string, limit = 3): Promise<Car[]> {
+  if (mock.USE_MOCK_DATA) return mock.mockGetRelatedCars(carId, type, limit)
   const { data: typeRow } = await supabaseAdmin
     .from('car_types')
     .select('id')
@@ -196,6 +201,7 @@ export async function getRelatedCars(carId: string, type: string, limit = 3): Pr
 
 // Returns cars by IDs (used by AI recommendation after vector search)
 export async function getCarsByIds(ids: string[]): Promise<Car[]> {
+  if (mock.USE_MOCK_DATA) return mock.mockGetCarsByIds(ids)
   if (!ids.length) return []
   const { data, error } = await supabaseAdmin
     .from('cars')
@@ -238,6 +244,7 @@ function toAppEvent(row: DbEventRow): CarEvent {
 const EVENT_SELECT = 'id, title, location, event_date, description, image_url, category, attendee_count'
 
 export async function getEvents(): Promise<CarEvent[]> {
+  if (mock.USE_MOCK_DATA) return mock.mockGetEvents()
   const { data, error } = await supabaseAdmin
     .from('events')
     .select(EVENT_SELECT)
@@ -248,6 +255,7 @@ export async function getEvents(): Promise<CarEvent[]> {
 }
 
 export async function getEvent(id: string): Promise<CarEvent | null> {
+  if (mock.USE_MOCK_DATA) return mock.mockGetEvent(id)
   const { data, error } = await supabaseAdmin
     .from('events')
     .select(EVENT_SELECT)
@@ -259,6 +267,7 @@ export async function getEvent(id: string): Promise<CarEvent | null> {
 }
 
 export async function getFeaturedEvents(limit = 3): Promise<CarEvent[]> {
+  if (mock.USE_MOCK_DATA) return mock.mockGetEvents(limit)
   const { data, error } = await supabaseAdmin
     .from('events')
     .select(EVENT_SELECT)
@@ -285,6 +294,7 @@ interface DbPostRow {
 interface DbProfile { id: string; full_name: string | null; avatar_url: string | null }
 
 export async function getPosts(limit = 20): Promise<Post[]> {
+  if (mock.USE_MOCK_DATA) return mock.mockGetPosts(limit)
   const { data, error } = await supabaseAdmin
     .from('community_posts')
     .select('id, user_id, content, post_type, like_count, created_at, post_images(url, display_order), post_comments(id, user_id, content, created_at)')

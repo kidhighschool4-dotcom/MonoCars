@@ -1,49 +1,24 @@
-import Link from 'next/link'
-import { ArrowRight } from 'lucide-react'
-import { mockEvents } from '@/lib/mockData'
+import { getFeaturedEvents } from '@/lib/db'
 import EventCard from '@/components/events/EventCard'
+import SectionHeading from '@/components/ui/SectionHeading'
 
-export default function FeaturedEvents() {
-  const featured = mockEvents.slice(0, 3)
+export default async function FeaturedEvents() {
+  const featured = await getFeaturedEvents(3)
+  if (featured.length === 0) return null
 
   return (
-    <section className="py-16 md:py-20 bg-[#F0EDE6]">
+    <section className="py-20 md:py-28">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        {/* Section Header */}
-        <div className="flex items-end justify-between mb-10">
-          <div>
-            <p className="text-[#CBA135] text-sm font-semibold uppercase tracking-wider mb-2">
-              What&apos;s Happening
-            </p>
-            <h2 className="text-3xl md:text-4xl font-black text-[#1A1A1A]">
-              Upcoming Events
-            </h2>
-          </div>
-          <Link
-            href="/events"
-            className="hidden sm:flex items-center gap-1.5 text-sm font-semibold text-[#CBA135] hover:gap-2.5 transition-all"
-          >
-            View All Events
-            <ArrowRight className="w-4 h-4" />
-          </Link>
-        </div>
-
-        {/* Grid */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+        <SectionHeading
+          eyebrow="What’s on"
+          title="Meet the community"
+          description="Motor shows, weekend drives and car meets around Cambodia."
+          action={{ href: '/events', label: 'All events' }}
+        />
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5 md:gap-6">
           {featured.map((event) => (
             <EventCard key={event.id} event={event} />
           ))}
-        </div>
-
-        {/* Mobile CTA */}
-        <div className="mt-8 text-center sm:hidden">
-          <Link
-            href="/events"
-            className="inline-flex items-center gap-2 px-6 py-3 bg-[#1A1A1A] text-white font-semibold rounded-xl hover:bg-[#CBA135] hover:text-[#1A1A1A] transition-all duration-200"
-          >
-            View All Events
-            <ArrowRight className="w-4 h-4" />
-          </Link>
         </div>
       </div>
     </section>
