@@ -1,0 +1,96 @@
+{
+  "_comment": "Shapes follow the YouTube Data API v3 reference (search.list, videos.list, commentThreads.list, comments.list, error responses). All names/ids are invented.",
+  "search": {
+    "kind": "youtube#searchListResponse",
+    "etag": "e1",
+    "nextPageToken": "CAoQAA",
+    "regionCode": "KH",
+    "pageInfo": {"totalResults": 3, "resultsPerPage": 3},
+    "items": [
+      {"kind": "youtube#searchResult", "etag": "s1", "id": {"kind": "youtube#video", "videoId": "AAAAAAAAAAA"},
+       "snippet": {"publishedAt": "2026-09-20T08:00:00Z", "channelId": "UCsokhavlog00000000000", "title": "Lexus RX300 2004 review",
+                   "description": "Full walkaround", "channelTitle": "Sokha Vlog", "liveBroadcastContent": "none"}},
+      {"kind": "youtube#searchResult", "etag": "s2", "id": {"kind": "youtube#video", "videoId": "BBBBBBBBBBB"},
+       "snippet": {"publishedAt": "2026-09-18T08:00:00Z", "channelId": "UCppautoimport000000000", "title": "RX300 for sale",
+                   "description": "", "channelTitle": "Phnom Penh Auto Import", "liveBroadcastContent": "none"}},
+      {"kind": "youtube#searchResult", "etag": "s3", "id": {"kind": "youtube#video", "videoId": "CCCCCCCCCCC"},
+       "snippet": {"publishedAt": "2026-09-17T08:00:00Z", "channelId": "UCother0000000000000000", "title": "RX300 unlisted",
+                   "description": "", "channelTitle": "Someone Else", "liveBroadcastContent": "none"}}
+    ]
+  },
+  "videos": {
+    "kind": "youtube#videoListResponse",
+    "items": [
+      {"kind": "youtube#video", "id": "AAAAAAAAAAA",
+       "snippet": {"publishedAt": "2026-09-20T08:00:00Z", "channelId": "UCsokhavlog00000000000", "title": "Lexus RX300 2004 review #rx300",
+                   "description": "Full walkaround of a Lexus RX300 2004 in Phnom Penh. #lexusrx300 #ឡានលក់", "channelTitle": "Sokha Vlog",
+                   "tags": ["rx300"], "categoryId": "2"},
+       "statistics": {"viewCount": "15230", "likeCount": "321", "favoriteCount": "0", "commentCount": "7"},
+       "status": {"uploadStatus": "processed", "privacyStatus": "public", "license": "youtube", "embeddable": true, "publicStatsViewable": true}},
+      {"kind": "youtube#video", "id": "BBBBBBBBBBB",
+       "snippet": {"publishedAt": "2026-09-18T08:00:00Z", "channelId": "UCppautoimport000000000", "title": "RX300 for sale",
+                   "description": "Lexus RX300 2003 for sale, call 012 345 678", "channelTitle": "Phnom Penh Auto Import"},
+       "statistics": {"viewCount": "900", "likeCount": "12", "commentCount": "0"},
+       "status": {"uploadStatus": "processed", "privacyStatus": "public"}},
+      {"kind": "youtube#video", "id": "CCCCCCCCCCC",
+       "snippet": {"publishedAt": "2026-09-17T08:00:00Z", "channelId": "UCother0000000000000000", "title": "RX300 unlisted",
+                   "description": "", "channelTitle": "Someone Else"},
+       "statistics": {"viewCount": "3"},
+       "status": {"uploadStatus": "processed", "privacyStatus": "unlisted"}}
+    ]
+  },
+  "commentThreads": {
+    "kind": "youtube#commentThreadListResponse",
+    "pageInfo": {"totalResults": 3, "resultsPerPage": 100},
+    "items": [
+      {"kind": "youtube#commentThread", "id": "UgxThread1",
+       "snippet": {"channelId": "UCsokhavlog00000000000", "videoId": "AAAAAAAAAAA", "canReply": true, "totalReplyCount": 1, "isPublic": true,
+         "topLevelComment": {"kind": "youtube#comment", "id": "UgxThread1",
+           "snippet": {"channelId": "UCsokhavlog00000000000", "videoId": "AAAAAAAAAAA", "textDisplay": "តម្លៃប៉ុន្មានបង? RX300 នេះ",
+                       "textOriginal": "តម្លៃប៉ុន្មានបង? RX300 នេះ", "authorDisplayName": "@SreyPov", "authorProfileImageUrl": "https://yt3.ggpht.com/sreypov.jpg",
+                       "authorChannelUrl": "http://www.youtube.com/@SreyPov", "authorChannelId": {"value": "UCsreypov0000000000000"},
+                       "canRate": true, "viewerRating": "none", "likeCount": 2, "publishedAt": "2026-09-21T01:00:00Z", "updatedAt": "2026-09-21T01:00:00Z"}}},
+       "replies": {"comments": [
+         {"kind": "youtube#comment", "id": "UgxThread1.reply1",
+          "snippet": {"channelId": "UCsokhavlog00000000000", "videoId": "AAAAAAAAAAA", "textDisplay": "@SreyPov 15500$ bong", "textOriginal": "@SreyPov 15500$ bong",
+                      "parentId": "UgxThread1", "authorDisplayName": "@SokhaVlog", "authorChannelUrl": "http://www.youtube.com/@SokhaVlog",
+                      "authorChannelId": {"value": "UCsokhavlog00000000000"}, "likeCount": 0, "publishedAt": "2026-09-21T02:00:00Z"}}]}},
+      {"kind": "youtube#commentThread", "id": "UgxThread2",
+       "snippet": {"videoId": "AAAAAAAAAAA", "canReply": true, "totalReplyCount": 3, "isPublic": true,
+         "topLevelComment": {"kind": "youtube#comment", "id": "UgxThread2",
+           "snippet": {"videoId": "AAAAAAAAAAA", "textDisplay": "how much for the RX300?", "textOriginal": "how much for the RX300?",
+                       "authorDisplayName": "@DaraBuyer", "authorChannelUrl": "http://www.youtube.com/@DaraBuyer",
+                       "authorChannelId": {"value": "UCdarabuyer00000000000"}, "likeCount": 0, "publishedAt": "2026-09-21T03:00:00Z"}}},
+       "replies": {"comments": [
+         {"kind": "youtube#comment", "id": "UgxThread2.r1",
+          "snippet": {"videoId": "AAAAAAAAAAA", "textDisplay": "same question", "textOriginal": "same question", "parentId": "UgxThread2",
+                      "authorDisplayName": "@Visal", "authorChannelId": {"value": "UCvisal000000000000000"}, "publishedAt": "2026-09-21T04:00:00Z"}}]}},
+      {"kind": "youtube#commentThread", "id": "UgxThread3",
+       "snippet": {"videoId": "AAAAAAAAAAA", "canReply": true, "totalReplyCount": 0, "isPublic": true,
+         "topLevelComment": {"kind": "youtube#comment", "id": "UgxThread3",
+           "snippet": {"videoId": "AAAAAAAAAAA", "textDisplay": "nice car", "textOriginal": "nice car", "authorDisplayName": "@Visal",
+                       "authorChannelId": {"value": "UCvisal000000000000000"}, "publishedAt": "2026-09-21T05:00:00Z"}}}}
+    ]
+  },
+  "comments": {
+    "kind": "youtube#commentListResponse",
+    "items": [
+      {"kind": "youtube#comment", "id": "UgxThread2.r1",
+       "snippet": {"videoId": "AAAAAAAAAAA", "textDisplay": "same question", "textOriginal": "same question", "parentId": "UgxThread2",
+                   "authorDisplayName": "@Visal", "authorChannelId": {"value": "UCvisal000000000000000"}, "publishedAt": "2026-09-21T04:00:00Z"}},
+      {"kind": "youtube#comment", "id": "UgxThread2.r2",
+       "snippet": {"videoId": "AAAAAAAAAAA", "textDisplay": "@DaraBuyer 16000$ negotiable", "textOriginal": "@DaraBuyer 16000$ negotiable", "parentId": "UgxThread2",
+                   "authorDisplayName": "@SokhaVlog", "authorChannelId": {"value": "UCsokhavlog00000000000"}, "publishedAt": "2026-09-21T06:00:00Z"}},
+      {"kind": "youtube#comment", "id": "UgxThread2.r3",
+       "snippet": {"videoId": "AAAAAAAAAAA", "textDisplay": "ok can I see it this weekend?", "textOriginal": "ok can I see it this weekend?", "parentId": "UgxThread2",
+                   "authorDisplayName": "@DaraBuyer", "authorChannelId": {"value": "UCdarabuyer00000000000"}, "publishedAt": "2026-09-21T07:00:00Z"}}
+    ]
+  },
+  "error_commentsDisabled": {"error": {"code": 403, "message": "The video identified by the <code><a href=\"/youtube/v3/docs/commentThreads/list#videoId\">videoId</a></code> parameter has disabled comments.",
+    "errors": [{"message": "The video has disabled comments.", "domain": "youtube.commentThread", "reason": "commentsDisabled", "location": "videoId", "locationType": "parameter"}]}},
+  "error_quotaExceeded": {"error": {"code": 403, "message": "The request cannot be completed because you have exceeded your <a href=\"/youtube/v3/getting-started#quota\">quota</a>.",
+    "errors": [{"message": "The request cannot be completed because you have exceeded your quota.", "domain": "youtube.quota", "reason": "quotaExceeded"}]}},
+  "error_forbidden": {"error": {"code": 403, "message": "Forbidden", "errors": [{"message": "Forbidden", "domain": "youtube.common", "reason": "forbidden"}]}},
+  "error_keyInvalid": {"error": {"code": 400, "message": "API key not valid. Please pass a valid API key.",
+    "errors": [{"message": "API key not valid. Please pass a valid API key.", "domain": "global", "reason": "badRequest"}], "status": "INVALID_ARGUMENT"}}
+}

@@ -150,9 +150,34 @@ class TikTokPublicVideosAdapter:
         st = self.page_state(s)
         if st == "access_blocked":
             self.diagnose(s, "access_blocked")
-            raise AccessBlocked(s.page.url, "challenge_or_automation_block")
+            self.wait_for_manual_challenge(s)
+            st = self.page_state(s)
         if st == "login_required":
             self.wait_for_manual_login(s)
+
+    def wait_for_manual_challenge(self, s: BrowserSession) -> None:
+        """Headed runs: show the CAPTCHA to the human and wait for them to solve it. Never solved automatically.
+        Headless runs, a timeout, or too many challenges in one run stop the run."""
+        self.challenges_seen = getattr(self, "challenges_seen", 0) + 1
+        if not self.headed:
+            raise AccessBlocked(s.page.url, "challenge_or_automation_block (rerun with --headed to solve it yourself)")
+        if self.challenges_seen > self.lim.get("max_manual_challenges", 3):
+            raise AccessBlocked(s.page.url, f"challenge #{self.challenges_seen} in one run — TikTok is throttling; stopping")
+        wait_s = self.lim.get("challenge_wait_min", 3) * 60
+        try:
+            s.page.bring_to_front()
+        except Exception:  # noqa: BLE001
+            pass
+        print("\a", end="", flush=True)  # terminal bell
+        log.warning("CAPTCHA on TikTok. Solve it yourself in the browser window (waiting up to %ds)…", wait_s)
+        deadline = time.monotonic() + wait_s
+        while time.monotonic() < deadline:
+            time.sleep(3)
+            if self.page_state(s) != "access_blocked":
+                log.info("CAPTCHA cleared by you; continuing after a pause")
+                s.page.wait_for_timeout(self.lim["settle_ms"])
+                return
+        raise AccessBlocked(s.page.url, "challenge_not_solved_in_time")
 
     def wait_for_manual_login(self, s: BrowserSession) -> None:
         """Pause for the human to log in in the visible window. Never automated."""
@@ -163,7 +188,7 @@ class TikTokPublicVideosAdapter:
         deadline = time.monotonic() + self.lim["login_wait_min"] * 60
         while time.monotonic() < deadline:
             time.sleep(3)
-            if any(c.get("name") == "sessionid" for c in s.context.cookies("https://www.tiktok.com")) and \
+            if any(c.get("name") in ("sessionid", "sessionid_ss", "sid_tt", "sid_guard") for c in s.context.cookies("https://www.tiktok.com")) and \
                     self.page_state(s) != "login_required":
                 log.info("Login detected; continuing")
                 return

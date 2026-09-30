@@ -148,8 +148,8 @@ class MemoryRepo:
         return row["id"], new["comment"], new["reply"]
 
 
-def run(repo, search="normal", headed=False, policy="all"):
-    ad = TikTokPublicVideosAdapter(KEYER, fast_cfg(), headed=headed)
+def run(repo, search="normal", headed=False, policy="all", cfg=None):
+    ad = TikTokPublicVideosAdapter(KEYER, cfg or fast_cfg(), headed=headed)
     urls: list[str] = []
     rep = tt.run(ad, ["car sedan"], repo=repo, persist_policy=policy,
                  session_factory=lambda: open_session(ad.allowed_hosts, 0),
@@ -212,3 +212,18 @@ def test_challenge_stops_tiktok_run():
 def test_login_required_headless_stops_and_asks():
     rep, _ = run(MemoryRepo(), search="login")
     assert rep.stopped and rep.stopped.startswith("login_required")
+
+
+@pytest.mark.browser
+def test_headed_run_waits_for_human_to_solve_captcha():
+    repo = MemoryRepo()
+    rep, _ = run(repo, search="captcha_solved", headed=True)  # the "window" clears the puzzle after ~2s
+    assert not rep.stopped and V1 in repo.posts
+
+
+@pytest.mark.browser
+def test_unsolved_captcha_stops_after_wait():
+    cfg = fast_cfg()
+    cfg["limits"]["challenge_wait_min"] = 0.1
+    rep, _ = run(MemoryRepo(), search="captcha_stuck", headed=True, cfg=cfg)
+    assert rep.stopped and rep.stopped.startswith("access_blocked")

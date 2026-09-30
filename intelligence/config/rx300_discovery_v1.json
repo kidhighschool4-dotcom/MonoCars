@@ -1,0 +1,36 @@
+{
+  "version": "rx300-discovery-v1",
+  "groups": {
+    "rx300_confirmed": {
+      "en": ["Lexus RX300", "RX300 for sale Cambodia", "RX300 price Phnom Penh", "looking for Lexus RX300", "want to buy RX300"],
+      "km": ["ឡិចស៊ីស RX300", "លក់ RX300", "រកទិញ RX300", "ឡាន RX300 ភ្នំពេញ", "RX300 តម្លៃ"],
+      "romanized_km": ["lok rx300", "rok tinh rx300", "lan rx300", "rx300 domlai", "lexus rx300 lok"]
+    },
+    "rx300_family": {
+      "en": ["RX300 family car", "Lexus RX300 family SUV"],
+      "km": ["RX300 ឡានគ្រួសារ", "ឡិចស៊ីស ជិះគ្រួសារ"],
+      "romanized_km": ["rx300 lan krousar"]
+    },
+    "rx300_taxi": {
+      "en": ["RX300 taxi Cambodia", "Lexus RX300 taxi"],
+      "km": ["RX300 តាក់ស៊ី", "ឡិចស៊ីស រត់តាក់ស៊ី"],
+      "romanized_km": ["rx300 rot taxi"]
+    },
+    "family_suv_seekers": {
+      "en": ["looking for family SUV Cambodia", "family SUV Phnom Penh"],
+      "km": ["រកទិញឡាន SUV", "ឡានគ្រួសារ លក់ ភ្នំពេញ"],
+      "romanized_km": ["rok tinh lan suv", "lan krousar lok"]
+    }
+  },
+  "hashtags": ["#rx300", "#lexusrx300", "#lexusrx", "#ឡានលក់", "#ឡានលក់ភ្នំពេញ", "#carforsalecambodia", "#lexuscambodia"],
+  "per_platform": {
+    "reddit": {"subreddits": ["cambodia", "phnompenh", "Lexus"], "query_groups": ["rx300_confirmed", "family_suv_seekers"], "languages": ["en"]},
+    "youtube": {"query_groups": ["rx300_confirmed", "rx300_family", "rx300_taxi"], "region_code": "KH", "relevance_language": "km"},
+    "instagram": {"use_hashtags": true, "query_groups": ["rx300_confirmed"]},
+    "tiktok": {"query_groups": ["rx300_confirmed", "rx300_family", "rx300_taxi"]},
+    "telegram": {"query_groups": ["rx300_confirmed"], "languages": ["en", "km", "romanized_km"]},
+    "mastodon": {"use_hashtags": true, "hashtags": ["rx300", "lexusrx300", "lexus", "cambodia"]},
+    "bluesky": {"query_groups": ["rx300_confirmed"], "languages": ["en"]},
+    "classifieds": {"query_groups": ["rx300_confirmed"], "languages": ["en"], "plain_terms": ["Lexus RX300", "RX300"]}
+  }
+}

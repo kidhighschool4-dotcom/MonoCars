@@ -6,6 +6,7 @@ from dataclasses import dataclass, field
 from datetime import datetime, timedelta, timezone
 
 from ..normalize import normalize_text, sha256_hex, stable_hash
+from ..social.model import Evidence
 from .identity import PersonKeyer
 from .urls import canonical_comment_url, comment_ids
 
@@ -58,6 +59,7 @@ class PublicComment:
     buyer_intent_signals: list[str] = field(default_factory=list)
     matched_phrases: list[str] = field(default_factory=list)
     intent_classifier_version: str | None = None
+    screenshot: Evidence | None = None   # buyer-intent comments only; commenter name/avatar hidden before capture
 
 
 @dataclass
@@ -78,6 +80,7 @@ class PublicPost:
     comments_complete: bool = False
     comments_incomplete_reason: str | None = "not_attempted"
     comment_expansion_rounds: int = 0
+    screenshot: Evidence | None = None   # post region; author name/avatar hidden before capture
 
     @property
     def comments_collected_count(self) -> int:

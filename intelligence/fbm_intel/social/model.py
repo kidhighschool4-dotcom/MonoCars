@@ -3,13 +3,17 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from datetime import datetime
+from typing import Any
 
 from ..comments import redact
 from ..normalize import normalize_text, sha256_hex, stable_hash
 from .intent_score import IntentScore, score_comment
 
-PLATFORMS = {"facebook", "instagram", "tiktok", "reddit"}
-CONTENT_TYPES = {"facebook_post", "instagram_post", "instagram_reel", "tiktok_video", "reddit_post"}
+PLATFORMS = {"facebook", "facebook_marketplace", "instagram", "tiktok", "reddit", "youtube", "x", "threads",
+             "telegram", "pinterest", "bluesky", "mastodon", "forum", "classifieds", "web"}
+CONTENT_TYPES = {"facebook_post", "facebook_marketplace_listing", "instagram_post", "instagram_reel", "tiktok_video",
+                 "reddit_post", "youtube_video", "x_post", "threads_post", "telegram_channel_post", "pinterest_pin",
+                 "bluesky_post", "mastodon_status", "forum_thread", "classified_listing", "web_page"}
 COMPLETENESS = {"complete", "partial_limit", "partial_timeout", "login_required", "access_blocked", "comments_unavailable"}
 
 
@@ -40,6 +44,8 @@ class SocialComment:
     content_hash: str
     intent: IntentScore
     screenshot: Evidence | None = None
+    lead: Any = None                       # fbm_intel.platforms.leads.LeadResult
+    is_post_author: bool = False           # commenter is the post's author (seller replying) — never a buyer lead
 
 
 @dataclass
@@ -69,6 +75,11 @@ class SocialPost:
     screenshot: Evidence | None = None
     rejected_comment_count: int = 0        # non-buyer comments not persisted (buyers_only policy)
     rejection_reasons: dict = field(default_factory=dict)
+    author_key: str | None = None          # pseudonymous key of the post author (private individuals)
+    author_key_version: str | None = None
+    organization: Any = None               # fbm_intel.platforms.contract.Organization when clearly organizational
+    lead: Any = None                       # post-level lead typing (seller posts are sources, not buyer leads)
+    comments_supported: bool = True
 
     @property
     def comments_complete(self) -> bool:

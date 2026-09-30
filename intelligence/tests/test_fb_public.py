@@ -317,3 +317,216 @@ def test_real_facebook_post_layout():
     assert [c.comment_text for c in post.comments] == ["domlai man b", "nice lan b", "[mention] ចង់បានពិតខលបានបង call [phone]"]
     assert "Tagged Person" not in " ".join(c.comment_text for c in post.comments)   # tagged names never stored
     assert post.comments[2].parent_fingerprint == "id:Z1"
+
+
+# ─── Screenshot evidence (post region + buyer comments, names hidden) ───────
+
+def _open_post(url: str, checks):
+    """collect_post on a fixture page, then run `checks(page, post)` while the page is still open."""
+    from fbm_intel.browser import open_session
+    from fbm_intel.fb_public.adapter import SearchResult
+    from fbm_intel.fb_public.visibility import Visibility
+
+    ad = FacebookPublicPostsAdapter(KEYER, FAST)
+    with open_session(ad.allowed_hosts, 0) as s:
+        fb_public_site.install(s.context)
+        post = ad.collect_post(s, SearchResult(url, url, Visibility("public_verified", "audience_icon:Shared with Public", None)), "q")
+        return checks(s.page, post)
+
+
+_VIS_JS = """() => {
+  const vis = el => getComputedStyle(el).visibility;
+  const byText = t => Array.from(document.querySelectorAll('a')).filter(a => a.textContent.trim() === t);
+  return {
+    names: byText('Visible Name').map(vis), page: byText('Car Shop PP').map(vis),
+    permalinks: Array.from(document.querySelectorAll('[role="article"] a[href*="comment_id="]'))
+      .filter(a => /\\/posts\\//.test(new URL(a.href).pathname)).map(vis),
+    bodies: Array.from(document.querySelectorAll('[role="article"][aria-label] div[dir="auto"]')).map(vis),
+    message: vis(document.querySelector('[data-ad-preview="message"]')),
+    region: !!document.querySelector('[data-fbm-post-region]'),
+  };
+}"""
+
+
+@pytest.mark.browser
+def test_post_and_buyer_comment_screenshots_with_names_hidden():
+    from PIL import Image
+    import io
+
+    def checks(page, post):
+        return post, page.evaluate(_VIS_JS)
+
+    post, vis = _open_post(POST, checks)
+    # (a) one post-region screenshot
+    assert post.screenshot is not None and post.screenshot.kind == "post"
+    with Image.open(io.BytesIO(post.screenshot.png)) as im:
+        assert im.size == (post.screenshot.width, post.screenshot.height) and im.height > 0
+    assert vis["region"]
+    # (b) every buyer-intent comment has its own screenshot, non-buyer comments have none
+    buyers = [c for c in post.comments if c.buyer_intent]
+    others = [c for c in post.comments if not c.buyer_intent]
+    assert buyers and others and {c.comment_text for c in others} >= {"Nice car"}
+    assert all(c.screenshot is not None and c.screenshot.kind == "comment" for c in buyers)
+    assert all(c.screenshot is None for c in others)
+    assert len({c.screenshot.checksum_sha256 for c in buyers}) == len(buyers)   # each points at its own comment
+    # privacy: names / Page name hidden at screenshot time, comment text and permalinks still visible
+    assert vis["names"] and set(vis["names"]) == {"hidden"}
+    assert vis["page"] == ["hidden"]
+    assert set(vis["bodies"]) == {"visible"} and vis["message"] == "visible"
+    assert vis["permalinks"] and set(vis["permalinks"]) == {"visible"}
+
+
+@pytest.mark.browser
+def test_post_screenshot_is_clipped_and_avatar_hidden():
+    def checks(page, post):
+        return post, page.evaluate("""() => ({
+            avatar: getComputedStyle(document.querySelector('svg image')).visibility,
+            seller: getComputedStyle(Array.from(document.querySelectorAll('a')).find(a => a.textContent.includes('Tall Seller'))).visibility})""")
+
+    post, vis = _open_post("https://www.facebook.com/tall.kh/posts/121212121", checks)
+    assert post.screenshot is not None and 0 < post.screenshot.height <= 1400
+    assert vis == {"avatar": "hidden", "seller": "hidden"}
+    assert post.comments[0].buyer_intent and post.comments[0].screenshot is not None
+
+
+@pytest.mark.browser
+def test_placeholder_only_comment_gets_no_screenshot_and_never_fails(monkeypatch):
+    from fbm_intel.fb_public import adapter as ad_mod
+    from fbm_intel.fb_public.adapter import comment_snippet
+
+    assert comment_snippet("[mention] [phone]") is None
+    assert comment_snippet("[mention] ចង់បានពិតខលបានបង call [phone]") == "ចង់បានពិតខលបានបង call"
+
+    def boom(*a, **k):
+        raise RuntimeError("screenshot exploded")
+
+    monkeypatch.setattr(ad_mod, "_evidence", boom)
+    post = _open_post(POST, lambda page, post: post)
+    assert post is not None and post.screenshot is None and all(c.screenshot is None for c in post.comments)
+    assert post.comments_complete is True
+
+
+# ─── Repo: screenshot_path written, and tolerant of the migration not applied ─
+
+class FakeSupabase:
+    """Just enough PostgREST + Storage for FacebookPublicRepo.save_post."""
+
+    def __init__(self, has_shot_cols: bool = True):
+        self.has_shot_cols = has_shot_cols
+        self.posts: list[dict] = []
+        self.comments: list[dict] = []
+        self.uploads: dict[str, bytes] = {}
+        self.errors = 0
+
+    def _missing(self, table):
+        self.errors += 1
+        return httpx_response(400, {"code": "PGRST204",
+                                    "message": f"Could not find the 'screenshot_path' column of '{table}' in the schema cache"})
+
+    def __call__(self, req):
+        path, q = req.url.path, dict(req.url.params)
+        if path.startswith("/storage/v1/object/listing-evidence/"):
+            self.uploads[path.split("/listing-evidence/", 1)[1]] = req.content
+            return httpx_response(200, {"Key": path})
+        table = path.rsplit("/", 1)[-1]
+        rows = self.posts if table == "facebook_public_posts" else self.comments
+        body = json.loads(req.content) if req.content else None
+        if not self.has_shot_cols and ("screenshot_path" in q.get("select", "") or "screenshot_path" in (req.content or b"").decode()):
+            return self._missing(table)
+        if req.method == "GET":
+            out = rows
+            for k, v in q.items():
+                if k not in ("select",) and v.startswith("eq."):
+                    out = [r for r in out if str(r.get(k)) == v[3:]]
+            return httpx_response(200, out)
+        if req.method == "POST" and table == "facebook_public_posts":
+            cur = next((r for r in rows if r["canonical_post_url"] == body["canonical_post_url"]), None)
+            if cur is None:
+                cur = {"id": f"p{len(rows) + 1}"}
+                rows.append(cur)
+            cur.update(body)
+            return httpx_response(201, [cur])
+        if req.method == "POST":
+            created = []
+            for b in body:
+                if any(r["post_id"] == b["post_id"] and r["comment_fingerprint"] == b["comment_fingerprint"] for r in rows):
+                    continue
+                r = {"id": f"c{len(rows) + 1}", **b}
+                rows.append(r)
+                created.append(r)
+            return httpx_response(201, created)
+        if req.method == "PATCH":
+            for r in rows:
+                if r["id"] == q["id"][3:]:
+                    r.update(body)
+            return httpx_response(204, None)
+        return httpx_response(404, {})
+
+
+def httpx_response(status, payload):
+    import httpx
+    if payload is None:
+        return httpx.Response(status)
+    return httpx.Response(status, json=payload)
+
+
+def _repo(fake):
+    import httpx
+    from fbm_intel.fb_public.repo import FacebookPublicRepo
+    from fbm_intel.settings import Settings
+
+    st = Settings(supabase_url="https://sb.test", service_role_key="srk", openclaw_base_url="", openclaw_token="",
+                  openclaw_agent="", openclaw_backend_model="", fbm_base_url="", manual_url_hosts=frozenset())
+    return FacebookPublicRepo(st, "owner-1", KEYER, client=httpx.Client(transport=httpx.MockTransport(fake)))
+
+
+def _post_with_shots():
+    from datetime import datetime, timezone
+    from fbm_intel.social.model import Evidence
+
+    ev = lambda kind, b: Evidence(png=b, checksum_sha256=hashlib.sha256(b).hexdigest(), width=10, height=10, kind=kind)
+    comments, _ = build_comments([rc("comment", "Is it still available? I want to buy", "C1"), rc("comment", "Nice car", "C2"),
+                                  rc("reply", "How much last price?", "C1", "R1")], POST, KEYER, Limits())
+    for c in comments:
+        c.screenshot = ev("comment", c.comment_text.encode()) if c.buyer_intent else None
+    return PublicPost(source_post_id="pfbid0111", source_post_url=POST, canonical_post_url=POST, author_key=None,
+                      author_key_version=None, post_text="Camry", published_at_observed=None,
+                      visibility_status="public_verified", visibility_evidence="audience_icon:Shared with Public",
+                      search_query="q", captured_at=datetime.now(timezone.utc), content_hash="h", comments=comments,
+                      comments_complete=True, comments_incomplete_reason=None, screenshot=ev("post", b"POSTPNG"))
+
+
+class TestRepoScreenshots:
+    def test_writes_screenshot_paths(self):
+        fake = FakeSupabase()
+        _, nc, nr = _repo(fake).save_post(_post_with_shots())
+        assert (nc, nr) == (2, 1)
+        post = fake.posts[0]
+        assert post["screenshot_path"].startswith("social/facebook/") and "/post-" in post["screenshot_path"]
+        assert fake.uploads[post["screenshot_path"]] == b"POSTPNG"
+        by_text = {c["comment_text"]: c for c in fake.comments}
+        assert by_text["Nice car"]["screenshot_path"] is None
+        for t in ("Is it still available? I want to buy", "How much last price?"):
+            path = by_text[t]["screenshot_path"]
+            assert path.startswith("social/facebook/") and "/comment-" in path and fake.uploads[path] == t.encode()
+        assert len(fake.uploads) == 3
+
+    def test_keeps_existing_post_screenshot_and_skips_known_comments(self):
+        fake = FakeSupabase()
+        repo = _repo(fake)
+        repo.save_post(_post_with_shots())
+        first = fake.posts[0]["screenshot_path"]
+        repo.save_post(_post_with_shots())
+        assert fake.posts[0]["screenshot_path"] == first and len(fake.uploads) == 3   # nothing re-uploaded
+
+    def test_works_before_migration_is_applied(self, caplog):
+        fake = FakeSupabase(has_shot_cols=False)
+        repo = _repo(fake)
+        with caplog.at_level("WARNING", logger="fbm_intel.fb_public"):
+            _, nc, nr = repo.save_post(_post_with_shots())
+            repo.save_post(_post_with_shots())
+        assert (nc, nr) == (2, 1) and len(fake.posts) == 1 and len(fake.comments) == 3
+        assert fake.uploads == {}                                  # nothing uploaded that couldn't be referenced
+        assert not any("screenshot_path" in r for r in fake.posts + fake.comments)
+        assert sum("screenshot_path columns missing" in r.message for r in caplog.records) == 1
+        assert fake.errors == 1

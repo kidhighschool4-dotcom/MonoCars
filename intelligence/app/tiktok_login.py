@@ -28,7 +28,7 @@ def main() -> int:
         log.info("Log in to TikTok yourself in the window (any verification too). Waiting up to 15 minutes…")
         deadline = time.monotonic() + 15 * 60
         while time.monotonic() < deadline:
-            if any(c.get("name") == "sessionid" for c in s.context.cookies("https://www.tiktok.com")):
+            if any(c.get("name") in ("sessionid", "sessionid_ss", "sid_tt", "sid_guard") for c in s.context.cookies("https://www.tiktok.com")):
                 s.page.wait_for_timeout(3000)
                 log.info("Logged in. Session kept in the private browser profile (values not shown).")
                 return 0

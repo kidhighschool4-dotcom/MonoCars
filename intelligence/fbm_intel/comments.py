@@ -208,8 +208,12 @@ class BuyerComment:
     text_normalized: str = ""
 
 
+_KM_DIGITS = str.maketrans("០១២៣៤៥៦៧៨៩", "0123456789")
+
+
 def redact(text: str) -> str:
-    t = _EMAIL.sub("[email]", text)
+    # Khmer digits map 1:1 to ASCII, so phone numbers written as ០១២ ៣៤៥ ៦៧៨ are caught too
+    t = _EMAIL.sub("[email]", text.translate(_KM_DIGITS)) if any("០" <= ch <= "៩" for ch in text) else _EMAIL.sub("[email]", text)
     t = _URL.sub("[link]", t)
     t = _PHONE.sub("[phone]", t)
     return _MENTION.sub("[mention]", t)

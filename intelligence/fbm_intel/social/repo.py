@@ -11,6 +11,24 @@ import httpx
 from ..settings import Settings
 from .model import Evidence, SocialPost
 
+EVIDENCE_BUCKET = "listing-evidence"   # private bucket; the dashboard serves short-lived signed URLs
+
+
+def evidence_path(platform: str, ev: Evidence) -> str:
+    return f"social/{platform}/{datetime.now(timezone.utc):%Y/%m}/{ev.kind}-{ev.checksum_sha256[:16]}-{uuid.uuid4().hex[:8]}.png"
+
+
+def upload_evidence(http: httpx.Client, supabase_url: str, auth_headers: dict, platform: str, ev: Evidence | None) -> str | None:
+    """Upload a screenshot to the private evidence bucket (service role). Returns the object path, or None."""
+    if ev is None:
+        return None
+    path = evidence_path(platform, ev)
+    r = http.request("POST", f"{supabase_url}/storage/v1/object/{EVIDENCE_BUCKET}/{path}", content=ev.png,
+                     headers={**auth_headers, "Content-Type": "image/png", "x-upsert": "false"})
+    if r.status_code >= 400:
+        raise RuntimeError(f"POST /storage/v1/object/{EVIDENCE_BUCKET}/{path} → {r.status_code}: {r.text[:300]}")
+    return path
+
 
 class SocialRepo:
     def __init__(self, settings: Settings, owner_id: str, client: httpx.Client | None = None):
@@ -30,12 +48,7 @@ class SocialRepo:
         return r.json() if r.content and "json" in r.headers.get("content-type", "") else None
 
     def _upload(self, platform: str, ev: Evidence | None) -> str | None:
-        if ev is None:
-            return None
-        path = f"social/{platform}/{datetime.now(timezone.utc):%Y/%m}/{ev.kind}-{ev.checksum_sha256[:16]}-{uuid.uuid4().hex[:8]}.png"
-        self._req("POST", f"/storage/v1/object/listing-evidence/{path}", content=ev.png,
-                  headers={"Content-Type": "image/png", "x-upsert": "false"})
-        return path
+        return upload_evidence(self.http, self.s.supabase_url, self._h, platform, ev)
 
     def record_skip(self, platform, url, query, status, reason):
         self._req("POST", "/rest/v1/public_social_post_skips", body={

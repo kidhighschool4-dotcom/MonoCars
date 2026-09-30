@@ -4,6 +4,8 @@ Browser actions are limited to: open the search, tick the "Public posts" filter 
 few times, open verified-public post permalinks, and click comment-expansion controls ("View more comments",
 "View N replies", "See more", comment sort → "All comments"). It never likes, comments, messages, follows, or
 opens anyone's profile. Author links are read from the page only to compute an HMAC key and then discarded.
+Screenshot evidence (post region + buyer-intent comments) is taken only after a style tag hides names, profile
+links and avatars; the only DOM changes are that style tag and data-fbm-* marker attributes.
 """
 from __future__ import annotations
 
@@ -17,6 +19,8 @@ from urllib.parse import quote
 from ..browser import BlockedError, BlockStatus, BrowserSession, detect_block
 from ..normalize import normalize_text, sha256_hex
 from .identity import PersonKeyer
+from ..social.model import Evidence
+from ..tiktok.adapter import _evidence
 from .model import ADAPTER_VERSION, Limits, PublicPost, RawComment, build_comments, parse_fb_time
 from .urls import (canonical_post_url, canonical_profile_url, is_group_post, is_post_url, post_id,
                    post_url_from_photo_set)
@@ -112,6 +116,9 @@ _POST_JS = """() => {
                    + Array.from(r.querySelectorAll('[role="article"]')).filter(isComment).length
                    + (Array.from(r.querySelectorAll('svg title')).some(t => /^shared with/i.test(t.textContent.trim())) ? 10 : 0);
   const scope = regions.filter(visible).sort((a, b) => score(b) - score(a))[0] || document.body;
+  // expose the chosen region so the post screenshot captures exactly what was read
+  document.querySelectorAll('[data-fbm-post-region]').forEach(e => e.removeAttribute('data-fbm-post-region'));
+  scope.setAttribute('data-fbm-post-region', '1');
   const inComment = el => { const a = el.closest('[role="article"]'); return !!(a && isComment(a)); };
   const labels = Array.from(scope.querySelectorAll('[aria-label],[title],svg title')).filter(e => !inComment(e))
     .map(e => (e.getAttribute('aria-label') || e.getAttribute('title') || e.textContent || '').trim())
@@ -145,6 +152,74 @@ _POST_JS = """() => {
     }),
   };
 }"""
+
+# ── screenshot evidence (privacy first: names/avatars are hidden BEFORE any capture) ──
+POST_SHOT_MAX_HEIGHT = 1400
+MAX_COMMENT_SHOTS_PER_POST = 20
+_PLACEHOLDER_RE = re.compile(r"\[(?:mention|phone|email|link)\]")
+
+_HIDE_CSS = """
+[data-fbm-hide], [data-fbm-hide] * { visibility: hidden !important; }
+[role="article"][aria-label^="Comment by" i] img, [role="article"][aria-label^="Reply by" i] img,
+[role="article"][aria-label^="Comment by" i] image, [role="article"][aria-label^="Reply by" i] image,
+[role="article"][aria-label^="Comment by" i] svg image, [role="article"][aria-label^="Reply by" i] svg image,
+[role="article"][aria-label^="Comment by" i] [aria-label]:not([role="article"]):not([role="button"]),
+[role="article"][aria-label^="Reply by" i] [aria-label]:not([role="article"]):not([role="button"]),
+[data-fbm-post-region] svg image,
+[data-fbm-post-region] h2 a, [data-fbm-post-region] h3 a, [data-fbm-post-region] h4 a, [data-fbm-post-region] strong a
+  { visibility: hidden !important; }
+"""
+
+# Marks every link that could show a person's (or Page's) name: anything that is not a content link (post / comment
+# permalink, photo, video, hashtag). Profile links that carry ?comment_id= are still profile links (path decides).
+_MARK_NAMES_JS = r"""() => {
+  const content = /\/(posts|permalink|permalink\.php|story\.php|photo|photo\.php|photos|videos|watch|reel|reels|hashtag|marketplace|events|share)(\/|$)/i;
+  let n = 0;
+  document.querySelectorAll('a').forEach(a => {
+    const h = a.getAttribute('href');
+    let keep = false;
+    if (h && h !== '#') { try { keep = content.test(new URL(h, location.href).pathname); } catch (e) {} }
+    if (!keep) { a.setAttribute('data-fbm-hide', '1'); n++; }
+  });
+  return n;
+}"""
+
+# Finds the innermost comment/reply article whose OWN text (nested replies excluded, tags → [mention]) contains the
+# snippet, and marks it for the screenshot. Already-captured articles are skipped so duplicates map 1:1.
+_MARK_COMMENT_JS = r"""([snippet, id]) => {
+  const norm = t => (t || '').replace(/\s+/g, ' ').trim().toLowerCase();
+  const want = norm(snippet);
+  document.querySelectorAll('[data-fbm-shot]').forEach(e => e.removeAttribute('data-fbm-shot'));
+  const arts = Array.from(document.querySelectorAll('[role="article"]'))
+    .filter(a => /^(comment|reply) by /i.test(a.getAttribute('aria-label') || ''))
+    .filter(a => !a.hasAttribute('data-fbm-shot-done'))
+    .filter(a => a.offsetWidth || a.offsetHeight || a.getClientRects().length);
+  for (const a of arts) {
+    const k = a.cloneNode(true);
+    k.querySelectorAll('[role="article"]').forEach(x => x.remove());
+    k.querySelectorAll('a').forEach(x => x.replaceWith('[mention]'));
+    if (norm(k.textContent).includes(want)) {
+      a.setAttribute('data-fbm-shot', id); a.setAttribute('data-fbm-shot-done', '1');
+      return true;
+    }
+  }
+  return false;
+}"""
+
+_REGION_RECT_JS = r"""(maxH) => {
+  const el = document.querySelector('[data-fbm-post-region]');
+  if (!el) return null;
+  const r = el.getBoundingClientRect();
+  const docW = Math.max(document.documentElement.scrollWidth, document.body ? document.body.scrollWidth : 0);
+  const x = Math.max(0, r.left + window.scrollX), y = Math.max(0, r.top + window.scrollY);
+  return {x, y, width: Math.min(r.width, docW - x), height: Math.min(r.height, maxH)};
+}"""
+
+
+def comment_snippet(text: str) -> str | None:
+    """A distinctive piece of the stored comment text that is literally on the page (placeholders removed)."""
+    piece = max(_PLACEHOLDER_RE.split(text or ""), key=len).strip()[:60].strip()
+    return piece if len(piece) >= 2 else None
 
 
 @dataclass
@@ -369,9 +444,49 @@ class FacebookPublicPostsAdapter:
         if truncated and complete:
             complete, reason = False, "configured_limit_reached"
         post.comments_complete, post.comments_incomplete_reason = complete, (None if complete else reason or "unknown")
+        self.capture_evidence(s, post)
         log.info("Post %s: %d comments, %d replies, complete=%s%s", final_canon, post.comments_collected_count,
                  post.replies_collected_count, complete, "" if complete else f" ({post.comments_incomplete_reason})")
         return post
+
+    # ── screenshot evidence ──
+    def hide_names(self, s: BrowserSession) -> None:
+        """Hide commenter/author names, profile links and avatars. Must run before every capture."""
+        s.page.add_style_tag(content=_HIDE_CSS)
+        s.page.evaluate(_MARK_NAMES_JS)
+
+    def capture_evidence(self, s: BrowserSession, post: PublicPost) -> None:
+        """One post-region screenshot + one per buyer-intent comment. Failures are logged, never raised."""
+        try:
+            self.hide_names(s)
+        except Exception as e:  # noqa: BLE001
+            log.warning("Screenshot evidence skipped for %s: could not hide names (%s)", post.canonical_post_url, type(e).__name__)
+            return  # never capture without the privacy mask
+        try:
+            post.screenshot = self._screenshot_post(s)
+        except Exception as e:  # noqa: BLE001
+            log.info("Post screenshot failed for %s (%s)", post.canonical_post_url, type(e).__name__)
+        shots = 0
+        for c in (c for c in post.comments if c.buyer_intent):
+            if shots >= MAX_COMMENT_SHOTS_PER_POST:
+                break
+            try:
+                c.screenshot = self._screenshot_comment(s, c.comment_text, shots)
+                shots += c.screenshot is not None
+            except Exception as e:  # noqa: BLE001
+                log.info("Comment screenshot failed on %s (%s)", post.canonical_post_url, type(e).__name__)
+
+    def _screenshot_post(self, s: BrowserSession) -> Evidence | None:
+        clip = s.page.evaluate(_REGION_RECT_JS, POST_SHOT_MAX_HEIGHT)
+        if not clip or clip["width"] <= 0 or clip["height"] <= 0:
+            return None
+        return _evidence(s.page.screenshot(full_page=True, clip=clip), "post")
+
+    def _screenshot_comment(self, s: BrowserSession, text: str, n: int) -> Evidence | None:
+        snippet = comment_snippet(text)
+        if not snippet or not s.page.evaluate(_MARK_COMMENT_JS, [snippet, str(n)]):
+            return None
+        return _evidence(s.page.locator(f'[data-fbm-shot="{n}"]').first.screenshot(timeout=4000), "comment")
 
 
 class PartialPost(Exception):

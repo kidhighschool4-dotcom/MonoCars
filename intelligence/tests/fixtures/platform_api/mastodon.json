@@ -1,0 +1,42 @@
+{
+  "_comment": "Shapes follow the Mastodon REST API Status / Account entities (GET /api/v1/timelines/tag/:hashtag, GET /api/v1/statuses/:id/context). All names/ids are invented.",
+  "tag_timeline": [
+    {"id": "113000000000000003", "created_at": "2026-09-26T09:00:00.000Z", "in_reply_to_id": null, "in_reply_to_account_id": null,
+     "sensitive": false, "spoiler_text": "", "visibility": "public", "language": "en",
+     "uri": "https://mastodon.social/users/alicechan/statuses/113000000000000003", "url": "https://mastodon.social/@alicechan/113000000000000003",
+     "replies_count": 4, "reblogs_count": 1, "favourites_count": 6,
+     "content": "<p>Lexus RX300 2003 for sale in Phnom Penh, 14,500$ <a href=\"https://mastodon.social/tags/rx300\" class=\"mention hashtag\" rel=\"tag\">#<span>rx300</span></a> <a href=\"https://mastodon.social/tags/cambodia\" class=\"mention hashtag\" rel=\"tag\">#<span>cambodia</span></a></p>",
+     "reblog": null,
+     "account": {"id": "1001", "username": "alicechan", "acct": "alicechan", "display_name": "Alice Chan", "url": "https://mastodon.social/@alicechan",
+                 "uri": "https://mastodon.social/users/alicechan", "avatar": "https://files.mastodon.social/alice.png", "bot": false, "group": false, "noindex": false},
+     "media_attachments": [], "mentions": [], "tags": [{"name": "rx300", "url": "https://mastodon.social/tags/rx300"}, {"name": "cambodia", "url": "https://mastodon.social/tags/cambodia"}]},
+    {"id": "113000000000000002", "created_at": "2026-09-25T09:00:00.000Z", "in_reply_to_id": null, "sensitive": false, "spoiler_text": "",
+     "visibility": "unlisted", "uri": "https://mastodon.social/users/unlistedguy/statuses/113000000000000002", "url": "https://mastodon.social/@unlistedguy/113000000000000002",
+     "content": "<p>my rx300 <a href=\"https://mastodon.social/tags/rx300\" class=\"mention hashtag\" rel=\"tag\">#<span>rx300</span></a></p>", "reblog": null,
+     "account": {"id": "1002", "username": "unlistedguy", "acct": "unlistedguy", "display_name": "Unlisted Guy", "uri": "https://mastodon.social/users/unlistedguy"},
+     "tags": [{"name": "rx300"}]},
+    {"id": "113000000000000001", "created_at": "2026-09-24T09:00:00.000Z", "in_reply_to_id": null, "sensitive": true, "spoiler_text": "car talk",
+     "visibility": "public", "uri": "https://other.example/users/cwposter/statuses/9001", "url": "https://other.example/@cwposter/9001",
+     "content": "<p>rx300 behind a CW</p>", "reblog": null,
+     "account": {"id": "1003", "username": "cwposter", "acct": "cwposter@other.example", "display_name": "CW Poster", "uri": "https://other.example/users/cwposter"},
+     "tags": [{"name": "rx300"}]}
+  ],
+  "context_113000000000000003": {"ancestors": [], "descendants": [
+    {"id": "113000000000000010", "created_at": "2026-09-26T10:00:00.000Z", "in_reply_to_id": "113000000000000003", "visibility": "public", "sensitive": false, "spoiler_text": "",
+     "uri": "https://other.example/users/bobbuilder/statuses/777", "url": "https://other.example/@bobbuilder/777",
+     "content": "<p><span class=\"h-card\" translate=\"no\"><a href=\"https://mastodon.social/@alicechan\" class=\"u-url mention\">@<span>alicechan</span></a></span> how much for the RX300? still available?</p>",
+     "account": {"id": "2001", "username": "bobbuilder", "acct": "bobbuilder@other.example", "display_name": "Bob Builder", "url": "https://other.example/@bobbuilder", "uri": "https://other.example/users/bobbuilder"}},
+    {"id": "113000000000000011", "created_at": "2026-09-26T11:00:00.000Z", "in_reply_to_id": "113000000000000010", "visibility": "public", "sensitive": false, "spoiler_text": "",
+     "uri": "https://mastodon.social/users/alicechan/statuses/113000000000000011", "url": "https://mastodon.social/@alicechan/113000000000000011",
+     "content": "<p><span class=\"h-card\"><a href=\"https://other.example/@bobbuilder\" class=\"u-url mention\">@<span>bobbuilder</span></a></span> yes, 14,500$ firm</p>",
+     "account": {"id": "1001", "username": "alicechan", "acct": "alicechan", "display_name": "Alice Chan", "uri": "https://mastodon.social/users/alicechan"}},
+    {"id": "113000000000000012", "created_at": "2026-09-26T12:00:00.000Z", "in_reply_to_id": "113000000000000003", "visibility": "private", "sensitive": false, "spoiler_text": "",
+     "uri": "https://mastodon.social/users/secretsam/statuses/113000000000000012", "url": "https://mastodon.social/@secretsam/113000000000000012",
+     "content": "<p>followers-only reply</p>",
+     "account": {"id": "3001", "username": "secretsam", "acct": "secretsam", "display_name": "Secret Sam", "uri": "https://mastodon.social/users/secretsam"}},
+    {"id": "113000000000000013", "created_at": "2026-09-26T13:00:00.000Z", "in_reply_to_id": "113000000000000012", "visibility": "public", "sensitive": false, "spoiler_text": "",
+     "uri": "https://mastodon.social/users/carlakh/statuses/113000000000000013", "url": "https://mastodon.social/@carlakh/113000000000000013",
+     "content": "<p>តម្លៃប៉ុន្មានបង?</p>",
+     "account": {"id": "4001", "username": "carlakh", "acct": "carlakh", "display_name": "Carla KH", "uri": "https://mastodon.social/users/carlakh"}}
+  ]}
+}

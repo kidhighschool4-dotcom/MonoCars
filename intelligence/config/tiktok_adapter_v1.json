@@ -40,7 +40,9 @@
     "page_load_interval_s": 10,
     "scroll_pause_ms": 1800,
     "settle_ms": 4000,
-    "login_wait_min": 10
+    "login_wait_min": 10,
+    "challenge_wait_min": 3,
+    "max_manual_challenges": 3
   },
   "screenshot_threshold": 70
 }

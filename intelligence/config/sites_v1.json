@@ -1,0 +1,81 @@
+{
+  "version": "sites-v1",
+  "notes": [
+    "Per-site selector configs for the config-driven adapters: kh_classifieds (\"classifieds\"), forums (\"forums\") and web_sites (\"web_sites\").",
+    "A site is used only when \"enabled\": true here, or when its name (or an inline block) is listed in config/platforms_v1.json platforms.<adapter>.sites.",
+    "Before enabling a site: check its robots.txt allows the search/listing pages, confirm pages are server-rendered public HTML (no login, no JS-only rendering), and verify the selectors against a saved page.",
+    "search_url must be a public page allowed by robots.txt; {query} is URL-encoded, {page} starts at 1. Without search_url, listing_urls are fetched and links whose text matches the query are kept.",
+    "Selectors never target phone / contact fields. Seller / author selectors are used only to derive pseudonymous keys (never stored) or, with org_markers, to recognise shops/dealers.",
+    "All entries below are EXAMPLES on reserved example.* domains and are disabled."
+  ],
+  "classifieds": [
+    {
+      "name": "example-classifieds",
+      "enabled": false,
+      "base_url": "https://classifieds.example.com",
+      "search_url": "https://classifieds.example.com/cars?q={query}&page={page}",
+      "result_link": "a.listing-link",
+      "listing_url_regex": "^/ad/(\\d+)",
+      "fields": {
+        "title": "h1.listing-title",
+        "price": ".price",
+        "location": ".location",
+        "date": ".posted-date",
+        "description": ".description",
+        "seller": ".seller-name",
+        "seller_link": "a.seller-profile"
+      },
+      "seller_id_attr": "href",
+      "seller_id_regex": "/user/(\\w+)",
+      "org_markers": [".badge-shop", ".verified-dealer", "text:Official dealer"],
+      "wanted_markers": ["ត្រូវការទិញ", "រកទិញ", "want to buy", "wanted", "wtb"],
+      "date_format": "%d/%m/%Y"
+    }
+  ],
+  "forums": [
+    {
+      "name": "example-discourse",
+      "enabled": false,
+      "type": "discourse",
+      "base_url": "https://forum.example.com",
+      "listing_paths": ["/latest.json"]
+    },
+    {
+      "name": "example-html-forum",
+      "enabled": false,
+      "type": "html",
+      "base_url": "https://board.example.com",
+      "search_url": "https://board.example.com/search.php?keywords={query}&page={page}",
+      "result_link": "a.topictitle",
+      "thread_url_regex": "^/viewtopic\\.php\\?t=(\\d+)",
+      "thread": {"title": "h2.topic-title", "first_post": ".post:first-of-type .content", "author": ".post:first-of-type .username", "date": ".post:first-of-type time"},
+      "comments": {"item": ".post:not(:first-of-type)", "body": ".content", "author": ".username", "date": "time", "id_attr": "id"},
+      "date_format": "%Y-%m-%dT%H:%M:%S%z"
+    }
+  ],
+  "web_sites": [
+    {
+      "name": "example-dealer",
+      "enabled": false,
+      "kind": "dealer",
+      "base_url": "https://dealer.example.com",
+      "listing_urls": ["/inventory"],
+      "result_link": "a.vehicle-link",
+      "page_url_regex": "^/inventory/([\\w-]+)",
+      "page": {"title": "h1", "body": ".vehicle-description", "date": "time"},
+      "organization": {"name": "Example Dealer", "kind": "dealer"}
+    },
+    {
+      "name": "example-blog",
+      "enabled": false,
+      "kind": "blog",
+      "base_url": "https://blog.example.com",
+      "search_url": "https://blog.example.com/?s={query}&paged={page}",
+      "result_link": "h2.entry-title a",
+      "page_url_regex": "^/\\d{4}/\\d{2}/([\\w-]+)/?$",
+      "page": {"title": "h1.entry-title", "body": ".entry-content", "date": "time.entry-date", "author": ".author .fn"},
+      "comments": {"item": "li.comment", "body": ".comment-content", "author": ".comment-author .fn", "date": "time", "id_attr": "id",
+                   "post_author_marker": "li.bypostauthor"}
+    }
+  ]
+}

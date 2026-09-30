@@ -1,0 +1,43 @@
+{
+  "_comment": "Shapes follow the app.bsky.feed.searchPosts and app.bsky.feed.getPostThread lexicons (PostView / ThreadViewPost). All names/DIDs are invented.",
+  "searchPosts": {"cursor": "25", "hitsTotal": 2, "posts": [
+    {"uri": "at://did:plc:sokha111aaaaaaaaaaaaaaaa/app.bsky.feed.post/3kpost1aaaa", "cid": "bafy1",
+     "author": {"did": "did:plc:sokha111aaaaaaaaaaaaaaaa", "handle": "sokha.bsky.social", "displayName": "Sokha K", "avatar": "https://cdn.bsky.app/img/avatar/sokha.jpg", "labels": []},
+     "record": {"$type": "app.bsky.feed.post", "text": "Selling my Lexus RX300 2004, very clean. #rx300 #cambodia", "createdAt": "2026-09-25T10:00:00.000Z", "langs": ["en"],
+       "facets": [{"index": {"byteStart": 44, "byteEnd": 50}, "features": [{"$type": "app.bsky.richtext.facet#tag", "tag": "rx300"}]},
+                  {"index": {"byteStart": 51, "byteEnd": 60}, "features": [{"$type": "app.bsky.richtext.facet#tag", "tag": "cambodia"}]}]},
+     "replyCount": 3, "repostCount": 1, "likeCount": 5, "quoteCount": 0, "indexedAt": "2026-09-25T10:00:01.000Z", "labels": []},
+    {"uri": "at://did:plc:angkor222bbbbbbbbbbbbbbbb/app.bsky.feed.post/3kpost2bbbb", "cid": "bafy2",
+     "author": {"did": "did:plc:angkor222bbbbbbbbbbbbbbbb", "handle": "angkormotors.com", "displayName": "Angkor Motors", "labels": []},
+     "record": {"$type": "app.bsky.feed.post", "text": "New arrival: Lexus RX300 2005, 17,900$", "createdAt": "2026-09-24T10:00:00.000Z"},
+     "replyCount": 0, "repostCount": 0, "likeCount": 2, "quoteCount": 0, "indexedAt": "2026-09-24T10:00:01.000Z", "labels": []}
+  ]},
+  "thread_post1": {"thread": {"$type": "app.bsky.feed.defs#threadViewPost",
+    "post": {"uri": "at://did:plc:sokha111aaaaaaaaaaaaaaaa/app.bsky.feed.post/3kpost1aaaa", "cid": "bafy1",
+      "author": {"did": "did:plc:sokha111aaaaaaaaaaaaaaaa", "handle": "sokha.bsky.social", "displayName": "Sokha K"},
+      "record": {"$type": "app.bsky.feed.post", "text": "Selling my Lexus RX300 2004, very clean. #rx300 #cambodia", "createdAt": "2026-09-25T10:00:00.000Z"},
+      "replyCount": 3, "repostCount": 1, "likeCount": 5, "quoteCount": 0, "labels": []},
+    "replies": [
+      {"$type": "app.bsky.feed.defs#threadViewPost",
+       "post": {"uri": "at://did:plc:dara333cccccccccccccccc/app.bsky.feed.post/3kreply1ccc", "cid": "bafy3",
+         "author": {"did": "did:plc:dara333cccccccccccccccc", "handle": "dara.bsky.social", "displayName": "Dara P"},
+         "record": {"$type": "app.bsky.feed.post", "text": "@sokha.bsky.social how much for the RX300?", "createdAt": "2026-09-25T11:00:00.000Z",
+           "reply": {"root": {"uri": "at://did:plc:sokha111aaaaaaaaaaaaaaaa/app.bsky.feed.post/3kpost1aaaa"}, "parent": {"uri": "at://did:plc:sokha111aaaaaaaaaaaaaaaa/app.bsky.feed.post/3kpost1aaaa"}}},
+         "replyCount": 1, "labels": []},
+       "replies": [
+         {"$type": "app.bsky.feed.defs#threadViewPost",
+          "post": {"uri": "at://did:plc:sokha111aaaaaaaaaaaaaaaa/app.bsky.feed.post/3kreply2aaa", "cid": "bafy4",
+            "author": {"did": "did:plc:sokha111aaaaaaaaaaaaaaaa", "handle": "sokha.bsky.social", "displayName": "Sokha K"},
+            "record": {"$type": "app.bsky.feed.post", "text": "@dara.bsky.social 16,500$ negotiable", "createdAt": "2026-09-25T12:00:00.000Z"},
+            "replyCount": 0, "labels": []},
+          "replies": []}]},
+      {"$type": "app.bsky.feed.defs#notFoundPost", "uri": "at://did:plc:gone/app.bsky.feed.post/3kgone", "notFound": true},
+      {"$type": "app.bsky.feed.defs#threadViewPost",
+       "post": {"uri": "at://did:plc:quiet444dddddddddddddddd/app.bsky.feed.post/3kreply3ddd", "cid": "bafy5",
+         "author": {"did": "did:plc:quiet444dddddddddddddddd", "handle": "quiet.bsky.social", "displayName": "Quiet Person",
+           "labels": [{"src": "did:plc:quiet444dddddddddddddddd", "uri": "at://did:plc:quiet444dddddddddddddddd/app.bsky.actor.profile/self", "val": "!no-unauthenticated", "cts": "2026-01-01T00:00:00Z"}]},
+         "record": {"$type": "app.bsky.feed.post", "text": "interested, how much?", "createdAt": "2026-09-25T13:00:00.000Z"},
+         "replyCount": 0, "labels": []},
+       "replies": []}
+    ]}}
+}

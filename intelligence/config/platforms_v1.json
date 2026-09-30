@@ -1,0 +1,70 @@
+{
+  "version": "platforms-v1",
+  "notes": "Every platform is off until explicitly enabled (here, or with `python -m app.worker enable <platform>`). Continuous live operation additionally requires --live.",
+  "worker": {
+    "tick_s": 20,
+    "jitter_fraction": 0.2,
+    "circuit_breaker": {"failure_threshold": 3, "base_cooldown_min": 30, "max_cooldown_min": 720, "challenge_cooldown_min": 360, "login_cooldown_min": 720},
+    "state_path": "private/worker_state.sqlite",
+    "preview_dir": "artifacts/preview"
+  },
+  "schedule_classes": {
+    "cambodia_high_value": {"interval_min": 30, "interval_max": 60},
+    "global_social": {"interval_min": 60, "interval_max": 180},
+    "slow_forums_classifieds": {"interval_min": 360, "interval_max": 720}
+  },
+  "budgets": {
+    "max_posts_per_query": 10,
+    "max_comments_per_post": 200,
+    "max_queries_per_cycle": 6,
+    "max_posts_per_cycle": 40,
+    "max_screenshots_per_cycle": 40,
+    "max_ai_classifications_per_cycle": 30,
+    "max_browser_contexts": 2,
+    "max_daily_storage_mb": 300,
+    "max_daily_ai_cost_usd": 2.0,
+    "ai_cost_per_classification_usd": 0.01
+  },
+  "screenshot_min_score": 70,
+  "alerts": {"min_confidence": 85, "min_intent_score": 70, "max_spam_score": 30, "allow_needs_review": false, "max_per_day": 15,
+             "telegram": true, "macos": true,
+             "notes": "Live runs only message the owner for top confirmed RX300 buyers; everything else stays on the dashboard."},
+  "ai_review": {"enabled": false, "notes": "Advisory second opinion on borderline buyer leads via the local OpenClaw gateway; counts against the AI budgets."},
+  "persist_policy": "buyers",
+  "platforms": {
+    "facebook_public_posts": {"tier": 1, "enabled": false, "schedule": "cambodia_high_value", "rate": {"min_interval_s": 12, "concurrency": 1}},
+    "facebook_marketplace":  {"tier": 1, "enabled": false, "schedule": "cambodia_high_value", "rate": {"min_interval_s": 12, "concurrency": 1}},
+    "tiktok":                {"tier": 1, "enabled": false, "schedule": "global_social", "rate": {"min_interval_s": 10, "concurrency": 1}},
+    "instagram":             {"tier": 1, "enabled": false, "schedule": "global_social", "rate": {"min_interval_s": 15, "concurrency": 1}},
+    "reddit":                {"tier": 1, "enabled": false, "schedule": "global_social", "rate": {"min_interval_s": 2, "concurrency": 1}},
+    "youtube":               {"tier": 1, "enabled": false, "schedule": "global_social", "rate": {"min_interval_s": 1, "concurrency": 1}, "daily_quota_units": 9000},
+    "x":                     {"tier": 1, "enabled": false, "schedule": "global_social", "rate": {"min_interval_s": 15, "concurrency": 1}},
+    "threads":               {"tier": 1, "enabled": false, "schedule": "global_social", "rate": {"min_interval_s": 15, "concurrency": 1}},
+
+    "telegram":              {"tier": 2, "enabled": false, "schedule": "cambodia_high_value", "rate": {"min_interval_s": 4, "concurrency": 1},
+                              "channels": []},
+    "pinterest":             {"tier": 2, "enabled": false, "schedule": "global_social", "rate": {"min_interval_s": 15, "concurrency": 1}},
+    "bluesky":               {"tier": 2, "enabled": false, "schedule": "global_social", "rate": {"min_interval_s": 2, "concurrency": 1}},
+    "mastodon":              {"tier": 2, "enabled": false, "schedule": "global_social", "rate": {"min_interval_s": 2, "concurrency": 1},
+                              "instances": ["mastodon.social"]},
+    "forums":                {"tier": 2, "enabled": false, "schedule": "slow_forums_classifieds", "rate": {"min_interval_s": 5, "concurrency": 1},
+                              "sites": [], "max_pages_per_query": 2, "max_posts_per_thread": 200,
+                              "discovery": {"query_groups": ["rx300_confirmed"], "languages": ["en"], "plain_terms": ["Lexus RX300", "RX300"]}},
+    "khmer24":               {"excluded": "owner: Khmer24 only has seller listings, no buyers", "tier": 2, "enabled": false, "schedule": "cambodia_high_value", "rate": {"min_interval_s": 8, "concurrency": 1},
+                              "base_url": "https://www.khmer24.com", "category_path": "/c-cars-for-sale", "page_param": "page",
+                              "max_pages_per_query": 2, "wanted_category_paths": [], "wanted_category_slugs": [],
+                              "model_filters": [{"pattern": "rx\\s*-?\\s*300|rx៣០០", "params": {"ad_field": "lexus", "ad_model": "rx300"}},
+                                                {"pattern": "lexus|ឡិចស៊ីស", "params": {"ad_field": "lexus"}}],
+                              "discovery": {"queries": ["Lexus RX300"]}},
+    "kh_classifieds":        {"tier": 2, "enabled": false, "schedule": "slow_forums_classifieds", "rate": {"min_interval_s": 8, "concurrency": 1},
+                              "sites": [], "max_pages_per_query": 2,
+                              "discovery": {"query_groups": ["rx300_confirmed"], "languages": ["en"], "plain_terms": ["Lexus RX300", "RX300"]}},
+
+    "search_engine":         {"tier": 3, "enabled": false, "schedule": "slow_forums_classifieds", "rate": {"min_interval_s": 2, "concurrency": 1},
+                              "engines": ["google", "brave"], "results_per_page": 10, "restrict_sites": [], "gl": "kh",
+                              "discovery": {"query_groups": ["rx300_confirmed"], "languages": ["km", "romanized_km", "en"]}},
+    "web_sites":             {"tier": 3, "enabled": false, "schedule": "slow_forums_classifieds", "rate": {"min_interval_s": 8, "concurrency": 1},
+                              "sites": [], "max_pages_per_query": 2,
+                              "discovery": {"query_groups": ["rx300_confirmed"], "languages": ["en"], "plain_terms": ["Lexus RX300", "RX300"]}}
+  }
+}

@@ -1,0 +1,31 @@
+User-agent: *
+
+# Cloudflare
+Disallow: /cdn-cgi/
+
+# User area
+Disallow: /login
+Disallow: /register
+Disallow: /logout
+Disallow: /forgot-password
+Disallow: /chats/
+Disallow: /notifications/
+Disallow: /manage-ads/
+Disallow: /likes/
+Disallow: /saved/
+Disallow: /setting/
+Disallow: /me/
+
+# Internal search
+Disallow: /search
+
+# Tracking parameters
+Disallow: /*?utm_
+Disallow: /*&utm_
+Disallow: /*?fbclid=
+Disallow: /*&fbclid=
+Disallow: /*?gclid=
+Disallow: /*&gclid=
+
+# Sitemap
+Sitemap: https://www.khmer24.com/sitemap.xml

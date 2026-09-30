@@ -31,6 +31,7 @@ interface PostRow {
   comments_incomplete_reason: string | null
   expires_at: string
   updated_at: string
+  screenshot_path?: string | null
 }
 interface CommentRow {
   id: string
@@ -54,6 +55,7 @@ interface CommentRow {
   captured_at: string
   adapter_version: string
   expires_at: string
+  screenshot_path?: string | null
 }
 interface SkipRow {
   id: number
@@ -113,7 +115,36 @@ function FbLink({ href, label }: { href: string | null; label?: string }) {
   )
 }
 
-function CommentCard({ c, depth }: { c: CommentRow; depth: number }) {
+function Shot({ src, alt, className }: { src?: string; alt: string; className?: string }) {
+  if (!src) return null
+  return (
+    <a href={src} target="_blank" rel="noopener noreferrer" className={clsx('block rounded-xl overflow-hidden border border-line bg-paper', className)}>
+      {/* eslint-disable-next-line @next/next/no-img-element -- short-lived signed URL from a private bucket */}
+      <img src={src} alt={alt} className="w-full h-auto max-h-[420px] object-contain object-top" />
+    </a>
+  )
+}
+
+function PostPreview({ p, shot }: { p: PostRow | undefined; shot?: string }) {
+  if (!p) return null
+  const text = p.post_text ?? ''
+  return (
+    <div className="rounded-2xl border border-line bg-surface p-4">
+      <div className="flex items-center gap-2 text-xs text-muted">
+        <span className="font-semibold text-ink">Post</span>
+        <span>· search “{p.search_query}”</span>
+        <span>· {fmt(p.published_at_observed ?? p.captured_at)}</span>
+        <span className="ml-auto"><FbLink href={p.canonical_post_url} label="Open on Facebook" /></span>
+      </div>
+      <div className={clsx('mt-3 grid gap-4', shot && 'md:grid-cols-[minmax(0,1fr)_280px]')}>
+        <p className="text-sm text-ink whitespace-pre-wrap line-clamp-[8]">{text || <span className="text-subtle">(no text)</span>}</p>
+        <Shot src={shot} alt="Post screenshot (names hidden)" />
+      </div>
+    </div>
+  )
+}
+
+function CommentCard({ c, depth, shot }: { c: CommentRow; depth: number; shot?: string }) {
   return (
     <div className={clsx('rounded-2xl border p-4', c.buyer_intent ? 'border-emerald-200 bg-emerald-50/50' : 'border-line bg-surface', depth > 0 && 'ml-6 md:ml-10')}>
       <div className="flex flex-wrap items-center gap-2">
@@ -131,6 +162,7 @@ function CommentCard({ c, depth }: { c: CommentRow; depth: number }) {
       {c.matched_phrases.length > 0 && (
         <p className="mt-2 text-xs text-emerald-800">Matched: {c.matched_phrases.map((p) => `“${p}”`).join(', ')}</p>
       )}
+      <Shot src={shot} alt="Comment screenshot (name hidden)" className="mt-3 max-w-xl" />
       <details className="mt-3 group">
         <summary className="text-xs text-muted cursor-pointer select-none">All fields</summary>
         <dl className="mt-3 grid grid-cols-1 md:grid-cols-2 gap-3">
@@ -152,14 +184,14 @@ function CommentCard({ c, depth }: { c: CommentRow; depth: number }) {
   )
 }
 
-function Thread({ comments, parentId, depth }: { comments: CommentRow[]; parentId: string | null; depth: number }) {
+function Thread({ comments, parentId, depth, shots }: { comments: CommentRow[]; parentId: string | null; depth: number; shots: Map<string, string | undefined> }) {
   const level = comments.filter((c) => c.parent_comment_id === parentId)
   return (
     <div className="space-y-3">
       {level.map((c) => (
         <div key={c.id} className="space-y-3">
-          <CommentCard c={c} depth={depth} />
-          <Thread comments={comments} parentId={c.id} depth={depth + 1} />
+          <CommentCard c={c} depth={depth} shot={shots.get(c.id)} />
+          <Thread comments={comments} parentId={c.id} depth={depth + 1} shots={shots} />
         </div>
       ))}
     </div>
@@ -189,6 +221,22 @@ export default async function FacebookDataPage({ searchParams }: { searchParams:
   const comments = (commentsData ?? []) as CommentRow[]
   const skips = (skipsData ?? []) as SkipRow[]
   const listings = (listingsData ?? []) as ListingRow[]
+
+  // Screenshots live in a private bucket → short-lived signed URLs (10 min), only for what this tab renders.
+  const sign = async (path: string | null | undefined) => {
+    if (!path) return undefined
+    const { data } = await supabaseAdmin.storage.from('listing-evidence').createSignedUrl(path, 600)
+    return data?.signedUrl
+  }
+  const shotPosts = posts.filter((p) => p.screenshot_path && (tab === 'posts' || tab === 'buyers'))
+  const shotComments = comments.filter((c) => c.screenshot_path && (tab === 'posts' || (tab === 'buyers' && c.buyer_intent)))
+  const [postShotList, commentShotList] = await Promise.all([
+    Promise.all(shotPosts.map(async (p) => [p.id, await sign(p.screenshot_path)] as const)),
+    Promise.all(shotComments.map(async (c) => [c.id, await sign(c.screenshot_path)] as const)),
+  ])
+  const postShots = new Map<string, string | undefined>(postShotList)
+  const commentShots = new Map<string, string | undefined>(commentShotList)
+  const commentById = new Map(comments.map((c) => [c.id, c]))
 
   const needle = q.toLowerCase()
   const textHit = (s: string | null | undefined) => !needle || (s ?? '').toLowerCase().includes(needle)
@@ -278,13 +326,21 @@ export default async function FacebookDataPage({ searchParams }: { searchParams:
               .filter((c) => textHit(c.comment_text) && (!query || postById.get(c.post_id)?.search_query === query))
               .map((c) => {
                 const p = postById.get(c.post_id)
+                const parent = c.parent_comment_id ? commentById.get(c.parent_comment_id) : undefined
                 return (
-                  <div key={c.id} className="space-y-2">
-                    <CommentCard c={c} depth={0} />
-                    <p className="text-xs text-muted pl-4">
-                      On post <FbLink href={p?.canonical_post_url ?? null} /> · search “{p?.search_query}” · {fmt(c.captured_at)}
+                  <article key={c.id} className="rounded-3xl border border-line bg-paper/60 p-3 md:p-4 space-y-3">
+                    <PostPreview p={p} shot={postShots.get(c.post_id)} />
+                    {parent && (
+                      <div className="ml-4 md:ml-6 rounded-2xl border border-line bg-surface p-3 text-sm">
+                        <span className="text-xs text-muted">Replying to {shortKey(parent.commenter_key)}:</span>
+                        <p className="mt-1 text-ink whitespace-pre-wrap line-clamp-3">{parent.comment_text}</p>
+                      </div>
+                    )}
+                    <CommentCard c={c} depth={parent ? 1 : 0} shot={commentShots.get(c.id)} />
+                    <p className="text-xs text-muted pl-2">
+                      Comment link: <FbLink href={c.canonical_comment_url ?? c.source_comment_url} label={c.canonical_comment_url || c.source_comment_url ? 'Open comment on Facebook' : undefined} /> · captured {fmt(c.captured_at)}
                     </p>
-                  </div>
+                  </article>
                 )
               })}
             {buyers.length === 0 && <p className="text-muted">No buyer comments yet.</p>}
@@ -312,7 +368,10 @@ export default async function FacebookDataPage({ searchParams }: { searchParams:
                           ? <Chip className="bg-paper text-muted">all comments collected</Chip>
                           : <Chip className="bg-amber-50 text-amber-800"><AlertTriangle className="w-3 h-3" /> incomplete: {p.comments_incomplete_reason}</Chip>}
                       </div>
-                      <p className="mt-4 text-ink whitespace-pre-wrap">{p.post_text ?? <span className="text-subtle">(no text)</span>}</p>
+                      <div className={clsx('mt-4 grid gap-4', postShots.get(p.id) && 'md:grid-cols-[minmax(0,1fr)_320px]')}>
+                        <p className="text-ink whitespace-pre-wrap">{p.post_text ?? <span className="text-subtle">(no text)</span>}</p>
+                        <Shot src={postShots.get(p.id)} alt="Post screenshot (names hidden)" />
+                      </div>
                       <dl className="mt-5 grid grid-cols-1 md:grid-cols-3 gap-4">
                         <Field label="Post link (canonical)"><FbLink href={p.canonical_post_url} /></Field>
                         <Field label="Post link (as captured)"><FbLink href={p.source_post_url} /></Field>
@@ -330,7 +389,7 @@ export default async function FacebookDataPage({ searchParams }: { searchParams:
                     </div>
                     <div className="p-6 bg-paper/60">
                       <h3 className="flex items-center gap-2 text-sm font-semibold text-ink mb-4"><MessageSquare className="w-4 h-4" /> {mine.length} comments & replies</h3>
-                      {mine.length ? <Thread comments={mine} parentId={null} depth={0} /> : <p className="text-sm text-muted">No public comments.</p>}
+                      {mine.length ? <Thread comments={mine} parentId={null} depth={0} shots={commentShots} /> : <p className="text-sm text-muted">No public comments.</p>}
                     </div>
                   </article>
                 )

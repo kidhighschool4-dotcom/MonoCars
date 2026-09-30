@@ -1,0 +1,43 @@
+{
+  "_comment": "Shapes follow Reddit's OAuth API (access_token, /r/<sub>/search Listing, /comments/<id> [post Listing, comment Listing]). All names/ids are invented.",
+  "token": {"access_token": "fake-app-only-token", "token_type": "bearer", "expires_in": 86400, "scope": "*"},
+  "search_cambodia": {"kind": "Listing", "data": {"after": "t3_nsfw01", "dist": 2, "before": null, "children": [
+    {"kind": "t3", "data": {"id": "abc123", "name": "t3_abc123", "subreddit": "cambodia", "subreddit_type": "public", "author": "khmer_driver",
+      "author_fullname": "t2_aaa111", "title": "Looking to buy a Lexus RX300 in Phnom Penh for my family",
+      "selftext": "Any tips? Budget around 15k. Thanks u/helpful_mod for the earlier advice #rx300", "created_utc": 1789000000.0, "score": 14,
+      "num_comments": 5, "upvote_ratio": 0.93, "over_18": false, "quarantine": false, "removed_by_category": null,
+      "permalink": "/r/cambodia/comments/abc123/looking_to_buy_a_lexus_rx300/", "url": "https://www.reddit.com/r/cambodia/comments/abc123/looking_to_buy_a_lexus_rx300/"}},
+    {"kind": "t3", "data": {"id": "nsfw01", "name": "t3_nsfw01", "subreddit": "cambodia", "subreddit_type": "public", "author": "someone_else",
+      "author_fullname": "t2_zzz999", "title": "RX300 NSFW", "selftext": "", "created_utc": 1789000100.0, "score": 1, "num_comments": 0,
+      "over_18": true, "quarantine": false, "permalink": "/r/cambodia/comments/nsfw01/rx300/"}}
+  ]}},
+  "search_empty": {"kind": "Listing", "data": {"after": null, "dist": 0, "before": null, "children": []}},
+  "forbidden_private": {"reason": "private", "message": "Forbidden", "error": 403},
+  "thread_abc123": [
+    {"kind": "Listing", "data": {"after": null, "children": [
+      {"kind": "t3", "data": {"id": "abc123", "name": "t3_abc123", "subreddit": "cambodia", "subreddit_type": "public", "author": "khmer_driver",
+        "author_fullname": "t2_aaa111", "title": "Looking to buy a Lexus RX300 in Phnom Penh for my family", "selftext": "Any tips?",
+        "created_utc": 1789000000.0, "score": 14, "num_comments": 5, "over_18": false, "quarantine": false,
+        "permalink": "/r/cambodia/comments/abc123/looking_to_buy_a_lexus_rx300/"}}]}},
+    {"kind": "Listing", "data": {"after": null, "children": [
+      {"kind": "t1", "data": {"id": "c1", "name": "t1_c1", "parent_id": "t3_abc123", "author": "rx_fan_99", "author_fullname": "t2_bbb222",
+        "body": "how much for the RX300? I have one 2003 model too", "created_utc": 1789000200.0, "score": 3, "is_submitter": false,
+        "permalink": "/r/cambodia/comments/abc123/looking_to_buy_a_lexus_rx300/c1/",
+        "replies": {"kind": "Listing", "data": {"after": null, "children": [
+          {"kind": "t1", "data": {"id": "c2", "name": "t1_c2", "parent_id": "t1_c1", "author": "khmer_driver", "author_fullname": "t2_aaa111",
+            "body": "u/rx_fan_99 is yours for sale? how much?", "created_utc": 1789000300.0, "is_submitter": true,
+            "permalink": "/r/cambodia/comments/abc123/looking_to_buy_a_lexus_rx300/c2/", "replies": ""}},
+          {"kind": "t1", "data": {"id": "c3", "name": "t1_c3", "parent_id": "t1_c1", "author": "[deleted]", "body": "[removed]",
+            "created_utc": 1789000350.0, "permalink": "/r/cambodia/comments/abc123/looking_to_buy_a_lexus_rx300/c3/",
+            "replies": {"kind": "Listing", "data": {"after": null, "children": [
+              {"kind": "t1", "data": {"id": "c4", "name": "t1_c4", "parent_id": "t1_c3", "author": "tuk_tuk_tom", "author_fullname": "t2_ccc333",
+                "body": "the RX300 is great for taxi use too", "created_utc": 1789000400.0,
+                "permalink": "/r/cambodia/comments/abc123/looking_to_buy_a_lexus_rx300/c4/", "replies": ""}}]}}}}
+        ]}}}},
+      {"kind": "t1", "data": {"id": "c5", "name": "t1_c5", "parent_id": "t3_abc123", "author": "[deleted]", "body": "[deleted]",
+        "created_utc": 1789000500.0, "permalink": "/r/cambodia/comments/abc123/looking_to_buy_a_lexus_rx300/c5/", "replies": ""}},
+      {"kind": "t1", "data": {"id": "c6", "name": "t1_c6", "parent_id": "t3_abc123", "author": "phnom_penh_pete", "author_fullname": "t2_ddd444",
+        "body": "Try Toul Kork car market", "created_utc": 1789000600.0, "permalink": "/r/cambodia/comments/abc123/looking_to_buy_a_lexus_rx300/c6/", "replies": ""}}
+    ]}}
+  ]
+}

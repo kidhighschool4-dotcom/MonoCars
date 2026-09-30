@@ -7,14 +7,19 @@ first — profile URLs are never stored or sent to the database.
 from __future__ import annotations
 
 import json
+import logging
 from datetime import datetime, timezone
 
 import httpx
 
 from ..settings import Settings
+from ..social.model import Evidence
+from ..social.repo import upload_evidence
 from .identity import PersonKeyer
 from .model import ADAPTER_VERSION, PublicPost
 from .urls import canonical_post_url
+
+log = logging.getLogger("fbm_intel.fb_public")
 
 POST_COLS = ("id,source_post_id,source_post_url,canonical_post_url,post_text,published_at_observed,visibility_status,"
              "visibility_evidence,search_query,captured_at,comments_complete,comments_collected_count,"
@@ -37,6 +42,7 @@ class FacebookPublicRepo:
         self.s, self.owner_id, self.keyer = settings, owner_id, keyer
         self.http = client or httpx.Client(timeout=60)
         self._h = {"apikey": settings.service_role_key, "Authorization": f"Bearer {settings.service_role_key}"}
+        self._shot_cols = True      # False once PostgREST says screenshot_path doesn't exist (migration not applied)
 
     def _req(self, method: str, table: str, *, params: dict | None = None, body=None, prefer: str | None = None):
         h = dict(self._h)
@@ -58,11 +64,56 @@ class FacebookPublicRepo:
             "visibility_status": visibility_status if visibility_status in ("unverified", "private", "restricted") else "unverified",
             "skip_reason": reason, "adapter_version": ADAPTER_VERSION})
 
+    # ── screenshot evidence (tolerant of the 20261001_facebook_evidence_screenshots migration not being applied) ──
+    @staticmethod
+    def _missing_shot_col(err: Exception) -> bool:
+        m = str(err)
+        return "screenshot_path" in m and ("→ 400" in m or "42703" in m or "PGRST204" in m)
+
+    def _no_shot_cols(self, err: Exception) -> None:
+        if self._shot_cols:
+            log.warning("screenshot_path columns missing on facebook_public_* (apply migration "
+                        "20261001_facebook_evidence_screenshots.sql); saving without screenshots: %s", str(err)[:200])
+        self._shot_cols = False
+
+    def _upload(self, ev: Evidence | None) -> str | None:
+        """Upload to the private listing-evidence bucket (social/facebook/YYYY/MM/...). Never fails the save."""
+        if ev is None or not self._shot_cols:
+            return None
+        try:
+            return upload_evidence(self.http, self.s.supabase_url, self._h, "facebook", ev)
+        except Exception as e:  # noqa: BLE001
+            log.warning("Screenshot upload failed (%s); row saved without it", str(e)[:200])
+            return None
+
+    def _existing_post(self, canonical_url: str) -> dict | None:
+        params = {"owner_id": f"eq.{self.owner_id}", "canonical_post_url": f"eq.{canonical_url}"}
+        if self._shot_cols:
+            try:
+                rows = self._req("GET", "facebook_public_posts", params={**params, "select": "id,screenshot_path"})
+                return rows[0] if rows else None
+            except RuntimeError as e:
+                if not self._missing_shot_col(e):
+                    raise
+                self._no_shot_cols(e)
+        return None
+
+    def _write(self, method: str, table: str, body, **kw):
+        """POST/PATCH; if the screenshot_path column doesn't exist yet, retry once without it."""
+        try:
+            return self._req(method, table, body=body, **kw)
+        except RuntimeError as e:
+            if not self._missing_shot_col(e):
+                raise
+            self._no_shot_cols(e)
+            strip = (lambda r: {k: v for k, v in r.items() if k != "screenshot_path"})
+            return self._req(method, table, body=[strip(r) for r in body] if isinstance(body, list) else strip(body), **kw)
+
     def save_post(self, p: PublicPost) -> tuple[str, int, int]:
         """Upsert the post (by owner + canonical URL), then insert only new comments/replies.
         Returns (post_id, new_comments, new_replies)."""
-        row = self._req("POST", "facebook_public_posts", params={"on_conflict": "owner_id,canonical_post_url"},
-                        prefer="return=representation,resolution=merge-duplicates", body={
+        existing = self._existing_post(p.canonical_post_url)
+        body = {
             "owner_id": self.owner_id, "source_post_id": p.source_post_id, "source_post_url": p.source_post_url,
             "canonical_post_url": p.canonical_post_url, "author_key": p.author_key, "author_key_version": p.author_key_version,
             "post_text": p.post_text, "published_at_observed": p.published_at_observed,
@@ -70,7 +121,14 @@ class FacebookPublicRepo:
             "search_query": p.search_query, "captured_at": p.captured_at, "adapter_version": ADAPTER_VERSION,
             "content_hash": p.content_hash, "comments_complete": p.comments_complete,
             "comments_incomplete_reason": p.comments_incomplete_reason,
-            "comment_expansion_rounds": p.comment_expansion_rounds, "updated_at": datetime.now(timezone.utc)})[0]
+            "comment_expansion_rounds": p.comment_expansion_rounds, "updated_at": datetime.now(timezone.utc)}
+        if self._shot_cols:
+            # keep the first screenshot of a post; only upload when the row has none yet
+            shot = (existing or {}).get("screenshot_path") or self._upload(p.screenshot)
+            if shot:
+                body["screenshot_path"] = shot
+        row = self._write("POST", "facebook_public_posts", body, params={"on_conflict": "owner_id,canonical_post_url"},
+                          prefer="return=representation,resolution=merge-duplicates")[0]
         post_id = row["id"]
         new = {"comment": 0, "reply": 0}
         ids = self._fingerprint_ids(post_id)
@@ -82,7 +140,7 @@ class FacebookPublicRepo:
                 parent = ids.get(c.parent_fingerprint) if c.parent_fingerprint else None
                 if level == "reply" and not parent:
                     continue
-                batch.append({
+                r = {
                     "owner_id": self.owner_id, "post_id": post_id, "source_comment_id": c.source_comment_id,
                     "source_comment_url": c.source_comment_url, "canonical_comment_url": c.canonical_comment_url,
                     "comment_fingerprint": c.fingerprint, "parent_comment_id": parent, "commenter_key": c.commenter_key,
@@ -92,10 +150,14 @@ class FacebookPublicRepo:
                     "adapter_version": ADAPTER_VERSION, "content_hash": c.content_hash,
                     "comment_text_normalized": c.comment_text_normalized, "buyer_intent": c.buyer_intent,
                     "buyer_intent_signals": c.buyer_intent_signals, "matched_phrases": c.matched_phrases,
-                    "intent_classifier_version": c.intent_classifier_version})
+                    "intent_classifier_version": c.intent_classifier_version}
+                if self._shot_cols:
+                    r["screenshot_path"] = self._upload(c.screenshot)   # same keys in every row of a bulk insert
+                batch.append(r)
             if batch:
-                created = self._req("POST", "facebook_public_comments", params={"on_conflict": "post_id,comment_fingerprint"},
-                                    prefer="return=representation,resolution=ignore-duplicates", body=batch)
+                created = self._write("POST", "facebook_public_comments", batch,
+                                      params={"on_conflict": "post_id,comment_fingerprint"},
+                                      prefer="return=representation,resolution=ignore-duplicates")
                 new[level] += len(created or [])
                 ids = self._fingerprint_ids(post_id)
         # counts reflect what is stored for this post

@@ -65,6 +65,14 @@ CHALLENGE = "<!doctype html><html><head><title>TikTok</title></head><body><div i
 LOGIN = "<!doctype html><html><head><title>Log in | TikTok</title></head><body><div role='dialog'>Log in to TikTok</div></body></html>"
 
 
+def search_behind_captcha(links):
+    """Challenge that disappears after ~2s, standing in for the human solving it in the window."""
+    items = "".join(f'<div data-e2e="search_video-item"><a href="https://www.tiktok.com{h}">video</a></div>' for h in links)
+    return ("<!doctype html><html><head><title>car sedan - Search | TikTok</title></head><body><main id='m'>"
+            "<div id='captcha_container'>Drag the slider to fit the puzzle</div></main><script>"
+            f"setTimeout(() => {{ document.getElementById('m').innerHTML = {items!r}; }}, 2000);</script></body></html>")
+
+
 def search_page(links):
     items = "".join(f'<div data-e2e="search_video-item"><a href="https://www.tiktok.com{h}">video</a></div>' for h in links)
     return f"<!doctype html><html><head><title>car sedan - Search | TikTok</title></head><body><main>{items}</main></body></html>"
@@ -84,7 +92,8 @@ def install(context, *, search="normal") -> list[str]:
             return route.fulfill(status=404, body="")
         if path == "/search/video":
             body = {"normal": search_page([V1, V2, V3, V4, V1 + "?is_from_webapp=1&sender_device=pc"]),
-                    "blocked": search_page([BLOCKED, V1]), "login": LOGIN}[search]
+                    "blocked": search_page([BLOCKED, V1]), "login": LOGIN,
+                    "captcha_solved": search_behind_captcha([V1]), "captcha_stuck": CHALLENGE}[search]
         else:
             body = pages.get(path)
         if body is None:
