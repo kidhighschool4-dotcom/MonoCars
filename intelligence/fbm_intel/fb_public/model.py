@@ -53,6 +53,11 @@ class PublicComment:
     comment_text: str
     commented_at_observed: datetime | None
     content_hash: str
+    comment_text_normalized: str = ""
+    buyer_intent: bool = False
+    buyer_intent_signals: list[str] = field(default_factory=list)
+    matched_phrases: list[str] = field(default_factory=list)
+    intent_classifier_version: str | None = None
 
 
 @dataclass
@@ -165,7 +170,13 @@ def build_comments(raw: list[RawComment], post_canonical_url: str, keyer: Person
         canon = canonical_comment_url(post_canonical_url, cid, rid) if cid else None
         from .urls import canonicalize
         source_url = canonicalize(r.permalink, keep_comment_params=True) if r.permalink else None
+        from ..comments import classify
+        intent = classify(text)
         c = PublicComment(
+            comment_text_normalized=intent.normalized, buyer_intent=intent.is_buyer,
+            buyer_intent_signals=intent.signals if intent.is_buyer else [],
+            matched_phrases=intent.matched_phrases if intent.is_buyer else [],
+            intent_classifier_version=intent.version,
             fingerprint=fp, parent_fingerprint=parent.fingerprint if parent else None,
             comment_type="reply" if is_reply else "comment", source_comment_id=own_id,
             source_comment_url=source_url, canonical_comment_url=canon,
@@ -182,3 +193,11 @@ def build_comments(raw: list[RawComment], post_canonical_url: str, keyer: Person
         else:
             last_top = c
     return out, truncated
+
+
+def keep_buyer_intent(comments: list[PublicComment]) -> list[PublicComment]:
+    """Keep only comments/replies that show buying intent, plus the parent of any kept reply (for context and FK)."""
+    buyers = {c.fingerprint for c in comments if c.buyer_intent}
+    parents = {c.parent_fingerprint for c in comments if c.fingerprint in buyers and c.parent_fingerprint}
+    keep = buyers | parents
+    return [c for c in comments if c.fingerprint in keep]

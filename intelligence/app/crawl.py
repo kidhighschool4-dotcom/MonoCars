@@ -121,9 +121,53 @@ def public_posts(a, st: Settings) -> int:
             log.error("Owner account %r not found — sign up on the site first (records need an owner_id).", a.owner_email)
             return 2
         repo = FacebookPublicRepo(st, owner, keyer)
-    rep = collector.run(FacebookPublicPostsAdapter(keyer, limits), a.query, repo=repo, headless=not a.headed, dry_run=a.dry_run)
-    print(json.dumps(rep.__dict__, indent=2, ensure_ascii=False, default=str))
-    return 3 if rep.stopped else 0
+    if not a.duration_min:
+        rep = collector.run(FacebookPublicPostsAdapter(keyer, limits), a.query, repo=repo, headless=not a.headed,
+                            dry_run=a.dry_run, debug=a.debug, buyer_only=a.buyer_only)
+        print(json.dumps(rep.__dict__, indent=2, ensure_ascii=False, default=str))
+        return 3 if rep.stopped else 0
+
+    # Timed mode: cycle through approved queries one at a time until the time is up or Facebook objects.
+    import time
+    queries = [q.strip() for q in (a.queries or DEFAULT_BUYER_QUERIES) if q.strip()]
+    deadline = time.monotonic() + a.duration_min * 60
+    runs, buyers, stopped = [], [], None
+    i = 0
+    while time.monotonic() < deadline:
+        q = queries[i % len(queries)]
+        i += 1
+        log.info("── Query %d: %r (%.0f min left)", i, q, (deadline - time.monotonic()) / 60)
+        rep = collector.run(FacebookPublicPostsAdapter(keyer, limits), q, repo=repo, headless=not a.headed,
+                            dry_run=a.dry_run, buyer_only=a.buyer_only)
+        runs.append({"query": q, "results": rep.results, "verified_public": rep.verified_public,
+                     "skipped": len(rep.skipped), "new_comments": rep.new_comments, "new_replies": rep.new_replies,
+                     "buyer_comments": len(rep.buyer_comments), "stopped": rep.stopped})
+        buyers += rep.buyer_comments
+        if rep.stopped:
+            stopped = rep.stopped
+            log.error("Facebook blocked or restricted the run (%s) — ending the timed session now.", stopped)
+            break
+        if i >= len(queries) * a.max_cycles:
+            log.info("All queries done %d time(s); stopping early.", a.max_cycles)
+            break
+        rest = min(a.pause_between_queries, max(0, deadline - time.monotonic()))
+        log.info("Resting %.0f s before the next query", rest)
+        time.sleep(rest)
+    seen, unique = set(), []
+    for b in buyers:
+        k = b["comment_url"] or (b["post_url"], b["text"])
+        if k not in seen:
+            seen.add(k)
+            unique.append(b)
+    print(json.dumps({"duration_min": a.duration_min, "queries_run": len(runs), "stopped": stopped, "runs": runs,
+                      "buyer_comments_found": len(unique), "buyer_comments": unique}, indent=2, ensure_ascii=False, default=str))
+    return 3 if stopped else 0
+
+
+DEFAULT_BUYER_QUERIES = [
+    "car for sale", "sedan for sale", "ឡានលក់", "ឡាន sedan លក់", "Camry for sale", "Prius for sale",
+    "Lexus RX for sale", "Highlander for sale", "ឡានមួយទឹក", "used car Phnom Penh",
+]
 
 
 def resolve_owner(st: Settings, email: str | None) -> str | None:
@@ -147,10 +191,16 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--comment-timeout", type=int, default=90, help="comment_load_timeout_seconds")
     p.add_argument("--surface", choices=["marketplace", "posts"], default="marketplace", help="Facebook surface")
     p.add_argument("--location", default="phnompenh", help="Facebook Marketplace location slug")
-    p.add_argument("--query", required=True, help="one keyword/phrase per run")
+    p.add_argument("--query", default="car for sale", help="one keyword/phrase per run")
     p.add_argument("--limit", type=int, default=5, help="max listings to open (kept small on purpose)")
     p.add_argument("--headed", action="store_true", help="show the browser window")
     p.add_argument("--dry-run", action="store_true", help="search + list results only; no Supabase, no vision")
+    p.add_argument("--debug", action="store_true", help="print an anonymous page-structure report (counts + URL shapes)")
+    p.add_argument("--duration-min", type=int, default=0, help="timed mode: keep cycling through --queries for N minutes")
+    p.add_argument("--queries", nargs="*", help="queries for timed mode (default: built-in car-buying list)")
+    p.add_argument("--pause-between-queries", type=int, default=60, help="seconds to rest between queries")
+    p.add_argument("--max-cycles", type=int, default=2, help="max passes over the query list in timed mode")
+    p.add_argument("--buyer-only", action="store_true", help="keep only comments showing intent to buy (plus their parent)")
     a = p.parse_args(argv)
     a.limit = max(1, min(a.limit, 20))
     st = Settings.load()

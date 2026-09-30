@@ -180,6 +180,7 @@ class SupabaseStore:
             return 0
         rows = [{"listing_id": listing_id, "crawl_run_id": run_id, "comment_hash": c.comment_hash,
                  "text_redacted": c.text_redacted, "signals": c.signals, "language": c.language,
+                 "text_normalized": c.text_normalized, "matched_phrases": c.matched_phrases,
                  "classifier_version": classifier_version, "observed_at": _now()} for c in comments]
         return len(self.insert("listing_comments", rows, on_conflict="listing_id,comment_hash", ignore_duplicates=True))
 

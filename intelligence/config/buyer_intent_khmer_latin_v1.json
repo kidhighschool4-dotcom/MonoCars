@@ -1,0 +1,100 @@
+{
+  "version": "buyer-intent-khmer-latin-v1",
+  "_comment": "Romanized Khmer / Cambodian Facebook chat spelling. Tokens are normalized first (token_map), then PHRASE patterns are matched on the normalized token string. Single words never match on their own. Negations override everything. Edit freely; bump the version when you change behaviour.",
+
+  "token_map": {
+    "b": "bong", "bro": "bong", "bong": "bong", "bang": "bong",
+    "jg": "jong", "jong": "jong", "chong": "jong", "chg": "jong",
+    "tinh": "tinh", "ting": "tinh", "tenh": "tinh",
+    "nhom": "knhom", "nyom": "knhom", "knhom": "knhom", "khnhom": "knhom", "kh": "knhom",
+    "domlai": "price", "domlay": "price", "tomlai": "price", "tamlai": "price", "tlai": "price", "thlai": "price",
+    "tlay": "price", "price": "price",
+    "man": "howmuch", "ponman": "howmuch", "bonman": "howmuch", "ponmann": "howmuch",
+    "nov": "nov", "nv": "nov", "nou": "nov",
+    "te": "te", "tee": "te",
+    "ot": "ot", "ort": "ot", "or": "or",
+    "lek": "contact", "number": "contact", "phone": "contact", "contact": "contact", "num": "contact",
+    "mer": "mer", "mel": "mer", "moul": "mer", "meul": "mer",
+    "lan": "lan", "ឡាន": "lan",
+    "mok": "mok", "mork": "mok",
+    "mean": "mean", "mien": "mean",
+    "ach": "ach", "at": "at",
+    "jos": "jos", "chos": "jos",
+    "som": "som", "sum": "som",
+    "interested": "interested", "interest": "interested", "intrested": "interested",
+    "jorb": "jorb", "jab": "jorb", "chab": "jorb", "arom": "arom", "arum": "arom"
+  },
+
+  "patterns": {
+    "asks_price": [
+      "\\bprice howmuch\\b",
+      "\\bhow much\\b",
+      "\\bfinal price howmuch\\b",
+      "\\bjos price ban te\\b",
+      "\\bach jos price\\b",
+      "\\bsom price\\b",
+      "\\bprice ponman\\b"
+    ],
+    "asks_availability": [
+      "\\b(mean )?(lan )?nov te\\b",
+      "\\bnov mean te\\b",
+      "\\bavailable te\\b",
+      "\\bsold nov\\b",
+      "\\bmean eyvan nov te\\b"
+    ],
+    "wants_to_buy": [
+      "\\b(knhom )?jong tinh\\b",
+      "\\binterested (bong|nas)\\b",
+      "\\b(jorb) arom\\b",
+      "\\btake bong\\b",
+      "\\byom len\\b",
+      "\\bkg interested\\b"
+    ],
+    "asks_contact": [
+      "\\bsom contact\\b",
+      "\\bsom telegram\\b",
+      "\\b(inbox|chat|chhat|pm) mok\\b",
+      "\\btelegram mean te\\b",
+      "\\bsend (location|detail|details) mok\\b"
+    ],
+    "asks_to_see": [
+      "\\bnov na\\b",
+      "\\blocation na\\b",
+      "\\bti tang na\\b",
+      "\\bach tov mer\\b",
+      "\\bach mer lan\\b",
+      "\\bmer lan nov na\\b",
+      "\\bmeet nov na\\b",
+      "\\bshowroom nov na\\b"
+    ],
+    "asks_vehicle_details": [
+      "\\b(chnam|year) howmuch\\b",
+      "\\bkomlat howmuch\\b",
+      "\\bkm howmuch\\b",
+      "\\brun ban howmuch km\\b",
+      "\\b(machine|masin) yax mex\\b",
+      "\\bmean bok te\\b",
+      "\\bbok te bong\\b",
+      "\\bdocument krob te\\b",
+      "\\btax paper mean te\\b",
+      "\\bpong tax te\\b",
+      "\\bauto or manual\\b",
+      "\\bbenzin or hybrid\\b"
+    ]
+  },
+
+  "negations": [
+    "\\b(ot|min) jong tinh\\b",
+    "\\bnot interested\\b",
+    "\\bno longer interested\\b",
+    "\\bno need\\b",
+    "\\bbought already\\b",
+    "\\balready bought\\b",
+    "\\bnot buying\\b",
+    "\\bexpensive\\b.{0,20}\\bnot buy",
+    "\\bjust asking for (a )?friend\\b",
+    "\\bknhom mean lan (sell|lok)\\b",
+    "\\b(i|knhom) (also )?(sell|lok)\\b",
+    "\\bcheck my page\\b"
+  ]
+}

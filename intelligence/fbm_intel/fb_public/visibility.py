@@ -43,7 +43,8 @@ def verify(sig: VisibilitySignals) -> Visibility:
         return Visibility("restricted", None, "content_unavailable")
 
     if sig.is_group_post:
-        texts = {_norm(t) for t in sig.group_privacy_texts}
+        texts = {_norm(t) for t in sig.group_privacy_texts} | {_norm(l) for l in sig.audience_labels}
+        # Facebook's audience icon on group posts reads "Shared with Public group" / "Shared with Private group"
         private = any("private group" in t for t in texts)
         public = any("public group" in t for t in texts)
         if private:

@@ -22,10 +22,13 @@ class CrawlReport:
     new_comments: int = 0
     new_replies: int = 0
     stopped: str | None = None
+    debug: dict | None = None
+    buyer_comments: list[dict] = field(default_factory=list)
 
 
 def run(adapter: FacebookPublicPostsAdapter, query: str, *, repo=None, headless: bool = True, session_path=SESSION_PATH,
-        dry_run: bool = False, check_login: bool = True, on_session=None) -> CrawlReport:
+        dry_run: bool = False, check_login: bool = True, on_session=None, debug: bool = False,
+        buyer_only: bool = False) -> CrawlReport:
     rep = CrawlReport(query=query)
     if check_login and not session_path.exists():
         rep.stopped = "no_session: run python -m app.facebook_login"
@@ -42,6 +45,13 @@ def run(adapter: FacebookPublicPostsAdapter, query: str, *, repo=None, headless:
                     raise BlockedError(BlockStatus.LOGIN_WALL, s.page.url)
                 log.info("Facebook session loaded and logged in")
             rep.search_url = adapter.open_search(s, query)
+            if debug:
+                s.page.wait_for_timeout(5000)
+                rep.debug = {"after_load": adapter.structure_report(s)}
+                s.page.mouse.wheel(0, 1600)
+                s.page.wait_for_timeout(4000)
+                rep.debug["after_scroll"] = adapter.structure_report(s)
+                rep.debug["timestamps"] = adapter.timestamp_report(s)
             results = adapter.collect_results(s)
         except BlockedError as e:
             rep.stopped = f"{e.status.value} at {e.url}"
@@ -80,6 +90,15 @@ def run(adapter: FacebookPublicPostsAdapter, query: str, *, repo=None, headless:
                     repo.record_skip(r.canonical_url, query, r.visibility.status, r.visibility.skip_reason)
                 continue
             rep.verified_public += 1
+            if buyer_only:
+                from .model import keep_buyer_intent
+                post.comments = keep_buyer_intent(post.comments)
+                for c in post.comments:
+                    if c.buyer_intent:
+                        rep.buyer_comments.append({"comment_url": c.canonical_comment_url or c.source_comment_url,
+                                                   "post_url": post.canonical_post_url, "signals": c.buyer_intent_signals,
+                                                   "matched_phrases": c.matched_phrases, "text": c.comment_text[:300],
+                                                   "type": c.comment_type})
             new_c = new_r = 0
             if repo:
                 _, new_c, new_r = repo.save_post(post)

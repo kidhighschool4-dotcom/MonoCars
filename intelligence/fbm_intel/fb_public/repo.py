@@ -20,7 +20,8 @@ POST_COLS = ("id,source_post_id,source_post_url,canonical_post_url,post_text,pub
              "visibility_evidence,search_query,captured_at,comments_complete,comments_collected_count,"
              "replies_collected_count,comment_expansion_rounds,comments_incomplete_reason")
 COMMENT_COLS = ("id,source_comment_id,source_comment_url,canonical_comment_url,parent_comment_id,comment_type,"
-                "comment_text,commented_at_observed,captured_at,commenter_key_version,"
+                "comment_text,comment_text_normalized,buyer_intent,buyer_intent_signals,matched_phrases,"
+                "commented_at_observed,captured_at,commenter_key_version,"
                 "post:facebook_public_posts(canonical_post_url,source_post_url)")
 
 
@@ -88,7 +89,10 @@ class FacebookPublicRepo:
                     "commenter_key_version": c.commenter_key_version, "comment_text": c.comment_text,
                     "commented_at_observed": c.commented_at_observed, "comment_type": c.comment_type,
                     "visibility_status": "public_verified", "captured_at": p.captured_at,
-                    "adapter_version": ADAPTER_VERSION, "content_hash": c.content_hash})
+                    "adapter_version": ADAPTER_VERSION, "content_hash": c.content_hash,
+                    "comment_text_normalized": c.comment_text_normalized, "buyer_intent": c.buyer_intent,
+                    "buyer_intent_signals": c.buyer_intent_signals, "matched_phrases": c.matched_phrases,
+                    "intent_classifier_version": c.intent_classifier_version})
             if batch:
                 created = self._req("POST", "facebook_public_comments", params={"on_conflict": "post_id,comment_fingerprint"},
                                     prefer="return=representation,resolution=ignore-duplicates", body=batch)
@@ -147,6 +151,10 @@ class FacebookPublicRepo:
         return self._req("GET", "facebook_public_comments", params=[
             ("owner_id", f"eq.{self.owner_id}"), ("commented_at_observed", f"gte.{start.isoformat()}"),
             ("commented_at_observed", f"lt.{end.isoformat()}"), ("select", COMMENT_COLS), ("order", "commented_at_observed.asc")])
+
+    def find_buyer_comments(self, limit: int = 500) -> list[dict]:
+        return self._get("facebook_public_comments", buyer_intent="is.true", select=COMMENT_COLS,
+                         order="captured_at.desc", limit=str(limit))
 
     def purge_expired(self) -> dict:
         r = self.http.post(f"{self.s.supabase_url}/rest/v1/rpc/purge_expired_facebook_public_data", headers=self._h, json={})

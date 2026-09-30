@@ -127,3 +127,22 @@ def canonical_profile_url(url: str | None) -> str | None:
     if len(segs) == 1 and segs[0].lower() not in NON_PROFILE_ROOTS and re.fullmatch(r"[A-Za-z0-9.\-]{2,80}", segs[0]):
         return _build("/" + segs[0].lower(), [])
     return None
+
+
+def post_url_from_photo_set(photo_url: str, author_url: str | None) -> str | None:
+    """Facebook's Posts search hides post permalinks, but a post's photos link to /photo?fbid=…&set=pcb.<POST_ID>.
+    With the posting Page/profile link this rebuilds the exact post URL. Returns None if either part is missing."""
+    try:
+        path, query = _split(photo_url)
+    except NotFacebookUrl:
+        return None
+    if path not in ("/photo", "/photo.php"):
+        return None
+    m = re.fullmatch(r"pcb\.(\d{5,25})", dict(query).get("set", ""))
+    owner = canonical_profile_url(author_url)
+    if not m or not owner:
+        return None
+    opath, oq = _split(owner)
+    if opath == "/profile.php":
+        return _build("/permalink.php", [("story_fbid", m.group(1)), ("id", dict(oq)["id"])])
+    return _build(f"{opath}/posts/{m.group(1)}", [])

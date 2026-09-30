@@ -62,6 +62,15 @@ class TestUrls:
     def test_profile_urls(self, raw, canon):
         assert canonical_profile_url(raw) == canon
 
+    def test_post_url_from_photo_set(self):
+        from fbm_intel.fb_public.urls import post_url_from_photo_set as f
+        photo = "https://www.facebook.com/photo/?fbid=111&set=pcb.1234567890&__cft__[0]=x"
+        assert f(photo, "https://web.facebook.com/CHANGAN.Cambodia?__tn__=R") == "https://www.facebook.com/changan.cambodia/posts/1234567890"
+        assert f(photo, "https://www.facebook.com/profile.php?id=42") == \
+            "https://www.facebook.com/permalink.php?story_fbid=1234567890&id=42"
+        assert f("https://www.facebook.com/photo/?fbid=1&set=a.999", "https://www.facebook.com/x") is None  # album, not a post
+        assert f(photo, None) is None
+
     def test_rejects_non_facebook(self):
         with pytest.raises(NotFacebookUrl):
             canonical_post_url("https://evil-facebook.com/x/posts/1")
@@ -96,6 +105,11 @@ class TestVisibility:
 
     def test_public_group_verified(self):
         assert verify(self.sig(group=True, gtexts=["Cars KH · Public group"])).verified
+
+    def test_group_audience_icon_label(self):
+        # seen on real Facebook search results: the group post's audience icon reads "Shared with Public group"
+        assert verify(self.sig(["Shared with Public group"], group=True)).verified
+        assert verify(self.sig(["Shared with Private group"], group=True)).status == "private"
 
     def test_group_without_privacy_text_unverified(self):
         assert verify(self.sig(["Shared with Public"], group=True)).status == "unverified"
@@ -274,3 +288,13 @@ def test_dry_run_writes_nothing_and_opens_no_posts():
     rep = collector.run(FacebookPublicPostsAdapter(KEYER, FAST), "car sedan", repo=repo, dry_run=True,
                         check_login=False, on_session=lambda s: fb_public_site.install(s.context))
     assert rep.verified_public == 3 and repo.posts == {} and repo.skips == []
+
+
+def test_buyer_only_keeps_intent_and_parents():
+    from fbm_intel.fb_public.model import keep_buyer_intent
+    raw = [rc("comment", "Nice car", "C1"), rc("reply", "How much last price?", "C1", "R1"),
+           rc("comment", "Is it still available? I want to buy", "C2"), rc("comment", "Good luck bro", "C3")]
+    out, _ = build_comments(raw, POST, KEYER, Limits())
+    kept = keep_buyer_intent(out)
+    assert [c.comment_text for c in kept] == ["Nice car", "How much last price?", "Is it still available? I want to buy"]
+    assert all(c.parent_fingerprint in {k.fingerprint for k in kept} for c in kept if c.parent_fingerprint)

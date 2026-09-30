@@ -18,7 +18,8 @@ from ..browser import BlockedError, BlockStatus, BrowserSession, detect_block
 from ..normalize import normalize_text, sha256_hex
 from .identity import PersonKeyer
 from .model import ADAPTER_VERSION, Limits, PublicPost, RawComment, build_comments, parse_fb_time
-from .urls import canonical_post_url, canonical_profile_url, is_group_post, is_post_url, post_id
+from .urls import (canonical_post_url, canonical_profile_url, is_group_post, is_post_url, post_id,
+                   post_url_from_photo_set)
 from .visibility import Visibility, VisibilitySignals, verify
 
 log = logging.getLogger("fbm_intel.fb_public")
@@ -26,26 +27,78 @@ log = logging.getLogger("fbm_intel.fb_public")
 EXPAND_RE = re.compile(
     r"^(?:(?:view|see)\s+(?:more|previous|all\s+\d+|\d+(?:\s+more)?)\s+(?:comments?|repl(?:y|ies))"
     r"|\d+\s+repl(?:y|ies)|see more|view more comments|view previous comments|view more replies)$", re.I)
+TIME_LABEL_PY = (r"(?i)^(\d+\s*(s|m|h|d|w|y|mins?|hrs?|minutes?|hours?|days?|weeks?|months?|years?)(\s+ago)?"
+                 r"|an? (second|minute|hour|day|week|month|year) ago|just now|yesterday.*|[A-Z][a-z]+ \d{1,2}(, \d{4})?( at .*)?)$")
 BLOCK_TO_REASON = {BlockStatus.LOGIN_WALL: "login_wall", BlockStatus.CHECKPOINT: "checkpoint",
                    BlockStatus.CAPTCHA: "captcha", BlockStatus.BOT_CHALLENGE: "captcha",
                    BlockStatus.RATE_LIMITED: "rate_limit", BlockStatus.ACCOUNT_RESTRICTED: "checkpoint",
                    BlockStatus.ACCESS_DENIED: "checkpoint"}
 
+# Facebook's search feed items are the children of [role=feed] (not always role=article).
+TIME_LABEL_JS = r"/^(\\d+\\s*(s|m|h|d|w|y|mins?|hrs?|minutes?|hours?|days?|weeks?|months?|years?)(\\s+ago)?|an? (second|minute|hour|day|week|month|year) ago|just now|yesterday.*|[A-Z][a-z]+ \\d{1,2}(, \\d{4})?( at .*)?)$/i"
+
 _SEARCH_JS = """() => {
-  const root = document.querySelector('[role="feed"]') || document.querySelector('[role="main"]') || document.body;
-  const arts = Array.from(root.querySelectorAll('[role="article"]')).filter(a => !a.parentElement.closest('[role="article"]'));
-  return arts.map(a => {
-    const own = el => el.closest('[role="article"]') === a;
-    const labels = Array.from(a.querySelectorAll('[aria-label],[title],svg title')).filter(own)
+  const feed = document.querySelector('[role="feed"]');
+  const items = feed ? Array.from(feed.children)
+      : Array.from(document.querySelectorAll('[role="article"]')).filter(a => !a.parentElement.closest('[role="article"]'));
+  const timeRe = """ + TIME_LABEL_JS + """;
+  return items.map((it, i) => {
+    const labels = Array.from(it.querySelectorAll('[aria-label],[title],svg title'))
       .map(e => (e.getAttribute('aria-label') || e.getAttribute('title') || e.textContent || '').trim())
       .filter(t => t && t.length < 60);
-    const txt = a.innerText || '';
+    const txt = it.innerText || '';
+    const timeLinks = Array.from(it.querySelectorAll('a')).filter(a => timeRe.test((a.getAttribute('aria-label') || a.innerText || '').trim()));
     return {
-      links: Array.from(a.querySelectorAll('a[href]')).filter(own).map(x => x.href),
+      index: i, empty: txt.trim().length === 0,
+      links: Array.from(it.querySelectorAll('a[href]')).map(x => x.href),
+      time_links: timeLinks.map(a => a.getAttribute('href') ? a.href : null),
+      time_label: timeLinks.length ? (timeLinks[0].getAttribute('aria-label') || timeLinks[0].innerText || '').trim() : null,
       labels,
-      group_texts: txt.split('\\n').filter(t => /\\b(public|private) group\\b/i.test(t)).slice(0, 5),
+      group_texts: labels.filter(t => /\\b(public|private) group\\b/i.test(t))
+        .concat(txt.split('\\n').filter(t => /\\b(public|private) group\\b/i.test(t))).slice(0, 5),
       unavailable: /content isn.t available/i.test(txt),
     };
+  });
+}"""
+
+_STRUCTURE_JS = r"""() => {
+  const shape = h => { try { const u = new URL(h, location.href);
+      if (!/facebook[.]com$/.test(u.hostname)) return 'external';
+      const segs = u.pathname.split('/').filter(Boolean).map(s => /^\d+$/.test(s) ? '<num>' : /^pfbid/.test(s) ? '<pfbid>'
+        : ['groups','posts','permalink','photo','watch','reel','story.php','permalink.php','profile.php','marketplace','search','hashtag','videos','events','people','share','p'].includes(s) ? s : '<name>');
+      const q = Array.from(u.searchParams.keys()).filter(k => !k.startsWith('__')).sort().join(',');
+      return '/' + segs.join('/') + (q ? '?' + q : '');
+    } catch (e) { return 'bad'; } };
+  const count = sel => document.querySelectorAll(sel).length;
+  const shapes = {};
+  document.querySelectorAll('a[href]').forEach(a => { const k = a.getAttribute('href') === '#' ? '#' : shape(a.href); shapes[k] = (shapes[k] || 0) + 1; });
+  const top = Object.entries(shapes).sort((a, b) => b[1] - a[1]).slice(0, 40);
+  return {
+    title_len: document.title.length, path: location.pathname,
+    feeds: count('[role="feed"]'), articles: count('[role="article"]'), mains: count('[role="main"]'),
+    feed_children: (document.querySelector('[role="feed"]') || {children: []}).children.length,
+    aria_posinset: count('[aria-posinset]'), hash_links: count('a[href="#"]'),
+    svg_titles: Array.from(new Set(Array.from(document.querySelectorAll('svg title')).map(t => t.textContent.trim()).filter(t => t.length < 30))).slice(0, 30),
+    aria_labels_short: Array.from(new Set(Array.from(document.querySelectorAll('[aria-label]')).map(e => e.getAttribute('aria-label')).filter(t => t && t.length < 25 && !/\s\S+\s\S+\s/.test(t)))).slice(0, 40),
+    link_shapes: top,
+  };
+}"""
+
+_TIMESTAMP_JS = r"""() => {
+  const timeRe = __TIME_RE__;
+  const shape = h => { if (!h) return null; try { const u = new URL(h, location.href);
+      const segs = u.pathname.split('/').filter(Boolean).map(s => /^\d+$/.test(s) ? '<num>' : /^pfbid/.test(s) ? '<pfbid>'
+        : ['groups','posts','permalink','photo','watch','reel','story.php','permalink.php','profile.php','videos','share','p','commerce','listing'].includes(s) ? s : '<name>');
+      return u.hostname.replace(/^[a-z]+\./,'*.') + '/' + segs.join('/') + '?' + Array.from(u.searchParams.keys()).filter(k => !k.startsWith('__')).sort().join(',');
+    } catch (e) { return 'bad'; } };
+  const feed = document.querySelector('[role="feed"]');
+  return (feed ? Array.from(feed.children) : []).map((it, i) => {
+    const anchors = Array.from(it.querySelectorAll('a'));
+    const tl = anchors.filter(a => timeRe.test((a.getAttribute('aria-label') || a.innerText || '').trim()));
+    const spans = Array.from(it.querySelectorAll('span')).filter(sp => timeRe.test((sp.getAttribute('aria-label') || sp.innerText || '').trim())).length;
+    return { i, text_len: (it.innerText || '').length, anchors: anchors.length, time_links: tl.length, time_spans: spans,
+             time_link_shapes: tl.slice(0, 3).map(a => a.getAttribute('href') === null ? 'NO_HREF' : shape(a.href)),
+             has_aria_label_time_on: tl.slice(0,2).map(a => a.getAttribute('aria-label') ? 'aria' : 'text') };
   });
 }"""
 
@@ -137,12 +190,52 @@ class FacebookPublicPostsAdapter:
         log.info("No 'Public posts' filter offered; every result is verified individually")
         return False
 
+    def structure_report(self, s: BrowserSession) -> dict:
+        """Anonymous DOM structure (counts + URL shapes only) for fixing selectors. No names, text or real URLs."""
+        return s.page.evaluate(_STRUCTURE_JS)
+
+    def timestamp_report(self, s: BrowserSession) -> list[dict]:
+        """Per feed item: how many timestamp-like links, and the anonymized shape of their href after hover."""
+        hovered = self._reveal_permalinks(s)
+        rows = s.page.evaluate(_TIMESTAMP_JS.replace("__TIME_RE__", TIME_LABEL_JS))
+        return [{"hovered_total": hovered}] + rows
+
+    def _reveal_permalinks(self, s: BrowserSession) -> int:
+        """Facebook fills in a post's timestamp href only on hover. Hover each timestamp link once (read-only)."""
+        hovered = 0
+        items = s.page.locator("[role='feed'] > div")
+        n = min(items.count(), self.limits.max_posts_per_query * 3)
+        for i in range(n):
+            for a in items.nth(i).locator("a").all()[:40]:
+                label = (a.get_attribute("aria-label") or "").strip()
+                if not label or not re.match(TIME_LABEL_PY, label):
+                    continue
+                try:
+                    a.hover(timeout=3000)
+                    s.page.wait_for_timeout(250)
+                    hovered += 1
+                except Exception:  # noqa: BLE001
+                    pass
+                break
+        return hovered
+
     def collect_results(self, s: BrowserSession) -> list[SearchResult]:
         results: dict[str, SearchResult] = {}
+        no_link = 0
         for i in range(self.limits.max_search_scrolls + 1):
+            self._reveal_permalinks(s)
+            no_link = 0
             for r in s.page.evaluate(_SEARCH_JS):
-                url = next((h for h in r["links"] if is_post_url(h)), None)
+                if r["empty"]:
+                    continue
+                url = next((h for h in r["time_links"] if h and is_post_url(h)), None) \
+                    or next((h for h in r["links"] if is_post_url(h)), None)
                 if not url:
+                    # Posts search hides permalinks; rebuild from photo set=pcb.<post id> + the posting Page link
+                    author = next((h for h in r["links"] if canonical_profile_url(h)), None)
+                    url = next((u for u in (post_url_from_photo_set(h, author) for h in r["links"]) if u), None)
+                if not url:
+                    no_link += 1
                     continue
                 canon = canonical_post_url(url)
                 if canon in results:
@@ -160,7 +253,8 @@ class FacebookPublicPostsAdapter:
             if len(results) == before and i > 0:
                 break
         found = list(results.values())[: self.limits.max_posts_per_query]
-        log.info("Posts search results: %d (%d verified public)", len(found), sum(r.visibility.verified for r in found))
+        log.info("Posts search results: %d with a post link (%d verified public); %d result blocks had no post permalink "
+                 "(no exact post link in the search result, e.g. group sale posts — skipped)", len(found), sum(r.visibility.verified for r in found), no_link)
         return found
 
     # ── post ──
