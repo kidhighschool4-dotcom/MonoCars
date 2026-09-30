@@ -104,24 +104,28 @@ _TIMESTAMP_JS = r"""() => {
 
 _POST_JS = """() => {
   const isComment = a => /^(comment|reply) by /i.test(a.getAttribute('aria-label') || '');
-  const scope = document.querySelector('[role="dialog"]') || document.querySelector('[role="main"]') || document.body;
-  const arts = Array.from(scope.querySelectorAll('[role="article"]'));
-  const post = arts.find(a => !isComment(a) && !a.parentElement.closest('[role="article"]')) || scope;
-  const own = (el, root) => el.closest('[role="article"]') === root;
-  const labels = Array.from(post.querySelectorAll('[aria-label],[title],svg title')).filter(e => own(e, post))
+  const visible = el => !!(el.offsetWidth || el.offsetHeight || el.getClientRects().length);
+  // Real Facebook: the post may sit in one of several dialogs or in main, and the audience icon is NOT inside a
+  // role=article. Pick the region that actually holds the post (message / comments), then read it minus comments.
+  const regions = Array.from(document.querySelectorAll('[role="dialog"]')).concat(Array.from(document.querySelectorAll('[role="main"]')));
+  const score = r => (r.querySelector('[data-ad-preview="message"],[data-ad-comet-preview="message"],[data-testid="post-message"]') ? 100 : 0)
+                   + Array.from(r.querySelectorAll('[role="article"]')).filter(isComment).length
+                   + (Array.from(r.querySelectorAll('svg title')).some(t => /^shared with/i.test(t.textContent.trim())) ? 10 : 0);
+  const scope = regions.filter(visible).sort((a, b) => score(b) - score(a))[0] || document.body;
+  const inComment = el => { const a = el.closest('[role="article"]'); return !!(a && isComment(a)); };
+  const labels = Array.from(scope.querySelectorAll('[aria-label],[title],svg title')).filter(e => !inComment(e))
     .map(e => (e.getAttribute('aria-label') || e.getAttribute('title') || e.textContent || '').trim())
     .filter(t => t && t.length < 60);
-  const postLinks = Array.from(post.querySelectorAll('a[href]')).filter(e => own(e, post))
+  const postLinks = Array.from(scope.querySelectorAll('a[href]')).filter(e => !inComment(e))
     .map(x => ({href: x.href, text: (x.innerText || x.getAttribute('aria-label') || '').trim().slice(0, 40)}));
-  const msg = post.querySelector('[data-ad-preview="message"],[data-ad-comet-preview="message"],[data-testid="post-message"]');
-  const postText = msg ? msg.innerText : Array.from(post.querySelectorAll('div[dir="auto"]'))
-      .filter(e => own(e, post) && !e.closest('a')).map(e => e.innerText).join('\\n');
-  const txt = post.innerText || '';
-  const visible = el => !!(el.offsetWidth || el.offsetHeight || el.getClientRects().length);
-  const comments = arts.filter(a => isComment(a) && visible(a));
+  const msg = scope.querySelector('[data-ad-preview="message"],[data-ad-comet-preview="message"],[data-testid="post-message"]');
+  const postText = msg ? msg.innerText : Array.from(scope.querySelectorAll('div[dir="auto"]'))
+      .filter(e => !inComment(e) && !e.closest('a')).map(e => e.innerText).slice(0, 20).join('\\n');
+  const txt = Array.from(scope.querySelectorAll('span,div')).filter(e => !inComment(e) && e.children.length === 0)
+      .map(e => e.textContent).filter(t => /\\b(public|private) group\\b/i.test(t)).slice(0, 5);
+  const comments = Array.from(scope.querySelectorAll('[role="article"]')).filter(a => isComment(a) && visible(a));
   return {
-    labels, post_links: postLinks, post_text: postText,
-    group_texts: txt.split('\\n').filter(t => /\\b(public|private) group\\b/i.test(t)).slice(0, 5),
+    labels, post_links: postLinks, post_text: postText, group_texts: txt,
     unavailable: /content isn.t available|this content is no longer available/i.test(document.body.innerText || ''),
     comments: comments.map(c => {
       const mine = el => el.closest('[role="article"]') === c;

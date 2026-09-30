@@ -298,3 +298,21 @@ def test_buyer_only_keeps_intent_and_parents():
     kept = keep_buyer_intent(out)
     assert [c.comment_text for c in kept] == ["Nice car", "How much last price?", "Is it still available? I want to buy"]
     assert all(c.parent_fingerprint in {k.fingerprint for k in kept} for c in kept if c.parent_fingerprint)
+
+
+@pytest.mark.browser
+def test_real_facebook_post_layout():
+    """Regression from the live run: post in the 2nd of several dialogs, audience icon outside any role=article."""
+    from fbm_intel.browser import open_session
+    from fbm_intel.fb_public.adapter import SearchResult
+    from fbm_intel.fb_public.visibility import Visibility
+
+    ad = FacebookPublicPostsAdapter(KEYER, FAST)
+    url = "https://www.facebook.com/realshape.kh/posts/999999999"
+    with open_session(ad.allowed_hosts, 0) as s:
+        fb_public_site.install(s.context)
+        post = ad.collect_post(s, SearchResult(url, url, Visibility("public_verified", "audience_icon:Shared with Public", None)), "q")
+    assert post is not None and post.visibility_evidence == "audience_icon:Shared with Public"
+    assert post.post_text == "Lexus RX 2019 for sale"
+    assert [c.comment_text for c in post.comments] == ["domlai man b", "nice lan b"]
+    assert [c.buyer_intent for c in post.comments] == [True, False]

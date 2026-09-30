@@ -92,7 +92,20 @@ RESTRICTED = """<!doctype html><html><head><title>Facebook</title></head><body>
 SEARCH_BLOCKED = f"""<!doctype html><html><head><title>Search | Facebook</title></head><body><div role="feed">
 {result("https://www.facebook.com/fast.poster/posts/888888888", "Shared with Public", body="sedan")}</div></body></html>"""
 
+R = "https://www.facebook.com/realshape.kh/posts/999999999"
+POST_REAL_SHAPE = f"""<!doctype html><html><head><title>Real shape | Facebook</title></head><body>
+<div role="dialog"><div>Notifications</div><div role="article" aria-label="">unrelated</div></div>
+<div role="main"><div>feed behind the dialog</div></div>
+<div role="dialog">
+  <div><a href="https://www.facebook.com/realshape.kh">Real Shape Auto</a> <a href="{R}?__cft__[0]=q">5h</a>
+       <span><svg><title>Shared with Public</title></svg></span></div>
+  <div data-ad-comet-preview="message">Lexus RX 2019 for sale</div>
+  {comment("comment", "domlai man b", R + "?comment_id=Z1", "https://www.facebook.com/somebody.kh", "1h")}
+  {comment("comment", "nice lan b", R + "?comment_id=Z2", "https://www.facebook.com/other.kh", "1h")}
+</div></body></html>"""
+
 PAGES = {
+    "/realshape.kh/posts/999999999": POST_REAL_SHAPE,
     "/search/posts": SEARCH,
     "/carshop.pp/posts/pfbid0111": POST_111,
     "/groups/carskh/posts/444444444": POST_444,
