@@ -102,6 +102,11 @@ def looks_organizational(name: str | None, rules: LeadRules | None = None) -> bo
 class PostContext:
     text: str = ""                        # post title + text + hashtags
     author_is_organization: bool = False
+    search_query: str = ""                # the discovery query that found the post
+
+    @property
+    def rx300_search(self) -> bool:
+        return mentions_rx300(self.search_query)
 
     @property
     def prepared(self) -> str:
@@ -145,7 +150,7 @@ def classify_comment(text: str, post: PostContext | None = None, *, intent: Inte
     post = post or PostContext()
     intent = intent or score_comment(text)
     t = prep(text)
-    rx_here = mentions_rx300(t, r)
+    rx_here = mentions_rx300(t, r) or (bool(re.search(r"(?<!\d)300(?!\d)", t)) and post.rx300_search)  # "300 នេះលក់…"
     rx_ctx = rx_here or mentions_rx300(post.prepared, r)
     related_ctx = bool(_hits(t, r.related) or _hits(post.prepared, r.related))
     fam, taxi = _hits(t, r.family), _hits(t, r.taxi)
@@ -169,6 +174,9 @@ def classify_comment(text: str, post: PostContext | None = None, *, intent: Inte
                           needs_review=not strong or intent.needs_human_review, **base)
     if (buyer or seeking) and (fam or taxi):
         return LeadResult("potential_rx300_fit", confidence=55, reasons=["family_or_taxi_need", *(fam + taxi)[:3]],
+                          needs_review=True, **base)
+    if (buyer or seeking) and post.rx300_search:
+        return LeadResult("potential_rx300_fit", confidence=55, reasons=["buyer_on_post_found_by_rx300_search"],
                           needs_review=True, **base)
     if buyer and related_ctx:
         return LeadResult("potential_rx300_fit", confidence=45, reasons=["buyer_on_related_model"], needs_review=True, **base)

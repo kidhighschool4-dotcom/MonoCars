@@ -75,7 +75,7 @@ def type_leads(adapter: PlatformAdapter, post: SocialPost) -> None:
     org = post.organization or adapter.organization_for_post(post)
     post.organization = org
     ctx = PostContext(text=" ".join(filter(None, [post.post_title, post.document_title, post.post_text, " ".join(post.hashtags)])),
-                      author_is_organization=bool(org))
+                      author_is_organization=bool(org), search_query=post.search_query or "")
     post.lead = classify_post(ctx)
     for c in post.comments:
         c.lead = classify_comment(c.comment_text, ctx, intent=c.intent, is_post_author=c.is_post_author)
@@ -204,6 +204,11 @@ def _collect_one(adapter, name, item: SearchItem, canon, pcfg, state, sink, budg
             break
         c.screenshot = _safe_evidence(adapter, c, budget, res)
     keep_for_persist(post, pcfg.get("persist_policy", "buyers"), threshold)
+    has_buyer = any(c.lead is not None and c.lead.lead_type in BUYER_LEADS for c in post.comments) \
+        or (post.lead is not None and post.lead.lead_type in BUYER_LEADS)
+    if not has_buyer and pcfg.get("save_posts_without_buyers", False) is not True:
+        state.mark_seen(name, canon)          # owner wants buyer comments, not seller posts: nothing stored
+        return
     sink.save_post(name, post)
     if pcfg.get("_notifier") is not None:            # after saving, so the alert's lead is on the dashboard
         res.alerts += pcfg["_notifier"].consider(post)

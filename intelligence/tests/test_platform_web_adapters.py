@@ -176,7 +176,7 @@ def test_khmer24_challenge_page():
 
 def test_khmer24_end_to_end_cycle_types_leads(tmp_path):
     cfg = registry.load_config()
-    cfg["platforms"]["khmer24"].update(enabled=True, rate={"min_interval_s": 0}, discovery={"queries": ["Lexus RX300"]})
+    cfg["platforms"]["khmer24"].update(enabled=True, rate={"min_interval_s": 0}, discovery={"queries": ["Lexus RX300"]}, save_posts_without_buyers=True)
     sink = PreviewSink(tmp_path, "r")
     res = run_cycle("khmer24", cfg=cfg, state=WorkerState(tmp_path / "s.sqlite"), sink=sink, keyer=KEYER,
                     fixtures=k24_routes().transport)

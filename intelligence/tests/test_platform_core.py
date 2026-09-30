@@ -436,3 +436,24 @@ def test_excluded_platform_never_runs(fake_registry, state, tmp_path):
     w = Worker(cfg=cfg, state=state, sink=PreviewSink(tmp_path, "r"), keyer=KEYER, platforms=["alpha", "beta"])
     assert [r.platform for r in w.run_once()] == ["alpha"]
     assert registry.load_config()["platforms"]["khmer24"]["excluded"]
+
+
+def test_hashtag_only_post_found_by_rx300_search():
+    ctx = PostContext("#cambodia #tiktokviral #luxe", search_query="lok rx300")
+    assert classify_comment("តម្លៃប៉ុន្មានបង?", ctx).lead_type == "potential_rx300_fit"
+    assert classify_comment("300និងលក់នៅបងហើយដំលៃប៉ុន្មាន", ctx).lead_type == "confirmed_rx300_buyer"
+    assert classify_comment("nice", ctx).lead_type == "irrelevant"
+    assert classify_comment("តម្លៃប៉ុន្មានបង?", PostContext("#cambodia", search_query="family suv")).lead_type == "irrelevant"
+
+
+def test_posts_without_buyer_comments_are_not_stored(fake_registry, state, tmp_path):
+    cls = fake_registry("alpha")
+    cls.collect_comments = lambda self, post: CommentBatch([], "complete")
+    sink = PreviewSink(tmp_path, "r")
+    res = run_cycle("alpha", cfg=cfg_for("alpha"), state=state, sink=sink, keyer=KEYER)
+    assert res.posts == 6 and not (sink.dir / "alpha.jsonl").exists()     # seller posts seen, nothing saved
+
+
+def test_seller_only_sources_excluded():
+    cfg = registry.load_config()["platforms"]
+    assert all(cfg[n].get("excluded") for n in ("khmer24", "facebook_marketplace", "kh_classifieds", "telegram"))

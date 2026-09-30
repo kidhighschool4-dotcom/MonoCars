@@ -114,7 +114,8 @@ def test_telegram_respects_robots():
 
 def _cfg(name, **block):
     cfg = registry.load_config()
-    cfg["platforms"][name].update({"enabled": True, "rate": {"min_interval_s": 0}, **block})
+    cfg["platforms"][name].update({"enabled": True, "rate": {"min_interval_s": 0}, "save_posts_without_buyers": True, **block})
+    cfg["platforms"][name].pop("excluded", None)
     cfg["budgets"]["max_queries_per_cycle"] = 1
     return cfg
 

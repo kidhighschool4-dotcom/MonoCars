@@ -33,7 +33,7 @@
   "persist_policy": "buyers",
   "platforms": {
     "facebook_public_posts": {"tier": 1, "enabled": false, "schedule": "cambodia_high_value", "rate": {"min_interval_s": 12, "concurrency": 1}},
-    "facebook_marketplace":  {"tier": 1, "enabled": false, "schedule": "cambodia_high_value", "rate": {"min_interval_s": 12, "concurrency": 1}},
+    "facebook_marketplace":  {"excluded": "owner: seller listings only, no public comments", "tier": 1, "enabled": false, "schedule": "cambodia_high_value", "rate": {"min_interval_s": 12, "concurrency": 1}},
     "tiktok":                {"tier": 1, "enabled": false, "schedule": "global_social", "rate": {"min_interval_s": 10, "concurrency": 1}},
     "instagram":             {"tier": 1, "enabled": false, "schedule": "global_social", "rate": {"min_interval_s": 15, "concurrency": 1}},
     "reddit":                {"tier": 1, "enabled": false, "schedule": "global_social", "rate": {"min_interval_s": 2, "concurrency": 1}},
@@ -41,7 +41,7 @@
     "x":                     {"tier": 1, "enabled": false, "schedule": "global_social", "rate": {"min_interval_s": 15, "concurrency": 1}},
     "threads":               {"tier": 1, "enabled": false, "schedule": "global_social", "rate": {"min_interval_s": 15, "concurrency": 1}},
 
-    "telegram":              {"tier": 2, "enabled": false, "schedule": "cambodia_high_value", "rate": {"min_interval_s": 4, "concurrency": 1},
+    "telegram":              {"excluded": "owner: channel posts are sellers; comments are not public", "tier": 2, "enabled": false, "schedule": "cambodia_high_value", "rate": {"min_interval_s": 4, "concurrency": 1},
                               "channels": []},
     "pinterest":             {"tier": 2, "enabled": false, "schedule": "global_social", "rate": {"min_interval_s": 15, "concurrency": 1}},
     "bluesky":               {"tier": 2, "enabled": false, "schedule": "global_social", "rate": {"min_interval_s": 2, "concurrency": 1}},
@@ -56,7 +56,7 @@
                               "model_filters": [{"pattern": "rx\\s*-?\\s*300|rx៣០០", "params": {"ad_field": "lexus", "ad_model": "rx300"}},
                                                 {"pattern": "lexus|ឡិចស៊ីស", "params": {"ad_field": "lexus"}}],
                               "discovery": {"queries": ["Lexus RX300"]}},
-    "kh_classifieds":        {"tier": 2, "enabled": false, "schedule": "slow_forums_classifieds", "rate": {"min_interval_s": 8, "concurrency": 1},
+    "kh_classifieds":        {"excluded": "owner: seller listings only, no buyer comments", "tier": 2, "enabled": false, "schedule": "slow_forums_classifieds", "rate": {"min_interval_s": 8, "concurrency": 1},
                               "sites": [], "max_pages_per_query": 2,
                               "discovery": {"query_groups": ["rx300_confirmed"], "languages": ["en"], "plain_terms": ["Lexus RX300", "RX300"]}},
 
