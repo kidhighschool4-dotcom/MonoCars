@@ -28,7 +28,7 @@ class TestCanonicalUrl:
 class TestPrice:
     @pytest.mark.parametrize("text,usd", [
         ("$18,500", 18500), ("18500 USD", 18500), ("USD 18 500", 18500), ("$12.8k", 12800),
-        ("៛52,480,000", 12800), ("52.48 លានរៀល", 12800), ("$១៨,៥០០", 18500), ("Price: $95,000 negotiable", 95000),
+        ("៛52,480,000", 12800), ("52.48 លានរៀល", 12800), ("KHR52,480,000", 12800), ("$១៨,៥០០", 18500), ("Price: $95,000 negotiable", 95000),
     ])
     def test_parses(self, text, usd):
         assert parse_price_usd(text) == usd

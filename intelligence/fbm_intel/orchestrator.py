@@ -68,7 +68,8 @@ class Pipeline:
         self.scoring_policy, self.ranking_policy = scoring_policy, ranking_policy
 
     # ── 10.2 collection ─────────────────────────────────────────────────────
-    def crawl(self, adapter: PlatformAdapter, terms: list[dict], report: RunReport, *, listing_budget: int | None = None) -> None:
+    def crawl(self, adapter: PlatformAdapter, terms: list[dict], report: RunReport, *, listing_budget: int | None = None,
+              headless: bool = True) -> None:
         if not self.profile.enabled:
             raise RuntimeError("search profile is disabled")
         access = adapter.validate_access()
@@ -76,7 +77,17 @@ class Pipeline:
             raise PermissionError(f"{adapter.platform}: {access.reason}")
         budget = min(listing_budget or self.profile.max_listings_per_run, self.profile.max_listings_per_run)
         seen_urls: set[str] = set()
-        with open_session(adapter.allowed_hosts, adapter.min_interval_s) as s:
+        session_file = getattr(adapter, "session_path", None)
+        with open_session(adapter.allowed_hosts, adapter.min_interval_s, headless=headless,
+                          storage_state=str(session_file) if session_file else None) as s:
+            if hasattr(adapter, "confirm_logged_in"):
+                try:
+                    adapter.confirm_logged_in(s)
+                except BlockedError as e:
+                    report.counters.blocks += 1
+                    report.blocked.append(f"{adapter.platform}: {e.status.value}")
+                    log.warning("stopping %s before searching: %s", adapter.platform, e)
+                    return
             for term in terms[: self.profile.max_queries_per_run]:
                 if len(seen_urls) >= budget:
                     break

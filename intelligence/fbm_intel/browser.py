@@ -22,6 +22,8 @@ class BlockStatus(str, Enum):
     LOGIN_WALL = "login_wall"
     ACCESS_DENIED = "access_denied"
     RATE_LIMITED = "rate_limited"
+    CHECKPOINT = "checkpoint"
+    ACCOUNT_RESTRICTED = "account_restricted"
 
 
 class BlockedError(Exception):
@@ -40,10 +42,19 @@ _BLOCK_MARKERS: list[tuple[BlockStatus, tuple[str, ...]]] = [
     (BlockStatus.RATE_LIMITED, ("too many requests", "rate limit exceeded")),
     (BlockStatus.ACCESS_DENIED, ("access denied", "you don't have permission", "request blocked")),
     (BlockStatus.LOGIN_WALL, ("log in to continue", "you must log in", "sign in to continue", "login to view")),
+    (BlockStatus.ACCOUNT_RESTRICTED, ("you're temporarily blocked", "you’re temporarily blocked", "your account has been restricted",
+                                      "we suspended your account", "your account has been locked", "confirm your identity",
+                                      "we noticed unusual activity", "security check", "you can't use this feature right now",
+                                      "you can’t use this feature right now", "it looks like you were misusing this feature")),
 ]
 
 
 def detect_block(page: Page, response_status: int | None = None) -> BlockStatus:
+    url = (page.url or "").lower()
+    if "/checkpoint" in url:
+        return BlockStatus.CHECKPOINT
+    if "/login" in url or "login.php" in url:
+        return BlockStatus.LOGIN_WALL
     title = (page.title() or "").lower()
     try:
         head = page.inner_text("body", timeout=2000)[:3000].lower()
@@ -109,12 +120,13 @@ class BrowserSession:
 
 
 @contextmanager
-def open_session(allowed_hosts: set[str], min_interval_s: float = 2.0, headless: bool = True) -> Iterator[BrowserSession]:
+def open_session(allowed_hosts: set[str], min_interval_s: float = 2.0, headless: bool = True,
+                 storage_state: str | None = None) -> Iterator[BrowserSession]:
     """One isolated context per platform. Downloads off, explicit locale/timezone, allowlisted navigation."""
     blocked: list[str] = []
     with sync_playwright() as p:
         browser = p.chromium.launch(headless=headless)
-        context = browser.new_context(viewport=VIEWPORT, locale=LOCALE, timezone_id=TIMEZONE,
+        context = browser.new_context(viewport=VIEWPORT, locale=LOCALE, timezone_id=TIMEZONE, storage_state=storage_state,
                                       accept_downloads=False, java_script_enabled=True,
                                       extra_http_headers={"Accept-Language": "en-US,en;q=0.9,km;q=0.8"})
 

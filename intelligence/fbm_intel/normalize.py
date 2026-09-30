@@ -80,7 +80,7 @@ def parse_price_usd(text: str | None) -> int | None:
     if not text:
         return None
     t = normalize_text(text).translate(_KHMER_DIGITS)
-    is_khr = bool(re.search(r"៛|រៀល|\bkhr\b|\briel", t, re.IGNORECASE))
+    is_khr = bool(re.search(r"៛|រៀល|\bkhr|\briel", t, re.IGNORECASE))
     m = re.search(_NUM, t)
     if not m:
         return None
