@@ -27,7 +27,7 @@ SCRIPT_SIGNALS: dict[str, list[str]] = {
     "wants_to_buy": ["want to buy", "i'll take it", "i will take it", "i want it", "i'm interested", "im interested",
                      "interested", "i'll buy", "i will buy", "ខ្ញុំចង់ទិញ", "ចង់ទិញ", "ចាប់អារម្មណ៍", "ចង់បាន", "យកមួយ"],
     "asks_availability": ["still available", "is it available", "available?", "sold yet", "នៅលក់ទេ", "នៅមានទេ"],
-    "asks_price": ["how much", "last price?", "final price?", "best price?", "your best price", "can discount", "discount?",
+    "asks_price": ["how much", "last price?", "final price?", "best price?", "your best price", "the last price", "your last price", "the final price", "can discount", "discount?",
                    "តម្លៃប៉ុន្មាន", "ប៉ុន្មាន", "ចុះថ្លៃ", "ចុះបានទេ", "តម្លៃចុងក្រោយ", "លក់មិច", "លក់ម៉េច", "លក់ម៉ិច",
                    "ថ្លៃប៉ុន្មាន", "ដាច់ប៉ុន្មាន", "ពេញម៉ាន", "ពេញមាណ", "ពេញម៉ាណ", "លក់ម៉ាន", "លក់មាណ", "ថ្លៃម៉ាន",
                    "តំលៃម៉ាន", "តម្លៃម៉ាន", "សូមតំលៃ", "សូមតម្លៃ", "សុំតំលៃ", "សុំតម្លៃ"],
