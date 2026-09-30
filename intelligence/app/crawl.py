@@ -4,6 +4,7 @@
   python -m app.crawl --platform facebook --query "car sedan" --headed
   python -m app.crawl --platform facebook --surface posts --query "Camry for sale" --headed
   python -m app.crawl --platform fbm --query "camry"
+  python -m app.crawl --platform facebook-public-posts --query "car sedan" --headed [--dry-run]
 
 --dry-run  opens the search and prints the listing URLs + visible card fields only:
            no listing pages opened, nothing written to Supabase, no vision calls.
@@ -12,6 +13,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import logging
 import re
 import sys
@@ -101,11 +103,48 @@ def real_run(a, st: Settings) -> int:
     return 0 if status != "stopped_blocked" else 3
 
 
+def public_posts(a, st: Settings) -> int:
+    from fbm_intel.fb_public import collector
+    from fbm_intel.fb_public.adapter import FacebookPublicPostsAdapter
+    from fbm_intel.fb_public.identity import PersonKeyer
+    from fbm_intel.fb_public.model import Limits
+    from fbm_intel.fb_public.repo import FacebookPublicRepo
+
+    keyer = PersonKeyer.from_env()
+    limits = Limits(max_posts_per_query=a.limit, max_comments_per_post=a.max_comments,
+                    max_replies_per_comment=a.max_replies, max_comment_expansion_rounds=a.max_rounds,
+                    comment_load_timeout_seconds=a.comment_timeout)
+    repo = None
+    if not a.dry_run:
+        owner = resolve_owner(st, a.owner_email)
+        if not owner:
+            log.error("Owner account %r not found — sign up on the site first (records need an owner_id).", a.owner_email)
+            return 2
+        repo = FacebookPublicRepo(st, owner, keyer)
+    rep = collector.run(FacebookPublicPostsAdapter(keyer, limits), a.query, repo=repo, headless=not a.headed, dry_run=a.dry_run)
+    print(json.dumps(rep.__dict__, indent=2, ensure_ascii=False, default=str))
+    return 3 if rep.stopped else 0
+
+
+def resolve_owner(st: Settings, email: str | None) -> str | None:
+    import httpx
+    if not email:
+        return None
+    h = {"apikey": st.service_role_key, "Authorization": f"Bearer {st.service_role_key}"}
+    users = httpx.get(f"{st.supabase_url}/auth/v1/admin/users", params={"per_page": 1000}, headers=h, timeout=30).json().get("users", [])
+    return next((u["id"] for u in users if (u.get("email") or "").lower() == email.lower()), None)
+
+
 def main(argv: list[str] | None = None) -> int:
     logging.basicConfig(level=logging.INFO, format="%(levelname)s %(name)s: %(message)s")
     logging.getLogger("httpx").setLevel(logging.WARNING)
     p = argparse.ArgumentParser(prog="python -m app.crawl", description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    p.add_argument("--platform", choices=["facebook", "fbm"], required=True)
+    p.add_argument("--platform", choices=["facebook", "facebook-public-posts", "fbm"], required=True)
+    p.add_argument("--owner-email", default=os.environ.get("FB_DATA_OWNER_EMAIL"), help="FBM account that owns collected public data")
+    p.add_argument("--max-comments", type=int, default=200, help="max_comments_per_post")
+    p.add_argument("--max-replies", type=int, default=50, help="max_replies_per_comment")
+    p.add_argument("--max-rounds", type=int, default=15, help="max_comment_expansion_rounds")
+    p.add_argument("--comment-timeout", type=int, default=90, help="comment_load_timeout_seconds")
     p.add_argument("--surface", choices=["marketplace", "posts"], default="marketplace", help="Facebook surface")
     p.add_argument("--location", default="phnompenh", help="Facebook Marketplace location slug")
     p.add_argument("--query", required=True, help="one keyword/phrase per run")
@@ -115,6 +154,9 @@ def main(argv: list[str] | None = None) -> int:
     a = p.parse_args(argv)
     a.limit = max(1, min(a.limit, 20))
     st = Settings.load()
+    if a.platform == "facebook-public-posts":
+        a.owner_email = a.owner_email or os.environ.get("FB_DATA_OWNER_EMAIL")
+        return public_posts(a, st)
     return dry_run(a, st) if a.dry_run else real_run(a, st)
 
 

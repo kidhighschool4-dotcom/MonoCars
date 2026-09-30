@@ -27,6 +27,25 @@ FB_HOSTS = {"facebook.com", "fbcdn.net", "facebook.net", "fbsbx.com"}
 MARKETPLACE_ITEM = re.compile(r"/marketplace/item/(\d{6,25})")
 POST_PATTERNS = [re.compile(p) for p in (r"/groups/[^/]+/posts/(\d+)", r"/[^/?#]+/posts/([\w]+)", r"story_fbid=(\d+)",
                                          r"/permalink/(\d+)", r"/share/p/([\w-]+)")]
+UI_HEADINGS = {"marketplace", "notifications", "chats", "facebook", "search results", "today's picks", "browse all"}
+
+
+def title_from_document(doc_title: str | None) -> str | None:
+    """'(3) Marketplace – 2015 BMW Series 3 | Facebook' → '2015 BMW Series 3'."""
+    t = normalize_text(doc_title or "")
+    t = re.sub(r"^\(\d+\)\s*", "", t)
+    t = re.sub(r"^marketplace\s*[–—-]\s*", "", t, flags=re.I)
+    t = re.sub(r"\s*[|–—-]\s*facebook( marketplace)?$", "", t, flags=re.I)
+    return None if not t or t.casefold() in UI_HEADINGS else t
+
+
+def clean_card_title(card_text: str | None) -> str | None:
+    """Card text is 'price [old price] title location' on one line; strip leading prices and 'Free'."""
+    t = normalize_text(card_text or "")
+    t = re.sub(r"^(?:(?:free|[$៛]\s?[\d,.]+|khr\s?[\d,.]+|[\d,.]+\s?(?:usd|khr|៛))\s*)+", "", t, flags=re.I)
+    return t or None
+
+
 PRICE_RE = re.compile(r"(?:[$៛]\s?[\d,.]+[kKmM]?|[\d,.]+\s?(?:USD|\$|៛|រៀល))")
 
 
@@ -161,7 +180,7 @@ class FacebookAdapter(PlatformAdapter):
         if "this listing is no longer available" in low or "listing isn't available" in low or "content isn't available" in low:
             state = PageState.SOLD_OR_REMOVED
         if self.surface == "marketplace":
-            title = self._heading(s) or (ref.hint_title.splitlines()[0] if ref.hint_title else None)
+            title = self._heading(s) or self._document_title(s) or clean_card_title(ref.hint_title)
             price = next((l for l in lines[:12] if PRICE_RE.fullmatch(l.replace(" ", "")) or PRICE_RE.match(l)), None)
             listed = next((l for l in lines if l.lower().startswith("listed ")), None)
             location = None
@@ -197,12 +216,19 @@ class FacebookAdapter(PlatformAdapter):
         )
 
     def _heading(self, s: BrowserSession) -> str | None:
-        h = s.page.locator("div[role='main'] h1, [role='dialog'] h1")
-        if h.count():
-            t = normalize_text(h.first.inner_text(timeout=3000))
-            if t and t.lower() not in ("marketplace", "notifications", "chats"):
+        """First level-1 heading in the listing that is a real title (not 'Marketplace', not a price)."""
+        for h in s.page.locator("div[role='main'] h1, [role='dialog'] h1, div[role='main'] [role='heading'][aria-level='1']").all()[:6]:
+            try:
+                t = normalize_text(h.inner_text(timeout=2000))
+            except Exception:  # noqa: BLE001
+                continue
+            if t and t.casefold() not in UI_HEADINGS and not PRICE_RE.fullmatch(t.replace(" ", "")):
                 return t
         return None
+
+    @staticmethod
+    def _document_title(s: BrowserSession) -> str | None:
+        return title_from_document(s.page.title())
 
     @staticmethod
     def _section_after(lines: list[str], headings: tuple[str, ...]) -> str | None:
