@@ -105,6 +105,12 @@ def build(root: Path) -> Path:
     (blocked / "index.html").write_text(
         '<!doctype html><html><head><title>Just a moment...</title></head><body>Performing security verification. '
         'This website uses a security service to protect against malicious bots.</body></html>', encoding="utf-8")
+    login = site / "login-wall"
+    login.mkdir(exist_ok=True)
+    (login / "index.html").write_text(
+        '<!doctype html><html><head><title>Marketplace | Social</title></head><body><h1>Vehicles</h1>'
+        '<form><input name="email"><input name="pass" type="password"><button>Log In</button></form></body></html>',
+        encoding="utf-8")
     manual = site / "manual"
     manual.mkdir(exist_ok=True)
     (manual / "index.html").write_text(

@@ -60,6 +60,9 @@ def detect_block(page: Page, response_status: int | None = None) -> BlockStatus:
     try:
         if page.locator("iframe[src*='challenges.cloudflare.com'], iframe[src*='recaptcha'], iframe[src*='hcaptcha']").count():
             return BlockStatus.CAPTCHA
+        # A visible password field means the content is gated behind a login (e.g. Facebook) — never automate it.
+        if page.locator("input[type='password']:visible, input[name='pass']:visible").count():
+            return BlockStatus.LOGIN_WALL
     except Exception:
         pass
     return BlockStatus.NONE

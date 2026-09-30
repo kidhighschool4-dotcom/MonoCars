@@ -221,3 +221,12 @@ def test_photo_screenshot_and_buyer_comments(fixture_site, brief, profile):
     pipe.crawl(FbmAdapter(fixture_site), [{"id": "t1", "text": "camry"}], report2, listing_budget=1)
     assert len(store.t["listing_comments"]) == 3 and report2.buyer_comments == 0
     assert len([a for a in store.t["listing_assets"] if a["asset_kind"] == "primary_image"]) == 1
+
+
+def test_login_wall_stops_immediately(fixture_site):
+    # Seen on Facebook Marketplace: page renders but content is gated by a login form
+    a = FbmAdapter(fixture_site)
+    with open_session(a.allowed_hosts, min_interval_s=0) as s:
+        with pytest.raises(BlockedError) as e:
+            s.goto(f"{fixture_site}/login-wall/")
+        assert e.value.status == BlockStatus.LOGIN_WALL
