@@ -48,6 +48,25 @@ def _card(lid: str, d: dict) -> str:
             f'href="/cars/{lid}"><img src="/img/{lid}.png" width="160"><span>{html.escape(d["title"])}</span></a>')
 
 
+COMMENTS = {
+    "ok-camry": [
+        ("Dara", "Is it still available? I want to buy"),
+        ("Sokha", "តម្លៃប៉ុន្មាន? ខ្ញុំចង់ទិញ call me 012 345 678"),
+        ("Vanna", "Nice car bro 🔥"),
+        ("Car Dealer PP", "I also sell Camry cheaper, check my page www.example.com"),
+        ("Rith", "not interested anymore"),
+        ("Dara", "Is it still available? I want to buy"),
+        ("Mony", "Can I see it this weekend? email me mony@example.com"),
+    ],
+}
+
+
+def _comments(lid: str) -> str:
+    items = "".join(f'<li data-testid="listing-comment"><b class="author">{html.escape(a)}</b> '
+                    f'<span data-testid="comment-text">{html.escape(t)}</span></li>' for a, t in COMMENTS.get(lid, []))
+    return f'<section><h2>Comments</h2><ul>{items}</ul></section>' if items else ""
+
+
 def _listing(lid: str, d: dict) -> str:
     status = f'<span data-testid="listing-status">{d["status"]}</span>' if d.get("status") else ""
     return f"""<!doctype html><html lang="en"><head><meta charset="utf-8"><title>{html.escape(d['title'])} | FBM</title></head>
@@ -65,6 +84,7 @@ def _listing(lid: str, d: dict) -> str:
   <p data-testid="listing-description">{html.escape(d['description'])}</p>
  </div>
  <aside><p>Seller: Private Person</p><p>+855 12 345 678</p></aside>
+ {_comments(lid)}
 </main></body></html>"""
 
 

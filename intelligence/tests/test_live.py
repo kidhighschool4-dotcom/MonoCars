@@ -21,7 +21,7 @@ pytestmark = pytest.mark.live
 
 TABLES = ["product_briefs", "search_profiles", "search_terms", "crawl_runs", "crawl_queries", "listings",
           "listing_observations", "listing_assets", "vision_evaluations", "listing_scores", "ranking_runs",
-          "ranking_members", "review_tasks", "pipeline_events", "job_failures"]
+          "ranking_members", "review_tasks", "pipeline_events", "job_failures", "listing_comments"]
 
 
 @pytest.fixture(scope="module")

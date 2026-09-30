@@ -14,6 +14,7 @@ from .adapters.base import PlatformAdapter, ResultRef
 from .browser import BlockedError, open_session
 from .normalize import (content_hash, fold, freshness_percent, normalize_location, parse_price_usd, sha256_hex,
                         stable_hash)
+from .comments import CLASSIFIER_VERSION as COMMENT_CLASSIFIER, classify_comments
 from .prefilter import detect_hard_rejections, prefilter
 from .ranking import rank
 from .schemas import (Decision, Eligibility, ProductBrief, RankingCandidate, RawListingObservation, SearchProfile,
@@ -47,6 +48,10 @@ class RunReport:
     crawl_run_id: str | None = None
     counters: RunCounters = field(default_factory=RunCounters)
     captured_listing_ids: list[str] = field(default_factory=list)
+    search_urls: list[dict] = field(default_factory=list)
+    images_captured: int = 0
+    buyer_comments: int = 0
+    listings_seen: list[dict] = field(default_factory=list)
     evaluated: int = 0
     vision_errors: int = 0
     scored: dict[str, int] = field(default_factory=dict)
@@ -83,6 +88,8 @@ class Pipeline:
                 report.counters.queries_attempted += 1
                 try:
                     state = adapter.open_search(s, term["text"])
+                    if state is not None:
+                        report.search_urls.append({"query": term["text"], "search_url": state.url})
                     if state is None:
                         self.store.update_crawl_query(q["id"], {"status": "skipped"})
                         continue
@@ -96,7 +103,7 @@ class Pipeline:
                     new_refs = [r for r in refs if r.url not in seen_urls]
                     report.counters.listings_found += len(new_refs)
                     self.store.update_crawl_query(q["id"], {"status": "completed", "pages_processed": pages,
-                                                            "results_found": len(refs),
+                                                            "results_found": len(refs), "search_url": state.url,
                                                             "completed_at": datetime.now(timezone.utc).isoformat()})
                     for ref in new_refs:
                         if len(seen_urls) >= budget:
@@ -121,10 +128,14 @@ class Pipeline:
         """Open listing → observe → focused screenshot → persist listing/observation/asset → prefilter."""
         adapter.open_listing(s, ref)  # BlockedError propagates to stop the platform
         obs = adapter.extract_observation(s, ref)
-        evidence = adapter.capture_evidence(s, ref.url) if obs.page_state.value == "ok" else None
-        return self.persist_capture(obs, evidence, report)
+        ok = obs.page_state.value == "ok"
+        evidence = adapter.capture_evidence(s, ref.url) if ok else None
+        image = adapter.capture_image(s, ref.url) if ok else None
+        comments = classify_comments(adapter.extract_comment_texts(s)) if ok else []
+        return self.persist_capture(obs, evidence, report, image=image, comments=comments)
 
-    def persist_capture(self, obs: RawListingObservation, evidence, report: RunReport) -> str | None:
+    def persist_capture(self, obs: RawListingObservation, evidence, report: RunReport, *, image=None,
+                        comments: list | None = None) -> str | None:
         url_hash = sha256_hex(obs.canonical_url)
         c_hash = content_hash(obs.title_raw, obs.description_raw, obs.price_text_raw, obs.location_text_raw)
         category = (obs.observation_payload.get("body_type") or None) if isinstance(obs.observation_payload, dict) else None
@@ -132,6 +143,15 @@ class Pipeline:
             obs, canonical_url_hash=url_hash, content_hash=c_hash, price_usd=parse_price_usd(obs.price_text_raw),
             location=normalize_location(obs.location_text_raw), category=fold(category) or None)
         self.store.add_observation(listing["id"], report.crawl_run_id, obs, c_hash)
+        # Photo screenshot + buyer-interest comments are stored on every visit (both de-duplicated by hash),
+        # so new comments on an unchanged listing are still picked up.
+        if image is not None:
+            self.store.store_evidence(listing, image, kind="primary_image")
+            report.images_captured += 1
+        new_comments = self.store.save_buyer_comments(listing["id"], report.crawl_run_id, comments or [], COMMENT_CLASSIFIER)
+        report.buyer_comments += new_comments
+        report.listings_seen.append({"title": obs.title_raw, "url": obs.source_url, "new_or_changed": material,
+                                     "buyer_comments": len(comments or [])})
 
         cur = listing["lifecycle_status"]
         if cur != S.DISCOVERED.value and not material:

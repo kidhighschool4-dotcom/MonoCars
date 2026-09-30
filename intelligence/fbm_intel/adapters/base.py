@@ -83,6 +83,35 @@ class PlatformAdapter(ABC):
     def visibility(self, s: BrowserSession) -> dict:
         return {}
 
+    def image_locator(self, s: BrowserSession):
+        """Main listing photo, or None if the source has none (§6.5 capture order item 2)."""
+        return None
+
+    def capture_image(self, s: BrowserSession, source_url: str) -> ScreenshotEvidence | None:
+        loc = self.image_locator(s)
+        if loc is None or loc.count() == 0 or not loc.first.is_visible():
+            return None
+        loc = loc.first
+        loc.scroll_into_view_if_needed(timeout=5000)
+        try:  # wait for the photo itself, not just the element
+            loc.evaluate("img => img.complete ? null : new Promise(r => { img.onload = img.onerror = r })", timeout=10000)
+        except Exception:
+            pass
+        png = loc.screenshot(animations="disabled", timeout=15000)
+        with Image.open(io.BytesIO(png)) as im:
+            width, height = im.size
+        return ScreenshotEvidence(
+            png_bytes=png, checksum_sha256=sha256_hex(png), perceptual_hash=dhash_hex(png),
+            width=width, height=height, captured_at=datetime.now(timezone.utc),
+            viewport=dict(s.page.viewport_size or {}), source_url=source_url,
+            crop_policy_version="crop-primary-image-v1", visibility={"primary_image": True},
+        )
+
+    def extract_comment_texts(self, s: BrowserSession) -> list[str]:
+        """Raw text of PUBLIC comments on the listing post only — never author names or profiles.
+        Sources without public comments return []."""
+        return []
+
     def advance(self, s: BrowserSession, state: SearchPageState) -> SearchPageState:
         state.done = True
         return state

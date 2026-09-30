@@ -21,7 +21,7 @@ class MemoryStore:
         self.t: dict[str, list[dict]] = {k: [] for k in (
             "search_terms", "crawl_runs", "crawl_queries", "listings", "listing_observations", "listing_assets",
             "vision_evaluations", "listing_scores", "ranking_runs", "ranking_members", "review_tasks",
-            "pipeline_events", "job_failures")}
+            "pipeline_events", "job_failures", "listing_comments")}
         self.blobs: dict[str, bytes] = {}
 
     def _find(self, table, **eq):
@@ -73,14 +73,15 @@ class MemoryStore:
             self._add("listing_observations", {"listing_id": listing_id, "crawl_run_id": run_id, "content_hash": content_hash,
                                                "observation_payload": obs.model_dump(mode="json")})
 
-    def store_evidence(self, listing, ev):
+    def store_evidence(self, listing, ev, kind="listing_container"):
         existing = self._find("listing_assets", listing_id=listing["id"], checksum_sha256=ev.checksum_sha256)
         if existing:
             return existing
         path = f"{listing['id']}/{ev.checksum_sha256}.png"
         self.blobs[path] = ev.png_bytes
         return self._add("listing_assets", {"listing_id": listing["id"], "storage_path": path, "captured_at": _now(),
-                                            "checksum_sha256": ev.checksum_sha256, "perceptual_hash": ev.perceptual_hash})
+                                            "checksum_sha256": ev.checksum_sha256, "perceptual_hash": ev.perceptual_hash,
+                                            "asset_kind": kind, "width": ev.width})
 
     def download_evidence(self, path):
         return self.blobs[path]
@@ -89,8 +90,17 @@ class MemoryStore:
         rows = [o for o in self.t["listing_observations"] if o["listing_id"] == listing_id]
         return rows[-1] if rows else None
 
-    def latest_asset(self, listing_id):
-        rows = [a for a in self.t["listing_assets"] if a["listing_id"] == listing_id]
+    def save_buyer_comments(self, listing_id, run_id, comments, classifier_version):
+        n = 0
+        for c in comments:
+            if not self._find("listing_comments", listing_id=listing_id, comment_hash=c.comment_hash):
+                self._add("listing_comments", {"listing_id": listing_id, "comment_hash": c.comment_hash,
+                                               "text_redacted": c.text_redacted, "signals": c.signals})
+                n += 1
+        return n
+
+    def latest_asset(self, listing_id, kind="listing_container"):
+        rows = [a for a in self.t["listing_assets"] if a["listing_id"] == listing_id and a["asset_kind"] == kind]
         return rows[-1] if rows else None
 
     def known_listings(self, exclude_ids=None):

@@ -155,7 +155,7 @@ class SupabaseStore:
             "content_hash": content_hash, "observation_payload": payload, "page_state": obs.page_state.value,
         }, on_conflict="listing_id,content_hash", ignore_duplicates=True)
 
-    def store_evidence(self, listing: dict, ev: ScreenshotEvidence) -> dict:
+    def store_evidence(self, listing: dict, ev: ScreenshotEvidence, kind: str = "listing_container") -> dict:
         """Private bucket upload + immutable asset row. Same checksum → reuse (no duplicate upload)."""
         existing = self._one("listing_assets", listing_id=listing["id"], checksum_sha256=ev.checksum_sha256)
         if existing:
@@ -164,7 +164,7 @@ class SupabaseStore:
         import uuid
 
         asset_id = str(uuid.uuid4())
-        path = f"{listing['source_platform']}/{captured:%Y}/{captured:%m}/{listing['id']}/{asset_id}.png"
+        path = f"{listing['source_platform']}/{captured:%Y}/{captured:%m}/{listing['id']}/{kind}-{asset_id}.png"
         r = self.http.post(f"{self.s.supabase_url}/storage/v1/object/{self.s.evidence_bucket}/{path}",
                            headers={**self._h, "Content-Type": ev.mime_type, "x-upsert": "false"}, content=ev.png_bytes)
         self._check(r)
@@ -172,8 +172,16 @@ class SupabaseStore:
             "id": asset_id, "listing_id": listing["id"], "storage_path": path, "checksum_sha256": ev.checksum_sha256,
             "perceptual_hash": ev.perceptual_hash, "width": ev.width, "height": ev.height, "mime_type": ev.mime_type,
             "captured_at": ev.captured_at, "viewport": ev.viewport, "source_url": ev.source_url,
-            "crop_policy_version": ev.crop_policy_version, "visibility": ev.visibility,
+            "crop_policy_version": ev.crop_policy_version, "visibility": ev.visibility, "asset_kind": kind,
         })[0]
+
+    def save_buyer_comments(self, listing_id: str, run_id: str | None, comments: list, classifier_version: str) -> int:
+        if not comments:
+            return 0
+        rows = [{"listing_id": listing_id, "crawl_run_id": run_id, "comment_hash": c.comment_hash,
+                 "text_redacted": c.text_redacted, "signals": c.signals, "language": c.language,
+                 "classifier_version": classifier_version, "observed_at": _now()} for c in comments]
+        return len(self.insert("listing_comments", rows, on_conflict="listing_id,comment_hash", ignore_duplicates=True))
 
     def download_evidence(self, storage_path: str) -> bytes:
         r = self.http.get(f"{self.s.supabase_url}/storage/v1/object/{self.s.evidence_bucket}/{storage_path}", headers=self._h)
@@ -185,20 +193,22 @@ class SupabaseStore:
         rows = self.select("listing_observations", {"listing_id": f"eq.{listing_id}", "order": "captured_at.desc", "limit": "1"})
         return rows[0] if rows else None
 
-    def latest_asset(self, listing_id: str) -> dict | None:
-        rows = self.select("listing_assets", {"listing_id": f"eq.{listing_id}", "order": "captured_at.desc", "limit": "1"})
+    def latest_asset(self, listing_id: str, kind: str = "listing_container") -> dict | None:
+        rows = self.select("listing_assets", {"listing_id": f"eq.{listing_id}", "asset_kind": f"eq.{kind}",
+                                              "order": "captured_at.desc", "limit": "1"})
         return rows[0] if rows else None
 
     def known_listings(self, exclude_ids: set[str] | None = None) -> list[KnownListing]:
         """Canonical (non-duplicate) listings with their latest screenshot hash, for dedupe."""
         rows = self.select("listings", {"select": "id,canonical_url_hash,source_platform,source_listing_id,content_hash,title_raw,"
-                                        "listing_assets(perceptual_hash,captured_at)", "duplicate_of": "is.null",
+                                        "listing_assets(perceptual_hash,captured_at,asset_kind)", "duplicate_of": "is.null",
                                         "lifecycle_status": "not.in.(duplicate,discovered)"})
         out = []
         for r in rows:
             if exclude_ids and r["id"] in exclude_ids:
                 continue
-            assets = sorted(r.get("listing_assets") or [], key=lambda a: a["captured_at"], reverse=True)
+            assets = sorted((a for a in r.get("listing_assets") or [] if a.get("asset_kind", "listing_container") == "listing_container"),
+                            key=lambda a: a["captured_at"], reverse=True)
             out.append(KnownListing(r["id"], r["canonical_url_hash"], r["source_platform"], r["source_listing_id"],
                                     r["content_hash"], assets[0]["perceptual_hash"] if assets else None,
                                     fold(r.get("title_raw"))))

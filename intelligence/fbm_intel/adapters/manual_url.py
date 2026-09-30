@@ -70,6 +70,13 @@ class ManualUrlAdapter(PlatformAdapter):
             observation_payload={"final_url_host": urlsplit(s.page.url).hostname},
         )
 
+    def image_locator(self, s: BrowserSession):
+        for sel in ("[data-testid='listing-gallery'] img", "main article img", "article img", "main img"):
+            loc = s.page.locator(sel)
+            if loc.count():
+                return loc
+        return None
+
     def evidence_locator(self, s: BrowserSession):
         for sel in ("[data-testid='listing-evidence']", "main article", "article", "main"):
             loc = s.page.locator(sel)

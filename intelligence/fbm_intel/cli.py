@@ -102,8 +102,16 @@ def cmd_run(a, st: Settings) -> None:
         raise
     store.finish_crawl_run(run["id"], status, report.counters.as_row(), "; ".join(report.blocked) or None)
     _print({"crawl_run_id": run["id"], "status": status, **report.counters.as_row(), "evaluated": report.evaluated,
-            "vision_errors": report.vision_errors, "scored": report.scored, "ranking": report.ranking,
-            "blocked": report.blocked})
+            "vision_errors": report.vision_errors, "scored": report.scored, "ranking": _ranking_with_url(store, report.ranking),
+            "images_captured": report.images_captured, "new_buyer_comments": report.buyer_comments,
+            "blocked": report.blocked, "search_pages": report.search_urls, "listings": report.listings_seen})
+
+
+def _ranking_with_url(store: SupabaseStore, ranking: dict | None) -> dict | None:
+    if not ranking or not ranking.get("selected"):
+        return ranking
+    sel = store.select("listings", {"id": f"eq.{ranking['selected']}", "select": "title_raw,source_url"})
+    return {**ranking, "selected_title": sel[0]["title_raw"], "selected_url": sel[0]["source_url"]} if sel else ranking
 
 
 def cmd_submit_url(a, st: Settings) -> None:
@@ -156,7 +164,23 @@ def cmd_status(a, st: Settings) -> None:
         counts[r["lifecycle_status"]] = counts.get(r["lifecycle_status"], 0) + 1
     last = store.select("ranking_runs", {"search_profile_id": f"eq.{profile.id}", "order": "created_at.desc", "limit": "1"})
     open_tasks = store.select("review_tasks", {"status": "eq.open", "select": "id"})
-    _print({"listings_by_state": counts, "open_review_tasks": len(open_tasks), "latest_ranking": last[0] if last else None})
+    ranking = None
+    if last:
+        r = last[0]
+        members = store.select("ranking_members", {"ranking_run_id": f"eq.{r['id']}", "order": "rank_position.asc",
+                                                   "select": "rank_position,composite_score,qualified,selected,"
+                                                             "listings(title_raw,price_text_raw,source_url,lifecycle_status,"
+                                                             "photos:listing_assets(id,asset_kind),listing_comments(text_redacted))"})
+        ranking = {"status": r["status"], "policy": r["policy_version"], "minimum_score": r["minimum_acceptable_score"],
+                   "created_at": r["created_at"],
+                   "candidates": [{"rank": m["rank_position"], "score": m["composite_score"], "selected": m["selected"],
+                                   "qualified": m["qualified"], "title": m["listings"]["title_raw"],
+                                   "price": m["listings"]["price_text_raw"], "state": m["listings"]["lifecycle_status"],
+                                   "url": m["listings"]["source_url"],
+                                   "photo_screenshot": any(a["asset_kind"] == "primary_image" for a in m["listings"]["photos"]),
+                                   "buyer_comments": [c["text_redacted"] for c in m["listings"]["listing_comments"]]}
+                                  for m in members]}
+    _print({"listings_by_state": counts, "open_review_tasks": len(open_tasks), "latest_ranking": ranking})
 
 
 def cmd_grant_admin(a, st: Settings) -> None:

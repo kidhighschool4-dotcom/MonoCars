@@ -99,6 +99,14 @@ class FbmAdapter(PlatformAdapter):
     def evidence_locator(self, s: BrowserSession):
         return s.page.locator("[data-testid='listing-evidence']").first
 
+    def image_locator(self, s: BrowserSession):
+        return s.page.locator("[data-testid='listing-gallery'] img")
+
+    def extract_comment_texts(self, s: BrowserSession) -> list[str]:
+        # FBM listing pages currently have no public comment section; this reads it if one is added.
+        texts = s.page.locator("[data-testid='listing-comment'] [data-testid='comment-text']")
+        return [t.inner_text(timeout=3000) for t in texts.all()[:200]]
+
     def visibility(self, s: BrowserSession) -> dict:
         has = lambda t: s.page.locator(f"[data-testid='listing-evidence'] [data-testid='{t}']").count() > 0  # noqa: E731
         return {"title": has("listing-title"), "price": has("listing-price"), "location": has("listing-location"),

@@ -80,6 +80,8 @@ export default async function IntelligencePage() {
   let members: MemberRow[] = []
   const evals = new Map<string, EvalRow>()
   const shots = new Map<string, string>()
+  const photos = new Map<string, string>()
+  const buyerComments = new Map<string, string[]>()
   if (run) {
     const { data } = await supabaseAdmin
       .from('ranking_members')
@@ -92,16 +94,24 @@ export default async function IntelligencePage() {
       const [{ data: ev }, { data: assets }] = await Promise.all([
         supabaseAdmin.from('vision_evaluations').select('listing_id, decision, model_decision, fit_score_percent, evidence_quality_percent, apparent_risk_level, short_reason, risk_flags, missing_information, model, created_at')
           .in('listing_id', ids).order('created_at', { ascending: false }),
-        supabaseAdmin.from('listing_assets').select('listing_id, storage_path, captured_at').in('listing_id', ids).order('captured_at', { ascending: false }),
+        supabaseAdmin.from('listing_assets').select('listing_id, storage_path, captured_at, asset_kind').in('listing_id', ids).order('captured_at', { ascending: false }),
       ])
+      const { data: comments } = await supabaseAdmin.from('listing_comments').select('listing_id, text_redacted').in('listing_id', ids)
+      for (const c of comments ?? []) buyerComments.set(c.listing_id, [...(buyerComments.get(c.listing_id) ?? []), c.text_redacted])
       for (const e of (ev ?? []) as EvalRow[]) if (!evals.has(e.listing_id)) evals.set(e.listing_id, e)
       const latest = new Map<string, string>()
-      for (const a of assets ?? []) if (!latest.has(a.listing_id)) latest.set(a.listing_id, a.storage_path)
+      const latestPhoto = new Map<string, string>()
+      for (const a of assets ?? []) {
+        const target = a.asset_kind === 'primary_image' ? latestPhoto : latest
+        if (!target.has(a.listing_id)) target.set(a.listing_id, a.storage_path)
+      }
       // Private bucket → short-lived signed URLs only (§9.5)
-      await Promise.all([...latest].map(async ([id, path]) => {
-        const { data: signed } = await supabaseAdmin.storage.from('listing-evidence').createSignedUrl(path, 600)
-        if (signed?.signedUrl) shots.set(id, signed.signedUrl)
-      }))
+      const sign = async (entries: Map<string, string>, into: Map<string, string>) =>
+        Promise.all([...entries].map(async ([id, path]) => {
+          const { data: signed } = await supabaseAdmin.storage.from('listing-evidence').createSignedUrl(path, 600)
+          if (signed?.signedUrl) into.set(id, signed.signedUrl)
+        }))
+      await Promise.all([sign(latest, shots), sign(latestPhoto, photos)])
     }
   }
 
@@ -154,11 +164,19 @@ export default async function IntelligencePage() {
                 const l = m.listings
                 return (
                   <li key={m.listing_id} className={clsx('p-5 grid grid-cols-1 md:grid-cols-[160px_1fr_auto] gap-5', m.selected && 'bg-brand-soft/60')}>
+                    <div className="space-y-2">
                     <div className="aspect-[4/3] rounded-xl overflow-hidden bg-paper border border-line">
                       {shots.get(m.listing_id) ? (
                         // eslint-disable-next-line @next/next/no-img-element
                         <img src={shots.get(m.listing_id)} alt="Captured listing evidence" className="w-full h-full object-cover object-top" />
                       ) : <div className="w-full h-full flex items-center justify-center text-xs text-muted">No screenshot</div>}
+                    </div>
+                    {photos.get(m.listing_id) && (
+                      <a href={photos.get(m.listing_id)} target="_blank" rel="noopener noreferrer" className="block aspect-[4/3] rounded-xl overflow-hidden border border-line" title="Captured main photo">
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img src={photos.get(m.listing_id)} alt="Captured main photo" className="w-full h-full object-cover" />
+                      </a>
+                    )}
                     </div>
                     <div className="min-w-0">
                       <div className="flex flex-wrap items-center gap-2">
@@ -183,6 +201,16 @@ export default async function IntelligencePage() {
                         <div className="mt-2 flex flex-wrap gap-1.5">
                           {m.reason_codes.map((c) => <Chip key={c} className="bg-paper text-muted font-medium">{c}</Chip>)}
                           {e?.risk_flags?.map((f) => <Chip key={f} className="bg-amber-50 text-amber-800 font-medium">{f}</Chip>)}
+                        </div>
+                      )}
+                      {(buyerComments.get(m.listing_id)?.length ?? 0) > 0 && (
+                        <div className="mt-3 rounded-xl bg-emerald-50/60 border border-emerald-100 p-3">
+                          <p className="text-xs font-semibold text-emerald-800">
+                            {buyerComments.get(m.listing_id)!.length} buyer-interest comment{buyerComments.get(m.listing_id)!.length > 1 ? 's' : ''} (names and contacts removed)
+                          </p>
+                          <ul className="mt-1 space-y-0.5">
+                            {buyerComments.get(m.listing_id)!.slice(0, 5).map((t) => <li key={t} className="text-xs text-ink/80">“{t}”</li>)}
+                          </ul>
                         </div>
                       )}
                       {l?.source_url && (

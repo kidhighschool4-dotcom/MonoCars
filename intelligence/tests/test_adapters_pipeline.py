@@ -193,3 +193,31 @@ def test_policy_change_reprefilter(fixture_site, brief, profile):
     states = {l["source_listing_id"]: l["lifecycle_status"] for l in store.t["listings"]}
     assert states["ok-camry"] == "vision_pending" and states["rental-camry"] == "prefilter_rejected"
     assert states["dup-camry"] == "duplicate"
+
+
+def test_photo_screenshot_and_buyer_comments(fixture_site, brief, profile):
+    store = MemoryStore()
+    pipe = Pipeline(store, StaticVisionProvider(default=GOOD_OUTPUT), brief, profile)
+    run = store.create_crawl_run(profile.id, "test")
+    report = RunReport(crawl_run_id=run["id"])
+    pipe.crawl(FbmAdapter(fixture_site), [{"id": "t1", "text": "camry"}], report, listing_budget=1)
+
+    camry = store.t["listings"][0]
+    kinds = sorted(a["asset_kind"] for a in store.t["listing_assets"] if a["listing_id"] == camry["id"])
+    assert kinds == ["listing_container", "primary_image"]
+    photo = next(a for a in store.t["listing_assets"] if a["asset_kind"] == "primary_image")
+    assert photo["width"] == 640  # the photo itself, not the whole listing
+    assert store.latest_asset(camry["id"])["asset_kind"] == "listing_container"  # vision still gets the listing view
+
+    texts = [c["text_redacted"] for c in store.t["listing_comments"]]
+    assert texts == ["Is it still available? I want to buy", "តម្លៃប៉ុន្មាន? ខ្ញុំចង់ទិញ call me [phone]",
+                     "Can I see it this weekend? email me [email]"]
+    blob = " ".join(texts)
+    for leaked in ("Dara", "Sokha", "Mony", "012 345 678", "mony@example.com", "Nice car", "I also sell"):
+        assert leaked not in blob  # no names, no contact details, no non-buyer comments
+
+    # revisiting the same page adds nothing new
+    report2 = RunReport(crawl_run_id=store.create_crawl_run(profile.id, "test")["id"])
+    pipe.crawl(FbmAdapter(fixture_site), [{"id": "t1", "text": "camry"}], report2, listing_budget=1)
+    assert len(store.t["listing_comments"]) == 3 and report2.buyer_comments == 0
+    assert len([a for a in store.t["listing_assets"] if a["asset_kind"] == "primary_image"]) == 1
