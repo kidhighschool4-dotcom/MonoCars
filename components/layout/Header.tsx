@@ -22,6 +22,8 @@ export default function Header() {
   const { user, profile, signOut, loading } = useAuth()
   const isSeller = profile?.role === 'seller'
   const isAdminUser = user?.app_metadata?.role === 'admin'
+  // Convenience only — the page itself is protected server-side (lib/auth-server.ts canViewFacebookData)
+  const canSeeFacebook = user?.email?.toLowerCase() === 'kimhengpanha0105@gmail.com'
 
   const isActive = (href: string) => pathname === href || pathname.startsWith(`${href}/`)
 
@@ -83,6 +85,11 @@ export default function Header() {
                   >
                     <LogOut className="w-5 h-5" />
                   </button>
+                  {canSeeFacebook && (
+                    <Link href="/admin/facebook" className={clsx('px-3 py-2 rounded-full text-sm font-medium transition-colors', isActive('/admin/facebook') ? 'text-brand bg-brand-soft' : 'text-muted hover:text-ink')}>
+                      Facebook data
+                    </Link>
+                  )}
                   {isAdminUser && (
                     <Link href="/admin/intelligence" className={clsx('px-3 py-2 rounded-full text-sm font-medium transition-colors', isActive('/admin') ? 'text-brand bg-brand-soft' : 'text-muted hover:text-ink')}>
                       Intelligence

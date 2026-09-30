@@ -33,3 +33,14 @@ export async function getAccountRole(userId: string): Promise<'customer' | 'sell
 export function isAdmin(user: User | null): boolean {
   return user?.app_metadata?.role === 'admin'
 }
+
+/**
+ * Facebook data dashboard access: ONLY the accounts listed here (server-side env FB_DASHBOARD_EMAILS,
+ * comma-separated; defaults to the owner), and only once their email is confirmed.
+ */
+export function canViewFacebookData(user: User | null): boolean {
+  if (!user?.email || !user.email_confirmed_at) return false
+  const allowed = (process.env.FB_DASHBOARD_EMAILS ?? 'kimhengpanha0105@gmail.com')
+    .split(',').map((e) => e.trim().toLowerCase()).filter(Boolean)
+  return allowed.includes(user.email.toLowerCase())
+}
