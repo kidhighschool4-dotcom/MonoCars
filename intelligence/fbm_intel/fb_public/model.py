@@ -131,8 +131,9 @@ def build_comments(raw: list[RawComment], post_canonical_url: str, keyer: Person
     truncated = False
 
     for i, r in enumerate(raw):
-        text = normalize_text(r.text)[:10000]
-        if not text:
+        from ..comments import redact
+        text = redact(normalize_text(r.text))[:10000]   # phone numbers / emails / links typed in comments → [phone] etc.
+        if not text or text == "[mention]":
             continue
         cid, rid = comment_ids(r.permalink) if r.permalink else (None, None)
         is_reply = r.kind == "reply" or bool(rid)

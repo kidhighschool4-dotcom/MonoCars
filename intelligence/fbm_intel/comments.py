@@ -25,16 +25,29 @@ CONFIG_PATH = Path(__file__).resolve().parents[1] / "config" / "buyer_intent_khm
 # English + Khmer-script phrases (substring match with word boundaries for short Latin phrases).
 SCRIPT_SIGNALS: dict[str, list[str]] = {
     "wants_to_buy": ["want to buy", "i'll take it", "i will take it", "i want it", "i'm interested", "im interested",
-                     "interested", "i'll buy", "i will buy", "ខ្ញុំចង់ទិញ", "ចង់ទិញ", "ចាប់អារម្មណ៍"],
+                     "interested", "i'll buy", "i will buy", "ខ្ញុំចង់ទិញ", "ចង់ទិញ", "ចាប់អារម្មណ៍", "ចង់បាន", "យកមួយ"],
     "asks_availability": ["still available", "is it available", "available?", "sold yet", "នៅលក់ទេ", "នៅមានទេ"],
-    "asks_price": ["how much", "last price", "final price", "best price", "can discount", "discount?",
-                   "តម្លៃប៉ុន្មាន", "ប៉ុន្មាន", "ចុះថ្លៃ", "ចុះបានទេ", "តម្លៃចុងក្រោយ"],
+    "asks_price": ["how much", "last price?", "final price?", "best price?", "your best price", "can discount", "discount?",
+                   "តម្លៃប៉ុន្មាន", "ប៉ុន្មាន", "ចុះថ្លៃ", "ចុះបានទេ", "តម្លៃចុងក្រោយ", "លក់មិច", "លក់ម៉េច", "លក់ម៉ិច",
+                   "ថ្លៃប៉ុន្មាន", "ដាច់ប៉ុន្មាន", "ពេញម៉ាន", "ពេញមាណ", "ពេញម៉ាណ", "លក់ម៉ាន", "លក់មាណ", "ថ្លៃម៉ាន",
+                   "តំលៃម៉ាន", "តម្លៃម៉ាន", "សូមតំលៃ", "សូមតម្លៃ", "សុំតំលៃ", "សុំតម្លៃ"],
     "asks_to_see": ["can i see", "test drive", "where can i see", "where is it", "location?", "មើលឡាន", "សាកឡាន",
-                    "នៅឯណា", "មើលបានទេ"],
-    "asks_contact": ["inbox me", "pm me", "dm me", "check inbox", "sent you a message", "ឆាតមក", "inbox មក"],
+                    "នៅឯណា", "មើលបានទេ", "ម្តុំណា", "ម្ដុំណា", "ទីតាំងនៅ", "នៅខេត្តណា"],
+    "asks_contact": ["inbox me", "pm me", "dm me", "check inbox", "sent you a message", "ឆាតមក", "inbox មក",
+                     "ខលបាន", "ខលមក", "តេមក", "សុំលេខ", "ផ្ញើលេខ"],
 }
 SCRIPT_NEGATIONS = ["not interested", "no longer interested", "already sold", "មិនចាប់អារម្មណ៍", "លក់ដាច់ហើយ",
-                    "for rent", "ជួល", "i'm selling", "i am selling", "i also sell", "ខ្ញុំក៏លក់"]
+                    "for rent", "ជួល", "i'm selling", "i am selling", "i also sell", "ខ្ញុំក៏លក់",
+                    "អត់លុយ", "គ្មានលុយ", "មិនមានលុយ", "អត់ទិញ", "មិនទិញ"]
+# Whole comment is just currency symbols ("$", "$$", "$?") — the usual Facebook shorthand for "price?"
+PRICE_ONLY = re.compile(r"^[\s?.!]*[$៛]+[\s$៛?.!]*$")
+# A bare amount with a question mark ("21000$？", "$20k?") — a price offer / confirmation
+AMOUNT_QUESTION = re.compile(r"^[\s$៛]*\d[\d,.]*\s*(?:k|K|ពាន់)?\s*[$៛]?\s*[?？]+\s*$")
+# Short vehicle-spec questions that are the whole comment ("PHEV?", "Hybrid?", "Auto?", "km?")
+SPEC_QUESTION = re.compile(r"^\s*(phev|hev|ev|hybrid|full option|auto|manual|km|diesel|benzin|petrol|ធុងធំ|សាំង|ម៉ាស៊ីន)\s*[?？]+\s*$", re.I)
+# A number followed by គត់ ("flat") — a price offer, e.g. "២០គត់បង?" / "20 គត់"
+OFFER = re.compile(r"\d+\s*(?:k\s*)?គត់")
+_KM_DIGITS = str.maketrans("០១២៣៤៥៦៧៨៩", "0123456789")
 SOLD_SELLER = re.compile(r"(?<![a-z])sold(?![a-z])(?!\s*(nov|nv|yet|te))", re.I)
 
 _KHMER = re.compile(r"[ក-៿᧠-᧿]")
@@ -65,7 +78,7 @@ def load_config(path: str = str(CONFIG_PATH)) -> IntentConfig:
     )
 
 
-CLASSIFIER_VERSION = f"buyer-intent-rules-v2+{load_config().version}"
+CLASSIFIER_VERSION = f"buyer-intent-rules-v5+{load_config().version}"
 
 
 @dataclass
@@ -138,6 +151,19 @@ def classify(text: str, cfg: IntentConfig | None = None) -> IntentResult:
         return " ".join(words)
 
     signals, phrases = _script_matches(text)
+    if PRICE_ONLY.match(text or "") and "asks_price" not in signals:
+        signals.append("asks_price")
+        phrases.append(text.strip())
+    if AMOUNT_QUESTION.match((text or "").translate(_KM_DIGITS)):
+        signals.append("makes_offer")
+        phrases.append(text.strip())
+    if SPEC_QUESTION.match(text or ""):
+        signals.append("asks_vehicle_details")
+        phrases.append(text.strip())
+    m = OFFER.search((text or "").translate(_KM_DIGITS))
+    if m:
+        signals.append("makes_offer")
+        phrases.append(text[m.start():m.end()])
     for cat, pats in cfg.patterns.items():
         for pat in pats:
             m = pat.search(normalized)

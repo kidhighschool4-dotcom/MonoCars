@@ -156,6 +156,32 @@ class FacebookPublicRepo:
         return self._get("facebook_public_comments", buyer_intent="is.true", select=COMMENT_COLS,
                          order="captured_at.desc", limit=str(limit))
 
+    def reclassify_all(self) -> dict:
+        """Re-run the CURRENT buyer-intent classifier on stored comments (original text is never changed)."""
+        from ..comments import classify
+
+        changed = total = 0
+        offset = 0
+        while True:
+            rows = self._req("GET", "facebook_public_comments", params={
+                "select": "id,comment_text,buyer_intent,buyer_intent_signals,matched_phrases,intent_classifier_version",
+                "order": "id.asc", "limit": "500", "offset": str(offset)})
+            if not rows:
+                break
+            for r in rows:
+                total += 1
+                res = classify(r["comment_text"])
+                new = {"comment_text_normalized": res.normalized, "buyer_intent": res.is_buyer,
+                       "buyer_intent_signals": res.signals if res.is_buyer else [],
+                       "matched_phrases": res.matched_phrases if res.is_buyer else [],
+                       "intent_classifier_version": res.version}
+                if (r["buyer_intent"], r["buyer_intent_signals"], r["matched_phrases"], r["intent_classifier_version"]) != \
+                        (new["buyer_intent"], new["buyer_intent_signals"], new["matched_phrases"], new["intent_classifier_version"]):
+                    self._req("PATCH", "facebook_public_comments", params={"id": f"eq.{r['id']}"}, body=new)
+                    changed += 1
+            offset += len(rows)
+        return {"comments": total, "updated": changed}
+
     def purge_expired(self) -> dict:
         r = self.http.post(f"{self.s.supabase_url}/rest/v1/rpc/purge_expired_facebook_public_data", headers=self._h, json={})
         r.raise_for_status()

@@ -106,4 +106,36 @@ def test_khmer_script_still_works():
 
 
 def test_config_is_versioned():
-    assert load_config().version == "buyer-intent-khmer-latin-v1"
+    assert load_config().version.startswith("buyer-intent-khmer-latin-v1")
+
+
+# Seen in the first real crawl (Khmer car-sale posts)
+REAL_BUYERS = {
+    "២០គត់បង?": "makes_offer",
+    "ស្អាតណាស់ លក់មិចបង": "asks_price",
+    "[mention] ចង់បានពិតខលបានបង": "wants_to_buy",
+    "$$": "asks_price",
+    "$": "asks_price",
+    "H m?": "asks_price",
+    "តំលៃពេញម៉ានបង": "asks_price",
+    "លក់ម៉ាន": "asks_price",
+    "សូមតំលៃមួយមកបង": "asks_price",
+    "21000$？": "makes_offer",
+    "តម្លៃពេញមាណទីតាំងនៅម្តុំណា": "asks_to_see",
+    "PHEV?": "asks_vehicle_details",
+    "How much is final price?": "asks_price",
+    "Best price?": "asks_price",
+}
+REAL_NON_BUYERS = ["ស្រលាញ់ណាស់…តែអត់លុយទិញ", "សួស្តី", "[mention]", "ដាក់តំលៃ ផាំងម៉ោ ស្រួល", "hmm nice",
+                   "ស្អាតណាស់បង", "[mention] new 36500$", "[mention] អត់ផង គេលក់ទិញដី", "2019", "Wow best price"]
+
+
+@pytest.mark.parametrize("text,signal", list(REAL_BUYERS.items()))
+def test_real_buyer_comments(text, signal):
+    r = classify(text)
+    assert r.is_buyer and signal in r.signals, (text, r)
+
+
+@pytest.mark.parametrize("text", REAL_NON_BUYERS)
+def test_real_non_buyer_comments(text):
+    assert not classify(text).is_buyer, (text, classify(text))

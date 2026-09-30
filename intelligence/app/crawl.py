@@ -141,7 +141,8 @@ def public_posts(a, st: Settings) -> int:
                             dry_run=a.dry_run, buyer_only=a.buyer_only)
         runs.append({"query": q, "results": rep.results, "verified_public": rep.verified_public,
                      "skipped": len(rep.skipped), "new_comments": rep.new_comments, "new_replies": rep.new_replies,
-                     "buyer_comments": len(rep.buyer_comments), "stopped": rep.stopped})
+                     "buyer_comments": len(rep.buyer_comments), "stopped": rep.stopped,
+                     "error": rep.error, "post_errors": rep.errors})
         buyers += rep.buyer_comments
         if rep.stopped:
             stopped = rep.stopped

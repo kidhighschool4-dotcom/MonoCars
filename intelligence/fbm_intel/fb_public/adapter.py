@@ -131,8 +131,12 @@ _POST_JS = """() => {
       const mine = el => el.closest('[role="article"]') === c;
       const links = Array.from(c.querySelectorAll('a[href]')).filter(mine)
         .map(x => ({href: x.href, text: (x.innerText || '').trim().slice(0, 20)}));
+      // Tagged people are links inside the text: replace them with [mention] so no names are ever read out.
+      const bodyText = el => { const k = el.cloneNode(true); k.querySelectorAll('a').forEach(a => a.replaceWith('[mention]'));
+                               return (k.textContent || '').trim(); };
       const body = Array.from(c.querySelectorAll('div[dir="auto"]')).filter(e => mine(e) && !e.closest('a'))
-        .map(e => e.innerText).join('\\n');
+        .filter(e => !Array.from(e.querySelectorAll('div[dir="auto"]')).length)  // innermost text blocks only
+        .map(bodyText).filter(Boolean).join('\\n');
       const parentEl = c.parentElement.closest('[role="article"]');
       return {
         kind: /^reply by /i.test(c.getAttribute('aria-label') || '') ? 'reply' : 'comment',

@@ -183,6 +183,15 @@ def cmd_status(a, st: Settings) -> None:
     _print({"listings_by_state": counts, "open_review_tasks": len(open_tasks), "latest_ranking": ranking})
 
 
+def cmd_reclassify(a, st: Settings) -> None:
+    """Re-tag stored Facebook comments with the current buyer-intent classifier."""
+    from .fb_public.identity import PersonKeyer
+    from .fb_public.repo import FacebookPublicRepo
+
+    repo = FacebookPublicRepo(st, owner_id="00000000-0000-0000-0000-000000000000", keyer=PersonKeyer.from_env())
+    _print(repo.reclassify_all())
+
+
 def cmd_grant_admin(a, st: Settings) -> None:
     store = SupabaseStore(st)
     h = {"apikey": st.service_role_key, "Authorization": f"Bearer {st.service_role_key}"}
@@ -207,12 +216,13 @@ def main(argv: list[str] | None = None) -> None:
     rn = sub.add_parser("run"); rn.add_argument("--planner", choices=["seed", "llm"], default="seed"); rn.add_argument("--limit", type=int)
     su = sub.add_parser("submit-url"); su.add_argument("url")
     sub.add_parser("reprocess")
+    sub.add_parser("reclassify-comments")
     sub.add_parser("rank")
     sub.add_parser("status")
     ga = sub.add_parser("grant-admin"); ga.add_argument("email")
     a = p.parse_args(argv)
     st = Settings.load()
-    {"init": cmd_init, "plan": cmd_plan, "approve-plan": cmd_approve, "run": cmd_run, "submit-url": cmd_submit_url, "reprocess": cmd_reprocess,
+    {"init": cmd_init, "plan": cmd_plan, "approve-plan": cmd_approve, "run": cmd_run, "submit-url": cmd_submit_url, "reprocess": cmd_reprocess, "reclassify-comments": cmd_reclassify,
      "rank": cmd_rank, "status": cmd_status, "grant-admin": cmd_grant_admin}[a.cmd](a, st)
 
 

@@ -24,6 +24,8 @@ class CrawlReport:
     stopped: str | None = None
     debug: dict | None = None
     buyer_comments: list[dict] = field(default_factory=list)
+    error: str | None = None
+    errors: int = 0
 
 
 def run(adapter: FacebookPublicPostsAdapter, query: str, *, repo=None, headless: bool = True, session_path=SESSION_PATH,
@@ -57,6 +59,10 @@ def run(adapter: FacebookPublicPostsAdapter, query: str, *, repo=None, headless:
             rep.stopped = f"{e.status.value} at {e.url}"
             log.error("Facebook blocked or restricted the run: %s — stopped", rep.stopped)
             return rep
+        except Exception as e:  # noqa: BLE001 — network timeout etc.: skip this query, don't end the session
+            rep.error = f"{type(e).__name__}: {str(e).splitlines()[0][:150]}"
+            log.warning("Search failed (%s) — skipping this query", rep.error)
+            return rep
         rep.results = len(results)
 
         for r in results:
@@ -83,6 +89,10 @@ def run(adapter: FacebookPublicPostsAdapter, query: str, *, repo=None, headless:
                 rep.stopped = f"{e.status.value} at {e.url}"
                 log.error("Facebook blocked or restricted the run: %s — stopped", rep.stopped)
                 break
+            except Exception as e:  # noqa: BLE001 — transient (timeout, detached element): skip this post
+                log.warning("Post %s failed (%s: %s) — skipping", r.canonical_url, type(e).__name__, str(e).splitlines()[0][:120])
+                rep.errors += 1
+                continue
             if post is None:  # visibility changed / unverified on the post page
                 rep.skipped.append({"url": r.canonical_url, "visibility_status": r.visibility.status,
                                     "skip_reason": r.visibility.skip_reason})

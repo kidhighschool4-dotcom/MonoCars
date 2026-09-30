@@ -314,5 +314,6 @@ def test_real_facebook_post_layout():
         post = ad.collect_post(s, SearchResult(url, url, Visibility("public_verified", "audience_icon:Shared with Public", None)), "q")
     assert post is not None and post.visibility_evidence == "audience_icon:Shared with Public"
     assert post.post_text == "Lexus RX 2019 for sale"
-    assert [c.comment_text for c in post.comments] == ["domlai man b", "nice lan b"]
-    assert [c.buyer_intent for c in post.comments] == [True, False]
+    assert [c.comment_text for c in post.comments] == ["domlai man b", "nice lan b", "[mention] ចង់បានពិតខលបានបង call [phone]"]
+    assert "Tagged Person" not in " ".join(c.comment_text for c in post.comments)   # tagged names never stored
+    assert post.comments[2].parent_fingerprint == "id:Z1"
