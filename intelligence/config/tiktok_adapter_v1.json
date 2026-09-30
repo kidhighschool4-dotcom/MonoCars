@@ -1,0 +1,46 @@
+{
+  "version": "tiktok-public-videos-v1",
+  "_comment": "Every TikTok-specific selector lives here. Each field lists several strategies, tried in order: stable data-e2e attributes first, then accessible roles / visible text, then structural fallbacks. Never depend on a single generated CSS class.",
+  "base_url": "https://www.tiktok.com",
+  "search_url": "https://www.tiktok.com/search/video?q={query}",
+  "selectors": {
+    "search_result_link": ["[data-e2e='search_video-item'] a[href*='/video/']", "[data-e2e='search-common-link'][href*='/video/']", "a[href*='/video/']"],
+    "search_result_card": ["[data-e2e='search_video-item']", "[data-e2e='search_top-item']", "div:has(> a[href*='/video/'])"],
+    "video_desc": ["[data-e2e='browse-video-desc']", "[data-e2e='video-desc']", "h1[data-e2e='browse-video-desc']", "main h1"],
+    "video_author": ["[data-e2e='browse-username']", "[data-e2e='video-author-uniqueid']", "a[href^='/@'] h3"],
+    "publish_time": ["[data-e2e='browser-nickname'] span:last-child", "[data-e2e='browse-video-time']", "span[data-e2e*='time']"],
+    "like_count": ["[data-e2e='browse-like-count']", "[data-e2e='like-count']", "strong[data-e2e*='like']"],
+    "comment_count": ["[data-e2e='browse-comment-count']", "[data-e2e='comment-count']", "strong[data-e2e*='comment']"],
+    "share_count": ["[data-e2e='share-count']", "strong[data-e2e*='share']"],
+    "comments_button": ["[data-e2e='comment-icon']", "button[aria-label*='omment']", "[data-e2e='browse-comment-count']"],
+    "comment_list": ["[data-e2e='search-comment-container']", "[data-e2e='comment-list']", "div[class*='CommentListContainer']"],
+    "comment_item": ["div[class*='CommentItemContainer']", "[data-e2e='comment-item']", "div:has(> div > [data-e2e^='comment-level-'])"],
+    "comment_text": ["[data-e2e='comment-level-1']", "[data-e2e='comment-level-2']", "p[data-e2e^='comment-level-']", "span[data-e2e^='comment-level-']"],
+    "comment_author_link": ["a[href^='/@']"],
+    "comment_time": ["[data-e2e='comment-time-1']", "[data-e2e='comment-time-2']", "span[data-e2e^='comment-time']"],
+    "reply_expand_button": ["[data-e2e='view-more-1']", "[data-e2e='view-more-2']", "div[role='button']", "button", "p"],
+    "comments_disabled": ["[data-e2e='comment-disabled']", "text=/comments (are )?(turned off|disabled)/i"],
+    "video_region": ["[data-e2e='browse-video']", "[data-e2e='video-player']", "main video", "video"],
+    "post_region": ["[data-e2e='browse-video-desc']", "main"]
+  },
+  "text_markers": {
+    "reply_expand": "^(view( \\d+)? (more )?repl(y|ies)|view more|\\d+ (more )?repl(y|ies))",
+    "login_prompt": ["log in to tiktok", "log in to follow", "log in to comment", "sign up for tiktok"],
+    "private": ["this account is private", "private account", "followers only", "this video is private", "friends only"],
+    "unavailable": ["video currently unavailable", "this video is unavailable", "couldn't find this account", "video isn't available", "page not available"],
+    "challenge": ["verify to continue", "drag the slider", "slide to complete the puzzle", "captcha", "too many attempts", "unusual activity", "maximum number of attempts", "please try again later"]
+  },
+  "limits": {
+    "max_results_per_query": 10,
+    "max_comments_per_post": 200,
+    "max_replies_per_comment": 50,
+    "max_expansion_rounds": 20,
+    "no_new_comment_attempts": 3,
+    "comment_time_limit_s": 120,
+    "page_load_interval_s": 10,
+    "scroll_pause_ms": 1800,
+    "settle_ms": 4000,
+    "login_wait_min": 10
+  },
+  "screenshot_threshold": 70
+}

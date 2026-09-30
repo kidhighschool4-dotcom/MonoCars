@@ -86,6 +86,11 @@ export default function Header() {
                     <LogOut className="w-5 h-5" />
                   </button>
                   {canSeeFacebook && (
+                    <Link href="/admin/social?platform=tiktok" className={clsx('px-3 py-2 rounded-full text-sm font-medium transition-colors', isActive('/admin/social') ? 'text-brand bg-brand-soft' : 'text-muted hover:text-ink')}>
+                      Social data
+                    </Link>
+                  )}
+                  {canSeeFacebook && (
                     <Link href="/admin/facebook" className={clsx('px-3 py-2 rounded-full text-sm font-medium transition-colors', isActive('/admin/facebook') ? 'text-brand bg-brand-soft' : 'text-muted hover:text-ink')}>
                       Facebook data
                     </Link>

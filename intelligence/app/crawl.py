@@ -171,6 +171,36 @@ DEFAULT_BUYER_QUERIES = [
 ]
 
 
+def tiktok_videos(a, st: Settings) -> int:
+    from fbm_intel.fb_public.identity import PersonKeyer
+    from fbm_intel.social.keywords import keyword_variants
+    from fbm_intel.social.repo import SocialRepo
+    from fbm_intel.tiktok import collector as tt
+    from fbm_intel.tiktok.adapter import TikTokPublicVideosAdapter, load_config
+
+    cfg = load_config()
+    lim = cfg["limits"]
+    lim["max_results_per_query"] = a.max_results
+    lim["max_comments_per_post"] = a.max_comments
+    lim["max_replies_per_comment"] = a.max_replies
+    lim["max_expansion_rounds"] = a.max_rounds
+    place = {"phnompenh": "Phnom Penh", "siemreap": "Siem Reap", "battambang": "Battambang"}.get(a.location, a.location)
+    phrases = a.queries or ([v["text"] for v in keyword_variants(a.concept, place)] if a.concept else [a.query])
+    log.info("TikTok phrases: %s", phrases)
+    repo = None
+    if not a.dry_run:
+        owner = resolve_owner(st, a.owner_email)
+        if not owner:
+            log.error("Owner account %r not found.", a.owner_email)
+            return 2
+        repo = SocialRepo(st, owner)
+    adapter = TikTokPublicVideosAdapter(PersonKeyer.from_env(), cfg, headed=a.headed, screenshot_threshold=a.threshold)
+    rep = tt.run(adapter, phrases, repo=repo, dry_run=a.dry_run, persist_policy=a.persist,
+                 max_videos_total=a.max_results * max(1, len(phrases)))
+    print(json.dumps(rep.__dict__, indent=2, ensure_ascii=False, default=str))
+    return 3 if rep.stopped else 0
+
+
 def resolve_owner(st: Settings, email: str | None) -> str | None:
     import httpx
     if not email:
@@ -184,7 +214,14 @@ def main(argv: list[str] | None = None) -> int:
     logging.basicConfig(level=logging.INFO, format="%(levelname)s %(name)s: %(message)s")
     logging.getLogger("httpx").setLevel(logging.WARNING)
     p = argparse.ArgumentParser(prog="python -m app.crawl", description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    p.add_argument("--platform", choices=["facebook", "facebook-public-posts", "fbm"], required=True)
+    p.add_argument("--platform", choices=["facebook", "facebook-public-posts", "tiktok-public-videos", "fbm"], required=True)
+    p.add_argument("--concept", help="product concept for keyword variants, e.g. 'car sedan'")
+    p.add_argument("--max-results", type=int, default=10, help="max videos/posts per search phrase")
+    p.add_argument("--max-comments-per-post", dest="max_comments_opt", type=int)
+    p.add_argument("--max-replies-per-comment", dest="max_replies_opt", type=int)
+    p.add_argument("--max-expansion-rounds", dest="max_rounds_opt", type=int)
+    p.add_argument("--persist", choices=["all", "buyers"], default="all", help="store all public comments (scored) or buyers only")
+    p.add_argument("--threshold", type=int, default=70, help="buyer score needed for a comment screenshot / buyers-only storage")
     p.add_argument("--owner-email", default=os.environ.get("FB_DATA_OWNER_EMAIL"), help="FBM account that owns collected public data")
     p.add_argument("--max-comments", type=int, default=200, help="max_comments_per_post")
     p.add_argument("--max-replies", type=int, default=50, help="max_replies_per_comment")
@@ -205,6 +242,12 @@ def main(argv: list[str] | None = None) -> int:
     a = p.parse_args(argv)
     a.limit = max(1, min(a.limit, 20))
     st = Settings.load()
+    a.max_comments = a.max_comments_opt or a.max_comments
+    a.max_replies = a.max_replies_opt or a.max_replies
+    a.max_rounds = a.max_rounds_opt or a.max_rounds
+    if a.platform == "tiktok-public-videos":
+        a.owner_email = a.owner_email or os.environ.get("FB_DATA_OWNER_EMAIL")
+        return tiktok_videos(a, st)
     if a.platform == "facebook-public-posts":
         a.owner_email = a.owner_email or os.environ.get("FB_DATA_OWNER_EMAIL")
         return public_posts(a, st)

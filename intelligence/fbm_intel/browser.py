@@ -146,3 +146,30 @@ def open_session(allowed_hosts: set[str], min_interval_s: float = 2.0, headless:
         finally:
             context.close()
             browser.close()
+
+
+@contextmanager
+def open_persistent_session(allowed_hosts: set[str], user_data_dir: str, min_interval_s: float = 2.0,
+                            headless: bool = False) -> Iterator[BrowserSession]:
+    """Persistent Chromium profile (cookies survive between runs). The user logs in manually in this window;
+    nothing here ever types a password. Same allowlist guard and rate limiter as open_session."""
+    blocked: list[str] = []
+    with sync_playwright() as p:
+        context = p.chromium.launch_persistent_context(
+            user_data_dir, headless=headless, viewport=VIEWPORT, locale=LOCALE, timezone_id=TIMEZONE,
+            accept_downloads=False, extra_http_headers={"Accept-Language": "en-US,en;q=0.9,km;q=0.8"})
+
+        def guard(route: Route) -> None:
+            req = route.request
+            if req.resource_type == "document" and not host_allowed(req.url, allowed_hosts):
+                blocked.append(req.url)
+                route.abort("blockedbyclient")
+            else:
+                route.continue_()
+
+        context.route("**/*", guard)
+        page = context.pages[0] if context.pages else context.new_page()
+        try:
+            yield BrowserSession(None, context, page, RateLimiter(min_interval_s), set(allowed_hosts), blocked)  # type: ignore[arg-type]
+        finally:
+            context.close()

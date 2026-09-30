@@ -33,5 +33,12 @@ class PersonKeyer:
             return None
         return hmac.new(self._secret, canon.encode("utf-8"), hashlib.sha256).hexdigest()
 
+    def key_for(self, platform: str, identifier: str | None) -> str | None:
+        """Cross-platform form: HMAC(secret, "<platform>:<identifier>"). Platform in the input means the same
+        handle on two platforms yields unrelated keys (no cross-platform identity matching)."""
+        if not identifier:
+            return None
+        return hmac.new(self._secret, f"{platform}:{identifier}".encode("utf-8"), hashlib.sha256).hexdigest()
+
     def __repr__(self) -> str:  # never reveal the secret
         return f"PersonKeyer(version={self.version!r})"
