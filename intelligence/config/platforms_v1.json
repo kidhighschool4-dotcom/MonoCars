@@ -26,7 +26,9 @@
     "ai_cost_per_classification_usd": 0.01
   },
   "screenshot_min_score": 70,
-  "alerts": {"min_confidence": 85, "min_intent_score": 70, "max_spam_score": 30, "allow_needs_review": false, "max_per_day": 15,
+  "recency": {"max_comment_age_days": 90, "alert_max_age_days": 30,
+              "notes": "Older buyer comments are not leads (kept out of storage and alerts). Unknown date: kept, flagged, never alerted."},
+  "alerts": {"max_age_days": 30, "min_confidence": 85, "min_intent_score": 70, "max_spam_score": 30, "allow_needs_review": false, "max_per_day": 15,
              "telegram": true, "macos": true,
              "notes": "Live runs only message the owner for top confirmed RX300 buyers; everything else stays on the dashboard."},
   "ai_review": {"enabled": false, "notes": "Advisory second opinion on borderline buyer leads via the local OpenClaw gateway; counts against the AI budgets."},

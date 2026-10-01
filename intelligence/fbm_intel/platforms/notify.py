@@ -30,7 +30,7 @@ PLATFORM_LABEL = {"facebook": "Facebook", "facebook_marketplace": "FB Marketplac
 SIGNAL = {"asks_price": "asks the price", "wants_to_buy": "wants to buy", "makes_offer": "makes an offer",
           "asks_availability": "asks if still available", "asks_contact": "wants contact", "asks_to_see": "wants to see it",
           "asks_delivery": "asks about delivery", "asks_vehicle_details": "asks details"}
-DEFAULTS = {"min_confidence": 85, "min_intent_score": 70, "max_spam_score": 30, "allow_needs_review": False,
+DEFAULTS = {"max_age_days": 30, "min_confidence": 85, "min_intent_score": 70, "max_spam_score": 30, "allow_needs_review": False,
             "max_per_day": 15, "telegram": True, "macos": True}
 
 
@@ -89,16 +89,25 @@ class BestBuyerNotifier:
         self.senders = senders
         self.sent: list[str] = []
 
-    def is_best(self, c) -> bool:
+    def is_recent(self, c, post: SocialPost | None) -> bool:
+        from datetime import datetime, timedelta, timezone
+        limit = timedelta(days=self.cfg["max_age_days"])
+        now = datetime.now(timezone.utc)
+        if c.commented_at_observed is not None:
+            return now - c.commented_at_observed <= limit
+        # no comment date: only if the post itself is from within the window (the comment can't be older)
+        return post is not None and post.published_at_observed is not None and now - post.published_at_observed <= limit
+
+    def is_best(self, c, post: SocialPost | None = None) -> bool:
         L, i = c.lead, c.intent
-        return (L is not None and L.lead_type == "confirmed_rx300_buyer" and L.confidence >= self.cfg["min_confidence"]
+        return (self.is_recent(c, post) and L is not None and L.lead_type == "confirmed_rx300_buyer" and L.confidence >= self.cfg["min_confidence"]
                 and i.buyer_intent_score >= self.cfg["min_intent_score"] and i.spam_score <= self.cfg["max_spam_score"]
                 and not c.is_post_author and (self.cfg["allow_needs_review"] or not L.needs_review))
 
     def consider(self, post: SocialPost) -> int:
         n = 0
         for c in post.comments:
-            if not self.is_best(c) or self.state.was_notified(c.fingerprint):
+            if not self.is_best(c, post) or self.state.was_notified(c.fingerprint):
                 continue
             if self.state.notified_today() >= self.cfg["max_per_day"]:
                 log.info("Daily best-buyer alert cap reached")
@@ -123,6 +132,8 @@ def format_alert(post: SocialPost, c) -> str:
         f"{what}{use} · confidence {L.confidence} · intent {i.buyer_intent_score}",
         f"Post: {post.canonical_post_url}",
         f"Comment: {link}" if link else "Comment: on the post above",
+        f"Commented: {c.displayed_timestamp or (c.commented_at_observed.date().isoformat() if c.commented_at_observed else 'date not shown')}"
+        + (f" · post {post.published_text_displayed}" if post.published_text_displayed else ""),
         f"Found by search “{post.search_query}”",
     ]
     if post.post_title or post.post_text:

@@ -227,3 +227,17 @@ def test_unsolved_captcha_stops_after_wait():
     cfg["limits"]["challenge_wait_min"] = 0.1
     rep, _ = run(MemoryRepo(), search="captcha_stuck", headed=True, cfg=cfg)
     assert rep.stopped and rep.stopped.startswith("access_blocked")
+
+
+@pytest.mark.browser
+def test_comment_dates_found_without_the_time_selector():
+    """TikTok markup drifts: dates like '2d ago' / '6-24' are still found by shape, and parsed."""
+    cfg = fast_cfg()
+    cfg["selectors"]["comment_time"] = ["[data-e2e='no-such-element']"]
+    repo = MemoryRepo()
+    ad = TikTokPublicVideosAdapter(KEYER, cfg)
+    tt.run(ad, ["car sedan"], repo=repo, session_factory=lambda: open_session(ad.allowed_hosts, 0),
+           on_session=lambda s: tiktok_site.install(s.context))
+    by = {c.comment_text: c for (pid, _), c in repo.comments.items() if pid == V1}
+    assert by["nice car 🔥"].displayed_timestamp == "2d ago" and by["nice car 🔥"].commented_at_observed is not None
+    assert by["can deliver to Siem Reap?"].displayed_timestamp == "20h ago"

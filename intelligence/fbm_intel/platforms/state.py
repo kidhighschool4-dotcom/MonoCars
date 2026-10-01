@@ -144,7 +144,7 @@ class WorkerState:
 
     def reset_circuit(self, platform: str) -> None:
         st = self.status(platform)
-        st.circuit_open_until, st.consecutive_failures = None, 0
+        st.circuit_open_until, st.consecutive_failures, st.next_run_at = None, 0, None   # run on the next tick
         self.save_status(st)
 
     # ── checkpoints ──

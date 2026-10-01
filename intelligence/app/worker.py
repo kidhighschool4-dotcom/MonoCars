@@ -134,7 +134,7 @@ def main(argv: list[str] | None = None) -> int:
             s.reset_circuit(a.platform)
         else:
             s.set_enabled(a.platform, a.cmd == "enable")
-        print(f"{a.platform}: {a.cmd}d")
+        print(f"{a.platform}: {'reset — runs on the next tick' if a.cmd == 'reset' else a.cmd + 'd'}")
         return 0
 
     try:

@@ -112,10 +112,11 @@ def make_comment(*, platform: str, post_url: str, raw_text: str, is_reply: bool,
     if source_comment_id:
         fp = f"id:{source_comment_id}"
     else:
-        key = (intent.normalized_text, displayed_timestamp, parent.fingerprint if parent else None, commenter_key)
+        # The displayed time is NOT part of the identity: relative times ("2d ago") change between crawls.
+        key = (intent.normalized_text, None, parent.fingerprint if parent else None, commenter_key)
         n = occurrence_counter.get(key, 0)
         occurrence_counter[key] = n + 1
-        fp = comment_fingerprint(platform, post_url, intent.normalized_text, displayed_timestamp,
+        fp = comment_fingerprint(platform, post_url, intent.normalized_text, None,
                                  parent.fingerprint if parent else None, commenter_key, n)
     return SocialComment(
         fingerprint=fp, parent_fingerprint=parent.fingerprint if parent else None,

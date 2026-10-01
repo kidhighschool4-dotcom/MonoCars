@@ -129,7 +129,8 @@ class FakeAdapter(PlatformAdapter):
 
     def collect_comments(self, post):
         mk = lambda t: make_comment(platform="web", post_url=post.canonical_post_url, raw_text=t, is_reply=False, parent=None,  # noqa: E731
-                                    commenter_key=None, key_version=None, displayed_timestamp="1d", commented_at=None,
+                                    commenter_key=None, key_version=None, displayed_timestamp="1d",
+                                    commented_at=datetime.now(timezone.utc) - timedelta(days=1),
                                     source_comment_id=None, source_comment_url=None, occurrence_counter={})
         return CommentBatch([mk("តម្លៃប៉ុន្មានបង?"), mk("nice car"), mk("domlai man b?")], "complete")
 
@@ -400,7 +401,8 @@ def test_alert_thresholds_and_daily_cap(state):
     from fbm_intel.platforms.notify import BestBuyerNotifier
     mk = lambda t, fp: make_comment(platform="web", post_url="https://example.test/p", raw_text=t, is_reply=False,  # noqa: E731
                                     parent=None, commenter_key=None, key_version=None, displayed_timestamp=fp,
-                                    commented_at=None, source_comment_id=fp, source_comment_url=None, occurrence_counter={})
+                                    commented_at=datetime.now(timezone.utc), source_comment_id=fp, source_comment_url=None,
+                                    occurrence_counter={})
     post = SocialPost(platform="tiktok", source_content_type="tiktok_video", source_post_id="1", source_post_url="https://example.test/p",
                       canonical_post_url="https://example.test/p", document_title=None, post_title=None, post_text="Lexus RX300 2004 for sale",
                       hashtags=[], published_text_displayed=None, published_at_observed=None, engagement={},
@@ -457,3 +459,57 @@ def test_posts_without_buyer_comments_are_not_stored(fake_registry, state, tmp_p
 def test_seller_only_sources_excluded():
     cfg = registry.load_config()["platforms"]
     assert all(cfg[n].get("excluded") for n in ("khmer24", "facebook_marketplace", "kh_classifieds", "telegram"))
+
+
+# ─── Dates: old comments are not leads; alerts only for recent ones ─────────
+
+def _post_with(comments_and_dates, published=None):
+    now = datetime.now(timezone.utc)
+    post = SocialPost(platform="tiktok", source_content_type="tiktok_video", source_post_id="1", source_post_url="https://example.test/p",
+                      canonical_post_url="https://example.test/p", document_title=None, post_title=None, post_text="Lexus RX300 2004 for sale",
+                      hashtags=[], published_text_displayed=None, published_at_observed=published, engagement={},
+                      visibility_status="public_verified", visibility_evidence="x", search_query="rx300", search_url=None,
+                      captured_at=now, adapter_version="v", content_hash="h")
+    for i, (text, days) in enumerate(comments_and_dates):
+        c = make_comment(platform="tiktok", post_url=post.canonical_post_url, raw_text=text, is_reply=False, parent=None,
+                         commenter_key=None, key_version=None, displayed_timestamp=None,
+                         commented_at=None if days is None else now - timedelta(days=days),
+                         source_comment_id=str(i), source_comment_url=None, occurrence_counter={})
+        c.lead = classify_comment(text, PostContext(post.post_text), intent=c.intent)
+        post.comments.append(c)
+    return post
+
+
+def test_old_buyer_comments_are_not_leads():
+    from fbm_intel.platforms.worker import apply_recency
+    post = _post_with([("ចង់ទិញ RX300 តម្លៃប៉ុន្មាន", 3), ("ចង់ទិញ RX300 តម្លៃប៉ុន្មាន", 400), ("ចង់ទិញ RX300 តម្លៃប៉ុន្មាន", None)])
+    apply_recency(post, {"max_comment_age_days": 90})
+    fresh, old, unknown = post.comments
+    assert fresh.lead.lead_type == "confirmed_rx300_buyer"
+    assert old.lead.lead_type == "irrelevant" and any(r.startswith("too_old:") for r in old.lead.reasons)
+    assert unknown.lead.lead_type == "confirmed_rx300_buyer" and "date_unknown" in unknown.lead.reasons and unknown.lead.needs_review
+
+
+def test_unknown_comment_date_on_recent_post_is_fine():
+    from fbm_intel.platforms.worker import apply_recency
+    post = _post_with([("ចង់ទិញ RX300 តម្លៃប៉ុន្មាន", None)], published=datetime.now(timezone.utc) - timedelta(days=5))
+    apply_recency(post, {"max_comment_age_days": 90})
+    assert "date_unknown" not in post.comments[0].lead.reasons
+
+
+def test_alerts_only_for_recent_comments(state):
+    from fbm_intel.platforms.notify import BestBuyerNotifier
+    post = _post_with([("ចង់ទិញ RX300 នេះ តម្លៃប៉ុន្មានបង?", 45), ("ចង់ទិញ RX300 inbox mok b", None), ("ចង់ទិញ RX300 នេះ inbox", 2)])
+    box = _Collect()
+    assert BestBuyerNotifier(state, {}, senders=[box]).consider(post) == 1
+    assert "ចង់ទិញ RX300 នេះ inbox" in box.msgs[0] and "Commented:" in box.msgs[0]
+
+
+def test_fingerprint_ignores_shown_time():
+    a = make_comment(platform="tiktok", post_url="https://example.test/p", raw_text="how much", is_reply=False, parent=None,
+                     commenter_key="k" * 64, key_version="v", displayed_timestamp="2d ago", commented_at=None,
+                     source_comment_id=None, source_comment_url=None, occurrence_counter={})
+    b = make_comment(platform="tiktok", post_url="https://example.test/p", raw_text="how much", is_reply=False, parent=None,
+                     commenter_key="k" * 64, key_version="v", displayed_timestamp="3d ago", commented_at=None,
+                     source_comment_id=None, source_comment_url=None, occurrence_counter={})
+    assert a.fingerprint == b.fingerprint                # same comment next day → no duplicate row

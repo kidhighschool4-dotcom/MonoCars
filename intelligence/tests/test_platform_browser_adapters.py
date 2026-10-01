@@ -264,6 +264,7 @@ def test_pinterest_pin_without_comments():
 def test_worker_cycle_end_to_end(name, tmp_path):
     cfg = registry.load_config()
     cfg["platforms"][name]["limits"] = FAST
+    cfg["recency"] = {}            # fixture comments are dated 2024; the age rule is covered in test_platform_core
     sink = PreviewSink(tmp_path / "preview", "run")
     res = run_cycle(name, cfg=cfg, state=WorkerState(tmp_path / "state.sqlite"), sink=sink, keyer=KEYER,
                     fixtures=partial(SPECS[name]["site"].install), headed=False, max_queries=1)

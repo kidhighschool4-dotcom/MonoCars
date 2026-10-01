@@ -63,7 +63,10 @@ _COMMENTS_JS = """(cfg) => {
     const clone = t.cloneNode(true);
     clone.querySelectorAll('a').forEach(a => a.replaceWith('[mention]'));   // @tags → [mention]
     const author = q1(item, cfg.comment_author_link);
-    const time = q1(item, cfg.comment_time);
+    // TikTok changes its markup often: fall back to the first short text in the item that looks like a date
+    const DATE = /^(\\d+\\s*[smhdwy]\\s*ago|\\d+\\s*(second|minute|hour|day|week|year)s?\\s*ago|\\d{4}-\\d{1,2}-\\d{1,2}|\\d{1,2}-\\d{1,2}|yesterday|just now)$/i;
+    const time = q1(item, cfg.comment_time) || Array.from(item.querySelectorAll('span,div,p'))
+      .find(e => !e.children.length && DATE.test((e.textContent || '').trim()) && !t.contains(e)) || null;
     const level = /level-2/.test(e2e) || /reply/i.test(item.getAttribute('data-e2e') || '') ? 2 : 1;
     const text = (clone.textContent || '').trim();
     const timeText = time ? (time.textContent || '').trim() : null;
@@ -133,6 +136,27 @@ class TikTokPublicVideosAdapter:
         if any(m in body for m in self.markers["login_prompt"]) and not self._has(s, "video_desc") and not self._has(s, "search_result_link"):
             return "login_required"
         return "ok"
+
+    def _published_from_page(self, s: BrowserSession, vid: str | None) -> str | None:
+        """The video's createTime from the page's own embedded data, else the inline '· 6-24' date next to the author."""
+        try:
+            got = s.page.evaluate("""(vid) => {
+              const raw = (document.getElementById('__UNIVERSAL_DATA_FOR_REHYDRATION__') || {}).textContent || '';
+              const at = vid ? raw.indexOf('"id":"' + vid + '"') : -1;
+              const m = (at >= 0 ? raw.slice(at, at + 4000) : '').match(/"createTime":"?(\\d{9,11})/);
+              if (m) return {epoch: m[1]};
+              const el = Array.from(document.querySelectorAll('span,div')).find(e => e.children.length <= 2 &&
+                  /·\\s*(\\d{4}-)?\\d{1,2}-\\d{1,2}\\s*$/.test((e.textContent || '').trim()) && (e.textContent || '').length < 80);
+              return el ? {text: el.textContent.trim().split('·').pop().trim()} : null;
+            }""", vid)
+        except Exception:  # noqa: BLE001
+            return None
+        if not got:
+            return None
+        if got.get("epoch"):
+            from datetime import datetime, timezone
+            return datetime.fromtimestamp(int(got["epoch"]), timezone.utc).strftime("%Y-%m-%d")
+        return got.get("text")
 
     def _has(self, s: BrowserSession, field: str) -> bool:
         return bool(s.page.evaluate(_FIND_JS, self.sel[field]))
@@ -335,7 +359,7 @@ class TikTokPublicVideosAdapter:
             self.diagnose(s, "unverified_video")
             return None
         final = canonical_video_url(s.page.url) if is_video_url(s.page.url) else f.canonical_url
-        published = self._first_text(s, "publish_time")
+        published = self._first_text(s, "publish_time") or self._published_from_page(s, video_id(final))
         engagement = {k: self._first_text(s, f"{k}_count") for k in ("like", "comment", "share")}
         post = SocialPost(
             platform="tiktok", source_content_type="tiktok_video", source_post_id=video_id(final),

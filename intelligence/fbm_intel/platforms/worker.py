@@ -71,6 +71,36 @@ def keep_for_persist(post: SocialPost, policy: str, threshold: int) -> None:
     post.comments = [c for c in post.comments if c.fingerprint in keep]
 
 
+def comment_date(c, post: SocialPost) -> datetime | None:
+    """When the comment was written, if the platform showed it (a post date only gives a lower bound)."""
+    return c.commented_at_observed
+
+
+def apply_recency(post: SocialPost, rec: dict, at: datetime | None = None) -> None:
+    """Old buyer comments are not leads: demoted to irrelevant (so not stored or alerted). Unknown dates are flagged."""
+    max_days = rec.get("max_comment_age_days")
+    if not max_days:
+        return
+    at = at or datetime.now(timezone.utc)
+    published = post.published_at_observed
+    for c in post.comments:
+        L = c.lead
+        if L is None or L.lead_type not in BUYER_LEADS:
+            continue
+        when = comment_date(c, post)
+        if when is None and published is not None and at - published <= timedelta(days=max_days):
+            continue  # unknown comment date, but the post itself is recent → the comment is too
+        if when is None:
+            L.needs_review = True
+            if "date_unknown" not in L.reasons:
+                L.reasons.append("date_unknown")
+            continue
+        age = (at - when).days
+        if age > max_days:
+            L.reasons.append(f"too_old:{age}d")
+            L.lead_type = "irrelevant"
+
+
 def type_leads(adapter: PlatformAdapter, post: SocialPost) -> None:
     org = post.organization or adapter.organization_for_post(post)
     post.organization = org
@@ -180,6 +210,7 @@ def _collect_one(adapter, name, item: SearchItem, canon, pcfg, state, sink, budg
     else:
         post.completeness_status = "comments_unavailable"
     type_leads(adapter, post)
+    apply_recency(post, pcfg.get("recency", {}))
     _ai_second_opinion(post, pcfg.get("_reviewer"), budget)
     res.posts += 1
     res.comments += len(post.comments)

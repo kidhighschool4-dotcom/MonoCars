@@ -107,9 +107,24 @@ def parse_fb_time(text: str | None, now: datetime | None = None) -> datetime | N
         return now
     if t == "yesterday" or t.startswith("yesterday at"):
         return now - timedelta(days=1)
-    m = _REL.match(t)
+    t = re.sub(r"\s+ago$", "", t).strip()                       # TikTok: "2d ago", "3 days ago"
+    m = _REL.match(t) or _REL.match(re.sub(r"\s*(day|week|hour|minute|second|year)s?$", lambda x: {"day": "d", "week": "w",
+                                       "hour": "h", "minute": "m", "second": "s", "year": "y"}[x.group(1)], t))
     if m:
         return now - int(m.group(1)) * _UNITS[m.group(2)]
+    m = re.fullmatch(r"(\d{4})-(\d{1,2})-(\d{1,2})", t)              # TikTok: "2025-11-3"
+    if m:
+        try:
+            return datetime(int(m.group(1)), int(m.group(2)), int(m.group(3)), tzinfo=timezone.utc)
+        except ValueError:
+            return None
+    m = re.fullmatch(r"(\d{1,2})-(\d{1,2})", t)                      # TikTok: "6-24" = this year (or last, if in the future)
+    if m:
+        try:
+            d = datetime(now.year, int(m.group(1)), int(m.group(2)), tzinfo=timezone.utc)
+        except ValueError:
+            return None
+        return d if d <= now + timedelta(days=1) else d.replace(year=now.year - 1)
     from ..normalize import parse_published_at
     return parse_published_at(t, now)
 
