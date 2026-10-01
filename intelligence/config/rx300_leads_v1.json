@@ -2,33 +2,175 @@
   "version": "rx300-leads-v1",
   "notes": "Phrases are matched on casefolded text with Khmer digits mapped to ASCII and whitespace collapsed. Khmer spellings vary; add variants here, not in code.",
   "rx300_model": {
-    "regex": ["\\brx\\s*[-‐]?\\s*300\\b", "\\blexus\\s*rx\\b", "\\brx300h?\\b", "\\bharrier\\s*300\\b"],
-    "phrases": ["ឡិចស៊ីស rx", "ឡិចស៊ីស300", "ឡិចស៊ីស 300", "ឡិកស៊ីស rx", "ឡិចសុីស rx", "rx៣០០", "rx 300", "lexus 300", "rx ban"]
+    "regex": [
+      "\\brx\\s*[-‐]?\\s*300\\b",
+      "\\blexus\\s*rx\\b",
+      "\\brx300h?\\b",
+      "\\bharrier\\s*300\\b"
+    ],
+    "phrases": [
+      "lexas rx",
+      "lexsus rx",
+      "lexus 300",
+      "lexuz rx",
+      "luxe 300",
+      "luxe rx",
+      "rx 300",
+      "rx ban",
+      "rx៣០០",
+      "លុចស៊ីស rx",
+      "ឡិកស៊ីស 300",
+      "ឡិកស៊ីស rx",
+      "ឡិចសុីស rx",
+      "ឡិចស៊ីស 300",
+      "ឡិចស៊ីស rx",
+      "ឡិចស៊ីស ៣០០",
+      "ឡិចស៊ីស300"
+    ]
   },
   "related_models": {
-    "phrases": ["harrier", "lexus", "ឡិចស៊ីស", "ឡិកស៊ីស", "ឡិចសុីស", "rx330", "rx350", "highlander", "ហារៀរ"]
+    "phrases": [
+      "harrier",
+      "lexus",
+      "ឡិចស៊ីស",
+      "ឡិកស៊ីស",
+      "ឡិចសុីស",
+      "rx330",
+      "rx350",
+      "highlander",
+      "ហារៀរ"
+    ]
   },
   "family_suv_need": {
-    "phrases": ["family car", "family suv", "suv for family", "for my family", "for family", "7 seat", "7 seater", "seven seater",
-                "spacious", "big car", "suv", "ឡានគ្រួសារ", "សម្រាប់គ្រួសារ", "ជិះគ្រួសារ", "ជិះលេងគ្រួសារ", "ឡានធំ", "ឡាន suv",
-                "lan krousar", "lan krusar", "sombrab krousar", "jis krousar", "lan tom", "lan suv"]
+    "phrases": [
+      "family car",
+      "family suv",
+      "suv for family",
+      "for my family",
+      "for family",
+      "7 seat",
+      "7 seater",
+      "seven seater",
+      "spacious",
+      "big car",
+      "suv",
+      "ឡានគ្រួសារ",
+      "សម្រាប់គ្រួសារ",
+      "ជិះគ្រួសារ",
+      "ជិះលេងគ្រួសារ",
+      "ឡានធំ",
+      "ឡាន suv",
+      "lan krousar",
+      "lan krusar",
+      "sombrab krousar",
+      "jis krousar",
+      "lan tom",
+      "lan suv"
+    ]
   },
   "taxi_use": {
-    "phrases": ["taxi", "grab", "passapp", "pass app", "ride hailing", "for hire", "run taxi", "តាក់ស៊ី", "រត់តាក់ស៊ី", "រត់ឈ្នួល",
-                "ដឹកភ្ញៀវ", "ឡានឈ្នួល", "rot taxi", "rot chhnuol", "rot chnuol", "dek pnhiev", "lan chhnuol"]
+    "phrases": [
+      "taxi",
+      "grab",
+      "passapp",
+      "pass app",
+      "ride hailing",
+      "for hire",
+      "run taxi",
+      "តាក់ស៊ី",
+      "រត់តាក់ស៊ី",
+      "រត់ឈ្នួល",
+      "ដឹកភ្ញៀវ",
+      "ឡានឈ្នួល",
+      "rot taxi",
+      "rot chhnuol",
+      "rot chnuol",
+      "dek pnhiev",
+      "lan chhnuol"
+    ]
   },
   "seeking": {
-    "phrases": ["looking for", "want to buy", "wtb", "need a", "anyone selling", "who sells", "where to buy", "searching for",
-                "រកទិញ", "ចង់ទិញ", "ត្រូវការទិញ", "ត្រូវការឡាន", "រកឡាន", "នរណាលក់", "អ្នកណាលក់", "rok tinh", "jong tinh",
-                "chong tinh", "trov ka tinh", "trov kar lan", "rok lan", "neak na lok"]
+    "phrases": [
+      "looking for",
+      "want to buy",
+      "wtb",
+      "need a",
+      "anyone selling",
+      "who sells",
+      "where to buy",
+      "searching for",
+      "រកទិញ",
+      "ចង់ទិញ",
+      "ត្រូវការទិញ",
+      "ត្រូវការឡាន",
+      "រកឡាន",
+      "នរណាលក់",
+      "អ្នកណាលក់",
+      "rok tinh",
+      "jong tinh",
+      "chong tinh",
+      "trov ka tinh",
+      "trov kar lan",
+      "rok lan",
+      "neak na lok"
+    ]
   },
   "seller_offer": {
-    "phrases": ["for sale", "selling", "we have", "we sell", "in stock", "available now", "ready stock", "dealer", "showroom",
-                "contact us", "call now", "negotiable", "tax paper", "full option", "first owner", "mean lok", "tomnak tomnong",
-                "chor cha", "មានលក់", "លក់ចេញ", "លក់បន្ទាន់", "ទំនាក់ទំនង", "ហាងលក់", "ស្តុក", "ចរចា", "ក្រដាសពន្ធ", "ពន្ធរួច",
-                "ប្លាកលេខ", "ម្ចាស់ដើម", "ផុលអុបសិន"],
-    "regex": ["\\$\\s?\\d{2,3}[,.]?\\d{3}\\b.*\\b(20\\d\\d|19\\d\\d)\\b", "\\b(20\\d\\d|19\\d\\d)\\b.*\\$\\s?\\d{2,3}[,.]?\\d{3}\\b"]
+    "phrases": [
+      "for sale",
+      "selling",
+      "we have",
+      "we sell",
+      "in stock",
+      "available now",
+      "ready stock",
+      "dealer",
+      "showroom",
+      "contact us",
+      "call now",
+      "negotiable",
+      "tax paper",
+      "full option",
+      "first owner",
+      "mean lok",
+      "tomnak tomnong",
+      "chor cha",
+      "មានលក់",
+      "លក់ចេញ",
+      "លក់បន្ទាន់",
+      "ទំនាក់ទំនង",
+      "ហាងលក់",
+      "ស្តុក",
+      "ចរចា",
+      "ក្រដាសពន្ធ",
+      "ពន្ធរួច",
+      "ប្លាកលេខ",
+      "ម្ចាស់ដើម",
+      "ផុលអុបសិន"
+    ],
+    "regex": [
+      "\\$\\s?\\d{2,3}[,.]?\\d{3}\\b.*\\b(20\\d\\d|19\\d\\d)\\b",
+      "\\b(20\\d\\d|19\\d\\d)\\b.*\\$\\s?\\d{2,3}[,.]?\\d{3}\\b"
+    ]
   },
-  "organization_name_hints": ["auto", "motor", "motors", "car shop", "cars", "dealer", "showroom", "trading", "import", "co.,", "co ltd",
-                               "ltd", "group", "garage", "ឡានលក់", "ហាងឡាន", "អូតូ", "ម៉ូទ័រ"]
+  "organization_name_hints": [
+    "auto",
+    "motor",
+    "motors",
+    "car shop",
+    "cars",
+    "dealer",
+    "showroom",
+    "trading",
+    "import",
+    "co.,",
+    "co ltd",
+    "ltd",
+    "group",
+    "garage",
+    "ឡានលក់",
+    "ហាងឡាន",
+    "អូតូ",
+    "ម៉ូទ័រ"
+  ]
 }

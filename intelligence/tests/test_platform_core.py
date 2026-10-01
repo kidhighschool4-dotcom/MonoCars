@@ -551,3 +551,21 @@ def test_challenge_hook_alerts_and_throttles(state):
     finally:
         notify.set_challenge_hook(None)
     assert len(box.msgs) == 2 and box.msgs[0].startswith("🧩 CAPTCHA on TikTok") and "10 min" in box.msgs[0]
+
+
+def test_focus_on_confirmed_rx300_buyers_only(fake_registry, state, tmp_path):
+    fake_registry("alpha")
+    cfg = cfg_for("alpha")
+    cfg["lead_focus"] = "confirmed_rx300_buyer"
+    sink = PreviewSink(tmp_path, "r")
+    run_cycle("alpha", cfg=cfg, state=state, sink=sink, keyer=KEYER)
+    rows = [json.loads(x) for x in (sink.dir / "alpha.jsonl").read_text().splitlines()]
+    kept = {c["lead"]["lead_type"] for r in rows for c in r["comments"]}
+    assert kept == {"confirmed_rx300_buyer"}
+
+
+def test_every_facebook_and_tiktok_query_names_the_rx300():
+    from fbm_intel.platforms.leads import mentions_rx300
+    for plat in ("facebook_public_posts", "tiktok"):
+        qs = queries_for(plat)
+        assert qs and all(mentions_rx300(q.text) for q in qs), [q.text for q in qs if not mentions_rx300(q.text)]

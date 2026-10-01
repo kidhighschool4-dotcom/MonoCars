@@ -78,4 +78,5 @@ def platform_config(name: str, cfg: dict | None = None) -> dict:
             "persist_policy": p.get("persist_policy", cfg.get("persist_policy", "buyers")),
             "ai_review": p.get("ai_review", cfg.get("ai_review", {"enabled": False})),
             "recency": {**cfg.get("recency", {}), **p.get("recency", {})},
-            "revisit_after_h": p.get("revisit_after_h", cfg.get("revisit_after_h", 12))}
+            "revisit_after_h": p.get("revisit_after_h", cfg.get("revisit_after_h", 12)),
+            "lead_focus": p.get("lead_focus", cfg.get("lead_focus"))}

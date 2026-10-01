@@ -53,13 +53,16 @@ class CycleResult:
         return asdict(self)
 
 
-def keep_for_persist(post: SocialPost, policy: str, threshold: int) -> None:
+def keep_for_persist(post: SocialPost, policy: str, threshold: int, wanted: tuple = BUYER_LEADS) -> None:
     """'buyers': keep comments that are buyer leads or score ≥ threshold, plus the parents of kept replies.
     Dropped comment text is not stored; only counts with reasons."""
     if policy == "all":
         return
-    keep = {c.fingerprint for c in post.comments
-            if c.intent.buyer_intent_score >= threshold or (c.lead is not None and c.lead.lead_type in BUYER_LEADS)}
+    if wanted == BUYER_LEADS:
+        keep = {c.fingerprint for c in post.comments
+                if c.intent.buyer_intent_score >= threshold or (c.lead is not None and c.lead.lead_type in BUYER_LEADS)}
+    else:   # focused: only the wanted lead type (e.g. confirmed RX300 buyers)
+        keep = {c.fingerprint for c in post.comments if c.lead is not None and c.lead.lead_type in wanted}
     keep |= {c.parent_fingerprint for c in post.comments if c.fingerprint in keep and c.parent_fingerprint}
     dropped = [c for c in post.comments if c.fingerprint not in keep]
     reasons: dict[str, int] = {}
@@ -242,9 +245,10 @@ def _collect_one(adapter, name, item: SearchItem, canon, pcfg, state, sink, budg
         if not budget.try_take("screenshots"):
             break
         c.screenshot = _safe_evidence(adapter, c, budget, res)
-    keep_for_persist(post, pcfg.get("persist_policy", "buyers"), threshold)
-    has_buyer = any(c.lead is not None and c.lead.lead_type in BUYER_LEADS for c in post.comments) \
-        or (post.lead is not None and post.lead.lead_type in BUYER_LEADS)
+    wanted = (pcfg["lead_focus"],) if pcfg.get("lead_focus") else BUYER_LEADS
+    keep_for_persist(post, pcfg.get("persist_policy", "buyers"), threshold, wanted)
+    has_buyer = any(c.lead is not None and c.lead.lead_type in wanted for c in post.comments) \
+        or (post.lead is not None and post.lead.lead_type in wanted)
     if not has_buyer and pcfg.get("save_posts_without_buyers", False) is not True:
         state.mark_seen(name, canon)          # owner wants buyer comments, not seller posts: nothing stored
         return

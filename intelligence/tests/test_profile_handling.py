@@ -67,6 +67,8 @@ def test_tiktok_cycle_business_vs_individual(tmp_path):
                                       limits_override={"settle_ms": 200, "scroll_pause_ms": 250, "page_load_interval_s": 0,
                                                        "comment_time_limit_s": 40})
     cfg["recency"] = {}
+    cfg["lead_focus"] = None
+    cfg["persist_policy"] = "all"
     sink = PreviewSink(tmp_path, "r")
     res = run_cycle("tiktok", cfg=cfg, state=WorkerState(tmp_path / "s.sqlite"), sink=sink, keyer=KEYER, headed=False,
                     fixtures=lambda s: tiktok_site.install(s.context))

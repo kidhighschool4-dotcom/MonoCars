@@ -1,5 +1,5 @@
 {
-  "version": "rx300-discovery-v2",
+  "version": "rx300-discovery-v3",
   "groups": {
     "rx300_confirmed": {
       "en": [
@@ -31,7 +31,7 @@
       ],
       "km": [
         "RX300 ឡានគ្រួសារ",
-        "ឡិចស៊ីស ជិះគ្រួសារ"
+        "ឡិចស៊ីស RX300 ជិះគ្រួសារ"
       ],
       "romanized_km": [
         "rx300 lan krousar"
@@ -44,7 +44,7 @@
       ],
       "km": [
         "RX300 តាក់ស៊ី",
-        "ឡិចស៊ីស រត់តាក់ស៊ី"
+        "ឡិចស៊ីស RX300 រត់តាក់ស៊ី"
       ],
       "romanized_km": [
         "rx300 rot taxi"
@@ -118,20 +118,43 @@
         "lan rot taxi lok",
         "lan krousar thok"
       ]
+    },
+    "rx300_only": {
+      "en": [
+        "Lexus RX 300 for sale",
+        "RX300 2003 Cambodia",
+        "RX300 2004 Phnom Penh",
+        "Lexus RX300 cheap",
+        "Lexus 300 Cambodia",
+        "RX300 price",
+        "buy Lexus RX300",
+        "RX300 Cambodia"
+      ],
+      "km": [
+        "ឡានលក់ RX300",
+        "ឡិចស៊ីស 300",
+        "RX300 តម្លៃថោក",
+        "ឡិចស៊ីស RX300 លក់",
+        "RX300 ឡានស្អាត",
+        "ចង់ទិញ RX300",
+        "ឡិចស៊ីស ៣០០"
+      ],
+      "romanized_km": [
+        "lan lok rx300",
+        "lexus 300 lok",
+        "rx300 thok",
+        "rx 300 lok bonnan",
+        "jong tinh rx300",
+        "luxe rx300",
+        "lexus rx 300 lok"
+      ]
     }
   },
   "hashtags": [
-    "#carforsalecambodia",
-    "#harrier",
-    "#lexuscambodia",
-    "#lexusrx",
-    "#lexusrx300",
     "#rx300",
-    "#rx350",
-    "#ឡានគ្រួសារ",
-    "#ឡានលក់",
-    "#ឡានលក់ថោក",
-    "#ឡានលក់ភ្នំពេញ"
+    "#lexusrx300",
+    "#lexusrx",
+    "#rx300cambodia"
   ],
   "per_platform": {
     "reddit": {
@@ -163,7 +186,14 @@
         "rx300_confirmed"
       ]
     },
-    "tiktok": {},
+    "tiktok": {
+      "query_groups": [
+        "rx300_confirmed",
+        "rx300_only",
+        "rx300_family",
+        "rx300_taxi"
+      ]
+    },
     "telegram": {
       "query_groups": [
         "rx300_confirmed"
@@ -201,6 +231,22 @@
       "plain_terms": [
         "Lexus RX300",
         "RX300"
+      ]
+    },
+    "facebook_public_posts": {
+      "query_groups": [
+        "rx300_confirmed",
+        "rx300_only",
+        "rx300_family",
+        "rx300_taxi"
+      ]
+    },
+    "facebook": {
+      "query_groups": [
+        "rx300_confirmed",
+        "rx300_only",
+        "rx300_family",
+        "rx300_taxi"
       ]
     }
   }
