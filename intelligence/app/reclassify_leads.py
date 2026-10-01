@@ -22,7 +22,9 @@ def main(argv=None) -> int:
     posts = {p["id"]: p for p in httpx.get(f"{base}/public_social_posts", headers=h, params={
         "select": "id,post_title,document_title,post_text,hashtags,search_query", "limit": "5000"}, timeout=60).json()}
     comments = httpx.get(f"{base}/public_social_comments", headers=h, params={
-        "select": "id,post_id,comment_text,lead_type,is_post_author,account_type", "limit": "10000"}, timeout=60).json()
+        "select": "id,post_id,comment_text,lead_type,is_post_author,account_type,commented_at_observed", "limit": "10000"}, timeout=60).json()
+    from datetime import datetime, timedelta, timezone
+    too_old = datetime.now(timezone.utc) - timedelta(days=90)
     changes = collections.Counter()
     for c in comments:
         p = posts.get(c["post_id"]) or {}
@@ -30,6 +32,9 @@ def main(argv=None) -> int:
                                                  " ".join(p.get("hashtags") or [])])), search_query=p.get("search_query") or "")
         L = classify_comment(c["comment_text"], ctx, intent=score_comment(c["comment_text"]),
                              is_post_author=bool(c.get("is_post_author")), is_business=c.get("account_type") == "business")
+        when = c.get("commented_at_observed")
+        if L.lead_type == "confirmed_rx300_buyer" and when and datetime.fromisoformat(when) < too_old:
+            L.lead_type, L.reasons = "irrelevant", L.reasons + ["too_old"]
         # only correct over-confident buyers; never revive comments demoted for other reasons (e.g. too old)
         if c["lead_type"] == "confirmed_rx300_buyer" and L.lead_type != c["lead_type"]:
             changes[(c["lead_type"], L.lead_type)] += 1

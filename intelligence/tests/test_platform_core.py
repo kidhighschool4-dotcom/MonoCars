@@ -578,3 +578,17 @@ def test_news_post_mentioning_rx300_does_not_make_buyers():
     assert classify_comment("ចង់ទិញ RX300 តម្លៃប៉ុន្មាន", news).lead_type == "confirmed_rx300_buyer"   # names the RX300 itself
     sale = PostContext("Lexus RX300 2004 លក់ $12,500")
     assert classify_comment("តម្លៃប៉ុន្មានបង?", sale).lead_type == "confirmed_rx300_buyer"
+
+
+def test_other_lexus_300_models_are_not_rx300():
+    ctx = PostContext("2021 Lexus IS300 sedan #lexus", search_query="Lexus 300 Cambodia")
+    assert classify_comment("បងបើចង់បាន GS300 កម្មង់បានអត់បង", ctx).lead_type != "confirmed_rx300_buyer"
+    assert classify_comment("300 នេះលក់ប៉ុន្មានបង", PostContext("#cambodia", search_query="lok rx300")).lead_type == "confirmed_rx300_buyer"
+
+
+def test_parts_posts_and_seller_replies_are_not_rx300_buyers():
+    parts = PostContext("គំរបផ្លិតទឹក Lexus RX300 ផលិតផ្ទាល់នៅក្នុងស្រុក 3D printing")
+    assert classify_comment("ចង់បាន1ដំលៃម៉ានប្អូន", parts).lead_type == "irrelevant"
+    car = PostContext("Lexus RX300 ឆ្នាំ 2004 ប៉ុង1 លក់ $12,500 rims ថ្មី")
+    assert classify_comment("ចង់បាន1ដំលៃម៉ានប្អូន", car).lead_type == "confirmed_rx300_buyer"
+    assert classify_comment("I have a 2021 year model with panoramic sun roof", PostContext("2020 Lexus RX 300 F Sport for sale")).lead_type != "confirmed_rx300_buyer"

@@ -50,6 +50,7 @@ class LeadRules:
     seller: tuple[str, ...]
     seller_regex: tuple[re.Pattern, ...]
     org_hints: tuple[str, ...]
+    parts: tuple[str, ...] = ()
 
 
 @lru_cache(maxsize=4)
@@ -62,7 +63,7 @@ def load_rules(path: str = str(CONFIG_PATH)) -> LeadRules:
         rx_phrases=low(c["rx300_model"]["phrases"]), related=low(c["related_models"]["phrases"]),
         family=low(c["family_suv_need"]["phrases"]), taxi=low(c["taxi_use"]["phrases"]), seeking=low(c["seeking"]["phrases"]),
         seller=low(c["seller_offer"]["phrases"]), seller_regex=tuple(re.compile(r, re.I) for r in c["seller_offer"].get("regex", [])),
-        org_hints=low(c["organization_name_hints"]),
+        org_hints=low(c["organization_name_hints"]), parts=low(c.get("parts_accessories", {}).get("phrases", [])),
     )
 
 
@@ -107,6 +108,11 @@ class PostContext:
     @property
     def rx300_search(self) -> bool:
         return mentions_rx300(self.search_query)
+
+    def is_sale_of_car(self) -> bool:
+        """A whole-car sale (year / km / 'ឡាន' / 'car for sale'), as opposed to parts for that model."""
+        t = self.prepared
+        return bool(re.search(r"(?<!\d)(19[89]\d|20[0-3]\d)(?!\d)|ឆ្នាំ\s*\d|\bkm\b|គីឡូ|ឡានលក់|car for sale|ប៉ុង\s*[12១២]|ឯកសារគ្រប់|f-?sport|ម្ចាស់ដើម", t))
 
     @property
     def is_sale(self) -> bool:
@@ -158,7 +164,9 @@ def classify_comment(text: str, post: PostContext | None = None, *, intent: Inte
     post = post or PostContext()
     intent = intent or score_comment(text)
     t = prep(text)
-    rx_here = mentions_rx300(t, r) or (bool(re.search(r"(?<!\d)300(?!\d)", t)) and post.rx300_search)  # "300 នេះលក់…"
+    # bare "300" only counts on an RX300-search post, and never as part of another model (GS300, IS300, ES300…)
+    rx_here = mentions_rx300(t, r) or (bool(re.search(r"(?<![\da-z])300(?!\d)", t)) and post.rx300_search
+                                       and not re.search(r"\b(gs|is|es|ls|nx|ux|lx)\s*-?\s*300", t))
     # the post only makes a buyer an RX300 buyer when it is an RX300 *sale* post (not news / memes that mention one)
     rx_ctx = rx_here or (mentions_rx300(post.prepared, r) and (post.is_sale or not post.text))
     related_ctx = bool(_hits(t, r.related) or _hits(post.prepared, r.related))
@@ -173,6 +181,8 @@ def classify_comment(text: str, post: PostContext | None = None, *, intent: Inte
         return LeadResult("seller_or_dealer", confidence=95, reasons=["post_author_reply"], **base)
     if is_business:
         return LeadResult("seller_or_dealer", confidence=90, reasons=["business_account"], **base)
+    if _hits(post.prepared, r.parts) and not post.is_sale_of_car():
+        return LeadResult("irrelevant", confidence=70, reasons=["parts_or_accessory_post"], **base)
     if seller and not buyer:
         return LeadResult("seller_or_dealer", confidence=70, reasons=["seller_offer", *seller[:3]], **base)
     if intent.spam_score >= 60 and not strong:
