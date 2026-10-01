@@ -183,6 +183,10 @@ def classify_comment(text: str, post: PostContext | None = None, *, intent: Inte
         return LeadResult("seller_or_dealer", confidence=90, reasons=["business_account"], **base)
     if _hits(post.prepared, r.parts) and not post.is_sale_of_car():
         return LeadResult("irrelevant", confidence=70, reasons=["parts_or_accessory_post"], **base)
+    # news, crime reports, memes…: a post that is not selling anything makes nobody under it a lead,
+    # unless the comment itself says it wants to buy an RX300
+    if post.text.strip() and not post.is_sale and not post.is_sale_of_car() and not (rx_here and (buyer or seeking)):
+        return LeadResult("irrelevant", confidence=70, reasons=["not_a_sale_post"], **base)
     if seller and not buyer:
         return LeadResult("seller_or_dealer", confidence=70, reasons=["seller_offer", *seller[:3]], **base)
     if intent.spam_score >= 60 and not strong:

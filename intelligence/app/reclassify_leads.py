@@ -36,7 +36,8 @@ def main(argv=None) -> int:
         if L.lead_type == "confirmed_rx300_buyer" and when and datetime.fromisoformat(when) < too_old:
             L.lead_type, L.reasons = "irrelevant", L.reasons + ["too_old"]
         # only correct over-confident buyers; never revive comments demoted for other reasons (e.g. too old)
-        if c["lead_type"] == "confirmed_rx300_buyer" and L.lead_type != c["lead_type"]:
+        rank = {"confirmed_rx300_buyer": 3, "potential_rx300_fit": 2, "seller_or_dealer": 1, "irrelevant": 0}
+        if c["lead_type"] in ("confirmed_rx300_buyer", "potential_rx300_fit") and rank.get(L.lead_type, 0) < rank[c["lead_type"]]:
             changes[(c["lead_type"], L.lead_type)] += 1
             if not a.dry_run:
                 httpx.patch(f"{base}/public_social_comments", headers=h, params={"id": f"eq.{c['id']}"}, json={

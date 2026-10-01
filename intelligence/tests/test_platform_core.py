@@ -445,7 +445,7 @@ def test_excluded_platform_never_runs(fake_registry, state, tmp_path):
 
 def test_hashtag_only_post_found_by_rx300_search():
     ctx = PostContext("#cambodia #tiktokviral #luxe", search_query="lok rx300")
-    assert classify_comment("តម្លៃប៉ុន្មានបង?", ctx).lead_type == "potential_rx300_fit"
+    assert classify_comment("តម្លៃប៉ុន្មានបង?", ctx).lead_type == "irrelevant"     # no sign the post sells anything
     assert classify_comment("300និងលក់នៅបងហើយដំលៃប៉ុន្មាន", ctx).lead_type == "confirmed_rx300_buyer"
     assert classify_comment("nice", ctx).lead_type == "irrelevant"
     assert classify_comment("តម្លៃប៉ុន្មានបង?", PostContext("#cambodia", search_query="family suv")).lead_type == "irrelevant"
@@ -592,3 +592,17 @@ def test_parts_posts_and_seller_replies_are_not_rx300_buyers():
     car = PostContext("Lexus RX300 ឆ្នាំ 2004 ប៉ុង1 លក់ $12,500 rims ថ្មី")
     assert classify_comment("ចង់បាន1ដំលៃម៉ានប្អូន", car).lead_type == "confirmed_rx300_buyer"
     assert classify_comment("I have a 2021 year model with panoramic sun roof", PostContext("2020 Lexus RX 300 F Sport for sale")).lead_type != "confirmed_rx300_buyer"
+
+
+def test_crime_news_about_an_rx300_has_no_leads():
+    news = PostContext("ប្រើ ឡានទំនើប ដឹកឈើប្រណិត! ក្រុមការងារ ឃាត់រថយន្ត ម៉ាកឡិចស៊ីស RX300 ពណ៌ទឹកប្រាក់ ពាក់ស្លាកលេខ ភ្នំពេញ 2AX-1394",
+                       search_query="ឡិចស៊ីស RX300")
+    for t in ("នេះចាប់បាន1ឡាន! ចុះអាឡានមិនដែល", "សួរអ្នកដឹកទៅបើមិនអោយលុយដឹកមិនបានទេ", "តម្លៃប៉ុន្មានបង?"):
+        assert classify_comment(t, news).lead_type == "irrelevant", t
+
+
+def test_facebook_and_tiktok_search_lexus_rx300_1999():
+    for plat in ("facebook_public_posts", "tiktok"):
+        qs = [q.text for q in queries_for(plat)]
+        assert qs and all(("1999" in q or "99" in q or "៩៩" in q) for q in qs), qs
+        assert {q.language for q in queries_for(plat)} == {"en", "km", "romanized_km"}

@@ -1,5 +1,5 @@
 {
-  "version": "rx300-discovery-v3",
+  "version": "rx300-discovery-v4-1999",
   "groups": {
     "rx300_confirmed": {
       "en": [
@@ -148,6 +148,35 @@
         "luxe rx300",
         "lexus rx 300 lok"
       ]
+    },
+    "rx300_1999": {
+      "en": [
+        "Lexus RX300 1999",
+        "RX300 1999",
+        "Lexus RX300 1999 for sale",
+        "RX300 1999 Cambodia",
+        "RX300 1999 price",
+        "Lexus RX300 99",
+        "RX300 99 Phnom Penh",
+        "want to buy Lexus RX300 1999"
+      ],
+      "km": [
+        "ឡិចស៊ីស RX300 ឆ្នាំ1999",
+        "RX300 ឆ្នាំ 1999",
+        "RX300 ឆ្នាំ99",
+        "ឡានលក់ RX300 1999",
+        "RX300 1999 តម្លៃ",
+        "ចង់ទិញ RX300 1999",
+        "ឡិចស៊ីស RX300 ឆ្នាំ ៩៩",
+        "rx 300 ឆ្នាំ 99"
+      ],
+      "romanized_km": [
+        "lexus rx300 1999 lok",
+        "rx300 99 lok",
+        "lan rx300 1999",
+        "rx300 chhnam 99",
+        "jong tinh rx300 1999"
+      ]
     }
   },
   "hashtags": [
@@ -188,10 +217,7 @@
     },
     "tiktok": {
       "query_groups": [
-        "rx300_confirmed",
-        "rx300_only",
-        "rx300_family",
-        "rx300_taxi"
+        "rx300_1999"
       ]
     },
     "telegram": {
@@ -235,18 +261,12 @@
     },
     "facebook_public_posts": {
       "query_groups": [
-        "rx300_confirmed",
-        "rx300_only",
-        "rx300_family",
-        "rx300_taxi"
+        "rx300_1999"
       ]
     },
     "facebook": {
       "query_groups": [
-        "rx300_confirmed",
-        "rx300_only",
-        "rx300_family",
-        "rx300_taxi"
+        "rx300_1999"
       ]
     }
   }
