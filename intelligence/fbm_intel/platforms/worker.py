@@ -378,7 +378,7 @@ class Worker:
                         fixtures=self.fixtures, reviewer=self.reviewer, notifier=self.notifier)
         st = apply_result(self.state.status(name), res, registry.platform_config(name, self.cfg), self.cfg.get("worker", {}), self.rng)
         self.state.save_status(st)
-        if self.notifier is not None and res.state in ("challenged", "blocked", "login_required") and \
+        if self.notifier is not None and res.state in ("challenged", "blocked") and \
                 registry.get(name).access == "browser_session":
             self.notifier.status(f"paused:{name}", f"⏸ {name} paused: {res.detail[:160]}\nIt retries by itself around "
                                  f"{(st.next_run_at or '')[11:16]} UTC, or run: .venv/bin/python -m app.worker reset {name}",
