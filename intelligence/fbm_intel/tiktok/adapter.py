@@ -193,6 +193,8 @@ class TikTokPublicVideosAdapter:
         except Exception:  # noqa: BLE001
             pass
         print("\a", end="", flush=True)  # terminal bell
+        from ..platforms.notify import on_challenge
+        on_challenge("TikTok", s.page.url, wait_s)
         log.warning("CAPTCHA on TikTok. Solve it yourself in the browser window (waiting up to %ds)…", wait_s)
         deadline = time.monotonic() + wait_s
         while time.monotonic() < deadline:

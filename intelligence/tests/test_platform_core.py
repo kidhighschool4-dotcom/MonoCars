@@ -273,6 +273,8 @@ def test_circuit_breaker_backoff_and_reset(fake_registry, state):
 
 def test_challenge_opens_long_cooldown(state):
     cfg = cfg_for("alpha")
+    cfg["worker"].pop("schedule_override", None)          # timed mode (nonstop off)
+    cfg["worker"]["circuit_breaker"]["challenge_cooldown_min"] = 360
     from fbm_intel.platforms.worker import CycleResult
     st = apply_result(state.status("alpha"), CycleResult("alpha", "t", state="challenged"), registry.platform_config("alpha", cfg), cfg["worker"])
     until = datetime.fromisoformat(st.circuit_open_until)
@@ -281,6 +283,7 @@ def test_challenge_opens_long_cooldown(state):
 
 def test_schedule_windows_and_jitter():
     cfg = registry.load_config()
+    cfg["worker"].pop("schedule_override", None)          # timed mode keeps the per-class windows
     rng = random.Random(1)
     t0 = datetime(2026, 10, 1, tzinfo=timezone.utc)
     for name, lo, hi in [("facebook_public_posts", 30, 60), ("youtube", 60, 180), ("forums", 360, 720)]:
@@ -513,3 +516,38 @@ def test_fingerprint_ignores_shown_time():
                      commenter_key="k" * 64, key_version="v", displayed_timestamp="3d ago", commented_at=None,
                      source_comment_id=None, source_comment_url=None, occurrence_counter={})
     assert a.fingerprint == b.fingerprint                # same comment next day → no duplicate row
+
+
+def test_nonstop_schedule_and_short_cooldowns(state):
+    cfg = registry.load_config()
+    pc = registry.platform_config("facebook_public_posts", cfg)
+    t0 = datetime(2026, 10, 1, tzinfo=timezone.utc)
+    mins = [(next_run_after(pc, 0.2, t0, random.Random(i)) - t0).total_seconds() / 60 for i in range(50)]
+    assert max(mins) <= 3.6
+    from fbm_intel.platforms.worker import CycleResult
+    st = apply_result(state.status("x"), CycleResult("x", "t", state="challenged"), pc, cfg["worker"])
+    assert datetime.fromisoformat(st.circuit_open_until) - datetime.now(timezone.utc) <= timedelta(minutes=16)
+
+
+def test_queries_rotate_across_cycles(fake_registry, state, tmp_path):
+    fake_registry("alpha")
+    cfg = cfg_for("alpha", max_queries_per_cycle=1)
+    seen = []
+    for _ in range(3):
+        res = run_cycle("alpha", cfg=cfg, state=state, sink=PreviewSink(tmp_path, "r"), keyer=KEYER)
+        seen.append(res.queries[0]["query"])
+    assert seen == ["lexus rx300", "rx300 taxi", "lexus rx300"]
+
+
+def test_challenge_hook_alerts_and_throttles(state):
+    from fbm_intel.platforms import notify
+    box = _Collect()
+    n = notify.BestBuyerNotifier(state, {}, senders=[box])
+    notify.set_challenge_hook(n.challenge)
+    try:
+        notify.on_challenge("TikTok", "https://www.tiktok.com/search", 600)
+        notify.on_challenge("TikTok", "https://www.tiktok.com/search", 600)   # within 5 min → not repeated
+        notify.on_challenge("Instagram", "https://www.instagram.com/", 600)
+    finally:
+        notify.set_challenge_hook(None)
+    assert len(box.msgs) == 2 and box.msgs[0].startswith("🧩 CAPTCHA on TikTok") and "10 min" in box.msgs[0]

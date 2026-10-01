@@ -74,6 +74,23 @@ class MacSender:
             return False
 
 
+_CHALLENGE_HOOK = None   # set by the live worker: callable(platform_label, url, wait_s)
+
+
+def set_challenge_hook(fn) -> None:
+    global _CHALLENGE_HOOK
+    _CHALLENGE_HOOK = fn
+
+
+def on_challenge(platform: str, url: str | None, wait_s: int) -> None:
+    """Called by adapters the moment a CAPTCHA/verification is on screen (before waiting for the human)."""
+    if _CHALLENGE_HOOK is not None:
+        try:
+            _CHALLENGE_HOOK(platform, url, wait_s)
+        except Exception as e:  # noqa: BLE001 - alerts never break collection
+            log.warning("challenge alert failed: %s", type(e).__name__)
+
+
 class BestBuyerNotifier:
     def __init__(self, state: WorkerState, config: dict | None = None, senders: list | None = None):
         self.state = state
@@ -88,6 +105,21 @@ class BestBuyerNotifier:
                 senders.append(MacSender())
         self.senders = senders
         self.sent: list[str] = []
+
+    def status(self, key: str, text: str, every_s: int = 900) -> bool:
+        """Operational alert (CAPTCHA, platform paused) — throttled per key so it never spams."""
+        import time
+        last = getattr(self, "_status_sent", {})
+        self._status_sent = last
+        if time.monotonic() - last.get(key, -1e9) < every_s:
+            return False
+        last[key] = time.monotonic()
+        logging.getLogger("fbm_intel.alerts.sent").info("\n%s\n", text)
+        return any([s.send(text) for s in self.senders]) if self.senders else False
+
+    def challenge(self, platform: str, url: str | None, wait_s: int) -> None:
+        self.status(f"captcha:{platform}", f"🧩 CAPTCHA on {platform}\nSolve it in the {platform} browser window on your Mac "
+                                            f"within {max(1, wait_s // 60)} min, or {platform} pauses for a while.", every_s=300)
 
     def is_recent(self, c, post: SocialPost | None) -> bool:
         from datetime import datetime, timedelta, timezone

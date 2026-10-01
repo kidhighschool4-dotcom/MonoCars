@@ -3,15 +3,18 @@
   "notes": "Every platform is off until explicitly enabled (here, or with `python -m app.worker enable <platform>`). Continuous live operation additionally requires --live.",
   "worker": {
     "tick_s": 20,
+    "schedule_override": "nonstop",
+    "notes_schedule": "nonstop = every platform starts its next round 1–3 min after the last (owner's choice). Remove schedule_override to go back to the per-platform classes.",
     "jitter_fraction": 0.2,
-    "circuit_breaker": {"failure_threshold": 3, "base_cooldown_min": 30, "max_cooldown_min": 720, "challenge_cooldown_min": 360, "login_cooldown_min": 720},
+    "circuit_breaker": {"failure_threshold": 3, "base_cooldown_min": 5, "max_cooldown_min": 60, "challenge_cooldown_min": 15, "login_cooldown_min": 60, "misconfigured_cooldown_min": 60},
     "state_path": "private/worker_state.sqlite",
     "preview_dir": "artifacts/preview"
   },
   "schedule_classes": {
     "cambodia_high_value": {"interval_min": 30, "interval_max": 60},
     "global_social": {"interval_min": 60, "interval_max": 180},
-    "slow_forums_classifieds": {"interval_min": 360, "interval_max": 720}
+    "slow_forums_classifieds": {"interval_min": 360, "interval_max": 720},
+    "nonstop": {"interval_min": 1, "interval_max": 3}
   },
   "budgets": {
     "max_posts_per_query": 10,

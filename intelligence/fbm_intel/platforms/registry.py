@@ -71,7 +71,8 @@ def platform_config(name: str, cfg: dict | None = None) -> dict:
     cfg = cfg or load_config()
     p = copy.deepcopy(cfg["platforms"].get(name, {}))
     budgets = {**cfg.get("budgets", {}), **p.get("budgets", {})}
-    sched = cfg.get("schedule_classes", {}).get(p.get("schedule", "global_social"), {"interval_min": 60, "interval_max": 180})
+    klass = cfg.get("worker", {}).get("schedule_override") or p.get("schedule", "global_social")
+    sched = cfg.get("schedule_classes", {}).get(klass, {"interval_min": 60, "interval_max": 180})
     return {**p, "name": name, "budgets": budgets, "schedule_window": sched,
             "screenshot_min_score": p.get("screenshot_min_score", cfg.get("screenshot_min_score", 70)),
             "persist_policy": p.get("persist_policy", cfg.get("persist_policy", "buyers")),

@@ -181,6 +181,8 @@ def main(argv: list[str] | None = None) -> int:
         names = [p.strip() for p in a.platforms.split(",")] if a.platforms else None
         live_state = _state(cfg, preview=False)
         notifier = BestBuyerNotifier(live_state, cfg.get("alerts"))
+        from fbm_intel.platforms.notify import set_challenge_hook
+        set_challenge_hook(notifier.challenge)
         w = Worker(cfg=cfg, state=live_state, sink=SupabaseSink(st_settings, owner), keyer=keyer,
                    platforms=names, headed=not a.headless, require_enabled=True, notifier=notifier,
                    reviewer=reviewer_from_settings(st_settings) if cfg.get("ai_review", {}).get("enabled") else None)

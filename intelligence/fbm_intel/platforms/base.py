@@ -59,7 +59,7 @@ class BrowserAdapterBase(PlatformAdapter):
     profile_name: str = ""               # private/<profile_name> persistent profile (manual login)
     login_url: str | None = None
     hide_css: str = BASE_HIDE_CSS
-    challenge_wait_s: int = 180
+    challenge_wait_s: int = 600
 
     def __init__(self, ctx: AdapterContext):
         super().__init__(ctx)
@@ -114,6 +114,8 @@ class BrowserAdapterBase(PlatformAdapter):
             with contextlib.suppress(Exception):
                 self.s.page.bring_to_front()
             print("\a", end="", flush=True)
+            from .notify import on_challenge
+            on_challenge(self.display_name or self.name, getattr(self.s.page, "url", None), self.challenge_wait_s)
             log.warning("%s: CAPTCHA/verification shown. Solve it yourself in the browser window (up to %ds)…",
                         self.display_name or self.name, self.challenge_wait_s)
             deadline = time.monotonic() + self.challenge_wait_s

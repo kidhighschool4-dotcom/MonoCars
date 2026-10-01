@@ -154,8 +154,14 @@ def _run_with_adapter(cls, ctx, name, pcfg, state, sink, budget, res, max_querie
             err = PlatformError(h.detail or h.state)
             err.state = h.state
             raise err
-        qs = queries_for(name, pcfg.get("discovery"), limit=max_queries or pcfg["budgets"].get("max_queries_per_cycle"),
-                         record_platform=adapter.platform)
+        all_qs = queries_for(name, pcfg.get("discovery"), record_platform=adapter.platform)
+        per_cycle = max_queries or pcfg["budgets"].get("max_queries_per_cycle") or len(all_qs)
+        # rotate through the whole query list across cycles instead of repeating the first few
+        rot = state.checkpoint(name, "__rotation__")
+        start = int(rot.cursor or 0) % max(1, len(all_qs))
+        qs = (all_qs[start:] + all_qs[:start])[:per_cycle]
+        rot.cursor = str((start + per_cycle) % max(1, len(all_qs)))
+        state.save_checkpoint(name, rot)
         revisit = timedelta(hours=float(pcfg.get("revisit_after_h", 12)))
         threshold = int(pcfg.get("screenshot_min_score", 70))
         for q in qs:
@@ -301,7 +307,7 @@ def apply_result(st: PlatformStatus, res: CycleResult, pcfg: dict, wcfg: dict, r
     elif res.state == "login_required":
         cool = float(cb.get("login_cooldown_min", 720))
     elif res.state == "misconfigured":
-        cool = 24 * 60.0
+        cool = float(cb.get("misconfigured_cooldown_min", 24 * 60))
     elif res.state == "rate_limited":
         cool = base
     elif st.consecutive_failures >= int(cb.get("failure_threshold", 3)):
@@ -372,6 +378,11 @@ class Worker:
                         fixtures=self.fixtures, reviewer=self.reviewer, notifier=self.notifier)
         st = apply_result(self.state.status(name), res, registry.platform_config(name, self.cfg), self.cfg.get("worker", {}), self.rng)
         self.state.save_status(st)
+        if self.notifier is not None and res.state in ("challenged", "blocked", "login_required") and \
+                registry.get(name).access == "browser_session":
+            self.notifier.status(f"paused:{name}", f"⏸ {name} paused: {res.detail[:160]}\nIt retries by itself around "
+                                 f"{(st.next_run_at or '')[11:16]} UTC, or run: .venv/bin/python -m app.worker reset {name}",
+                                 every_s=3600)
         self.sink.save_status(name, {"state": res.state, "detail": res.detail[:500], "consecutive_failures": st.consecutive_failures,
                                      "circuit_open_until": st.circuit_open_until, "last_success_at": st.last_success_at,
                                      "last_run_at": st.last_run_at, "next_run_at": st.next_run_at,
