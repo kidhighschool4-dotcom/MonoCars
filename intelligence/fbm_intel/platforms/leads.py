@@ -109,6 +109,14 @@ class PostContext:
         return mentions_rx300(self.search_query)
 
     @property
+    def is_sale(self) -> bool:
+        """The post is offering a car (price / for sale / លក់ …) — not news, memes or chatter."""
+        r = load_rules()
+        t = self.prepared
+        return bool(_hits(t, r.seller) or any(x.search(t) for x in r.seller_regex) or
+                    re.search(r"\$\s?\d|\d[\d,.]*\s?\$|\bprice\b|\bsale\b|តម្លៃ|តំលៃ|លក់|ដុល្លារ|\blok\b|\bdomlai\b", t))
+
+    @property
     def prepared(self) -> str:
         return prep(self.text)
 
@@ -151,7 +159,8 @@ def classify_comment(text: str, post: PostContext | None = None, *, intent: Inte
     intent = intent or score_comment(text)
     t = prep(text)
     rx_here = mentions_rx300(t, r) or (bool(re.search(r"(?<!\d)300(?!\d)", t)) and post.rx300_search)  # "300 នេះលក់…"
-    rx_ctx = rx_here or mentions_rx300(post.prepared, r)
+    # the post only makes a buyer an RX300 buyer when it is an RX300 *sale* post (not news / memes that mention one)
+    rx_ctx = rx_here or (mentions_rx300(post.prepared, r) and (post.is_sale or not post.text))
     related_ctx = bool(_hits(t, r.related) or _hits(post.prepared, r.related))
     fam, taxi = _hits(t, r.family), _hits(t, r.taxi)
     seeking = [] if _negated(intent) else _hits(t, r.seeking)   # "ot jong tinh te" negates the phrase

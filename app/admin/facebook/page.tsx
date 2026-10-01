@@ -376,7 +376,7 @@ export default async function FacebookDataPage({ searchParams }: { searchParams:
                 ['With screenshot', withShots, ''],
                 ['Comments', comments.length, ''],
               ] as const).map(([l, v, cls]) => (
-                <div key={l} className={clsx('rounded-2xl border border-line bg-surface px-4 py-2 min-w-[92px]', cls)}>
+                <div key={l} className={clsx('rounded-2xl border px-4 py-2 min-w-[92px]', cls || 'border-line bg-surface text-ink')}>
                   <dt className={clsx('text-[11px] uppercase tracking-wide', cls ? 'text-white/80' : 'text-muted')}>{l}</dt>
                   <dd className="text-xl font-semibold tnum">{v}</dd>
                 </div>

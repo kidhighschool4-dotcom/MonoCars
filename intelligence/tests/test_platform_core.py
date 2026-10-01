@@ -569,3 +569,12 @@ def test_every_facebook_and_tiktok_query_names_the_rx300():
     for plat in ("facebook_public_posts", "tiktok"):
         qs = queries_for(plat)
         assert qs and all(mentions_rx300(q.text) for q in qs), [q.text for q in qs if not mentions_rx300(q.text)]
+
+
+def test_news_post_mentioning_rx300_does_not_make_buyers():
+    news = PostContext("Breaking: RX300 involved in an accident on National Road 4, driver taken to hospital")
+    assert classify_comment("can deliver?", news).lead_type != "confirmed_rx300_buyer"
+    assert classify_comment("តម្លៃប៉ុន្មានបង?", news).lead_type != "confirmed_rx300_buyer"
+    assert classify_comment("ចង់ទិញ RX300 តម្លៃប៉ុន្មាន", news).lead_type == "confirmed_rx300_buyer"   # names the RX300 itself
+    sale = PostContext("Lexus RX300 2004 លក់ $12,500")
+    assert classify_comment("តម្លៃប៉ុន្មានបង?", sale).lead_type == "confirmed_rx300_buyer"
