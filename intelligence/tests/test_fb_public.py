@@ -530,3 +530,24 @@ class TestRepoScreenshots:
         assert not any("screenshot_path" in r for r in fake.posts + fake.comments)
         assert sum("screenshot_path columns missing" in r.message for r in caplog.records) == 1
         assert fake.errors == 1
+
+
+@pytest.mark.browser
+def test_facebook_chrome_with_owner_and_friend_names_is_hidden():
+    """The composer ('Comment as <owner>'), birthday reminders and side panels must never be in a screenshot."""
+    from fbm_intel.fb_public.adapter import _HIDE_CHROME_JS
+    from playwright.sync_api import sync_playwright
+    html = """<div role="banner">Owner Name menu</div>
+      <div role="complementary"><span>Friend Person's birthday is today</span></div>
+      <div role="dialog"><h2>Some Person's Post</h2><div role="main" style="max-width:680px">post
+        <form><div contenteditable="true" aria-label="Comment as Owner Name"></div><span>Comment as Owner Name</span></form></div></div>"""
+    with sync_playwright() as p:
+        b = p.chromium.launch()
+        pg = b.new_page()
+        pg.set_content(html)
+        pg.add_style_tag(content="[data-fbm-hide], [data-fbm-hide] * { visibility: hidden !important; }")
+        pg.evaluate(_HIDE_CHROME_JS)
+        vis = pg.evaluate("""() => Array.from(document.querySelectorAll('*')).filter(e => /Owner Name|Friend Person|Some Person/.test(e.textContent)
+                  && !e.children.length && getComputedStyle(e).visibility !== 'hidden').map(e => e.textContent)""")
+        b.close()
+    assert vis == []

@@ -125,25 +125,6 @@ function Shot({ src, alt, className }: { src?: string; alt: string; className?: 
   )
 }
 
-function PostPreview({ p, shot }: { p: PostRow | undefined; shot?: string }) {
-  if (!p) return null
-  const text = p.post_text ?? ''
-  return (
-    <div className="rounded-2xl border border-line bg-surface p-4">
-      <div className="flex items-center gap-2 text-xs text-muted">
-        <span className="font-semibold text-ink">Post</span>
-        <span>· search “{p.search_query}”</span>
-        <span>· {fmt(p.published_at_observed ?? p.captured_at)}</span>
-        <span className="ml-auto"><FbLink href={p.canonical_post_url} label="Open on Facebook" /></span>
-      </div>
-      <div className={clsx('mt-3 grid gap-4', shot && 'md:grid-cols-[minmax(0,1fr)_280px]')}>
-        <p className="text-sm text-ink whitespace-pre-wrap line-clamp-[8]">{text || <span className="text-subtle">(no text)</span>}</p>
-        <Shot src={shot} alt="Post screenshot (names hidden)" />
-      </div>
-    </div>
-  )
-}
-
 function CommentCard({ c, depth, shot }: { c: CommentRow; depth: number; shot?: string }) {
   return (
     <div className={clsx('rounded-2xl border p-4', c.buyer_intent ? 'border-emerald-200 bg-emerald-50/50' : 'border-line bg-surface', depth > 0 && 'ml-6 md:ml-10')}>
@@ -195,6 +176,93 @@ function Thread({ comments, parentId, depth, shots }: { comments: CommentRow[]; 
         </div>
       ))}
     </div>
+  )
+}
+
+function LeadCard({ c, p, parent, postShot, commentShot }: {
+  c: CommentRow; p: PostRow | undefined; parent?: CommentRow; postShot?: string; commentShot?: string
+}) {
+  const link = c.canonical_comment_url ?? c.source_comment_url
+  return (
+    <article className="group flex flex-col rounded-3xl border border-line bg-surface overflow-hidden shadow-sm hover:shadow-md transition-shadow">
+      {/* Post screenshot (names hidden) — or a text preview until one is captured */}
+      <a href={postShot ?? p?.canonical_post_url ?? '#'} target="_blank" rel="noopener noreferrer"
+        className="relative block aspect-[16/10] bg-paper overflow-hidden border-b border-line">
+        {postShot ? (
+          // eslint-disable-next-line @next/next/no-img-element -- short-lived signed URL from a private bucket
+          <img src={postShot} alt="Post screenshot (names hidden)" className="w-full h-full object-cover object-top group-hover:scale-[1.01] transition-transform" />
+        ) : (
+          <div className="absolute inset-0 p-6 flex flex-col justify-between bg-gradient-to-br from-brand-soft to-paper">
+            <p className="text-ink text-lg leading-snug line-clamp-5 whitespace-pre-wrap">{p?.post_text ?? '(no post text)'}</p>
+            <span className="text-xs text-muted">Screenshot not captured yet</span>
+          </div>
+        )}
+        <span className="absolute top-3 left-3 inline-flex items-center gap-1 rounded-full bg-ink/80 text-white text-[11px] font-semibold px-2.5 py-1 backdrop-blur">
+          Facebook post
+        </span>
+        {p?.published_at_observed && (
+          <span className="absolute top-3 right-3 rounded-full bg-white/90 text-ink text-[11px] font-medium px-2.5 py-1">
+            {new Date(p.published_at_observed).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
+          </span>
+        )}
+      </a>
+
+      <div className="flex-1 flex flex-col gap-3 p-5">
+        <div className="flex flex-wrap items-center gap-1.5">
+          <Chip className="bg-emerald-600 text-white"><Star className="w-3 h-3" /> Buyer</Chip>
+          {c.buyer_intent_signals.map((s) => <Chip key={s} className="bg-emerald-50 text-emerald-800">{SIGNAL_LABEL[s] ?? s}</Chip>)}
+          <span className="ml-auto text-[11px] text-subtle">{shortKey(c.commenter_key)}</span>
+        </div>
+
+        {parent && (
+          <div className="flex gap-2 text-sm text-muted">
+            <CornerDownRight className="w-4 h-4 mt-0.5 flex-shrink-0" />
+            <p className="line-clamp-2">Replying to: “{parent.comment_text}”</p>
+          </div>
+        )}
+
+        {/* The buyer's words, big — this is what matters */}
+        <blockquote className="relative rounded-2xl rounded-tl-sm bg-emerald-50 border border-emerald-100 px-4 py-3">
+          <MessageSquare className="absolute -top-2 -left-2 w-5 h-5 text-emerald-600 bg-surface rounded-full p-0.5" />
+          <p className="text-ink text-lg font-medium whitespace-pre-wrap break-words">{c.comment_text}</p>
+          <p className="mt-1 text-[11px] text-emerald-800/80">
+            {c.commented_at_observed ? `Commented ${fmt(c.commented_at_observed)}` : `Captured ${fmt(c.captured_at)}`}
+          </p>
+        </blockquote>
+
+        {commentShot && (
+          <a href={commentShot} target="_blank" rel="noopener noreferrer" className="block rounded-xl overflow-hidden border border-line bg-paper">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={commentShot} alt="Comment screenshot (name hidden)" className="w-full max-h-48 object-contain object-left-top" />
+          </a>
+        )}
+
+        {p?.post_text && postShot && <p className="text-sm text-muted line-clamp-2">{p.post_text}</p>}
+
+        <div className="mt-auto pt-2 flex flex-wrap items-center gap-2">
+          {link && (
+            <a href={link} target="_blank" rel="noopener noreferrer"
+              className="inline-flex items-center gap-1.5 rounded-full bg-ink text-white text-sm font-semibold px-4 py-2 hover:bg-brand transition-colors">
+              Open comment <ExternalLink className="w-3.5 h-3.5" />
+            </a>
+          )}
+          {p && (
+            <a href={p.canonical_post_url} target="_blank" rel="noopener noreferrer"
+              className="inline-flex items-center gap-1.5 rounded-full border border-line text-ink text-sm font-medium px-4 py-2 hover:border-ink transition-colors">
+              Open post <ExternalLink className="w-3.5 h-3.5" />
+            </a>
+          )}
+          <details className="ml-auto text-xs text-muted">
+            <summary className="cursor-pointer select-none">Details</summary>
+            <dl className="mt-2 space-y-1">
+              <div>Search: “{p?.search_query}”</div>
+              <div>Matched: {c.matched_phrases.map((x) => `“${x}”`).join(', ') || '—'}</div>
+              <div className="font-mono break-all">{c.comment_fingerprint.slice(0, 24)}…</div>
+            </dl>
+          </details>
+        </div>
+      </div>
+    </article>
   )
 }
 
@@ -257,94 +325,87 @@ export default async function FacebookDataPage({ searchParams }: { searchParams:
     return `/admin/facebook?${p.toString()}`
   }
 
+  const shownBuyers = buyers.filter((c) => textHit(c.comment_text) && (!query || postById.get(c.post_id)?.search_query === query))
+  const withShots = posts.filter((p) => p.screenshot_path).length
+
   return (
-    <div className="min-h-screen">
-      <div className="bg-surface border-b border-line">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-12 pb-8">
-          <p className="inline-flex items-center gap-2 text-sm font-medium text-muted mb-3"><span className="w-1.5 h-1.5 rounded-full bg-brand" />Private · {user.email}</p>
-          <h1 className="text-4xl md:text-5xl font-semibold tracking-tight text-ink">Facebook data</h1>
-          <p className="mt-3 text-muted max-w-3xl">
-            Public car posts and their public comments collected by the listing-intelligence crawler. Commenters are shown as
-            pseudonymous keys — open a comment link to see it on Facebook.
-          </p>
+    <div className="min-h-screen bg-paper/40">
+      <header className="bg-surface border-b border-line">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-8 pb-6">
+          <div className="flex flex-wrap items-end justify-between gap-4">
+            <div>
+              <p className="inline-flex items-center gap-2 text-xs font-medium text-muted"><span className="w-1.5 h-1.5 rounded-full bg-brand" />Private · {user.email}</p>
+              <h1 className="mt-1 text-3xl md:text-4xl font-semibold tracking-tight text-ink">Facebook buyers</h1>
+              <p className="mt-1 text-sm text-muted">Public car posts and the people asking to buy in the comments. Names are never stored.</p>
+            </div>
+            <dl className="flex flex-wrap gap-2">
+              {([
+                ['Buyers', buyers.length, 'bg-emerald-600 text-white border-emerald-600'],
+                ['Unique', uniqueBuyers, ''],
+                ['Posts', posts.length, ''],
+                ['With screenshot', withShots, ''],
+                ['Comments', comments.length, ''],
+              ] as const).map(([l, v, cls]) => (
+                <div key={l} className={clsx('rounded-2xl border border-line bg-surface px-4 py-2 min-w-[92px]', cls)}>
+                  <dt className={clsx('text-[11px] uppercase tracking-wide', cls ? 'text-white/80' : 'text-muted')}>{l}</dt>
+                  <dd className="text-xl font-semibold tnum">{v}</dd>
+                </div>
+              ))}
+            </dl>
+          </div>
+        </div>
+      </header>
 
-          <dl className="mt-8 grid grid-cols-2 md:grid-cols-5 gap-3">
-            {[
-              ['Public posts', posts.length],
-              ['Comments + replies', comments.length],
-              ['Buyer comments', buyers.length],
-              ['Unique buyers', uniqueBuyers],
-              ['Skipped posts', skips.length],
-            ].map(([l, v]) => (
-              <div key={l as string} className="rounded-2xl bg-paper border border-line p-4">
-                <dt className="text-sm text-muted">{l}</dt>
-                <dd className="text-2xl font-semibold text-ink tnum mt-1">{v as number}</dd>
-              </div>
-            ))}
-          </dl>
-
-          <nav className="mt-8 flex flex-wrap gap-2" aria-label="Sections">
+      {/* Sticky toolbar: sections + search in one row */}
+      <div className="sticky top-0 z-20 bg-surface/90 backdrop-blur border-b border-line">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3 flex flex-wrap items-center gap-2">
+          <nav className="flex flex-wrap gap-1 rounded-full bg-paper p-1" aria-label="Sections">
             {tabs.map((t) => (
               <Link key={t.id} href={href({ tab: t.id })}
-                className={clsx('px-4 py-2.5 rounded-full text-sm font-medium border transition-colors',
-                  tab === t.id ? 'bg-ink text-white border-ink' : 'bg-surface text-ink border-line hover:border-ink')}>
-                {t.label} <span className="tnum opacity-70">{t.count}</span>
+                className={clsx('px-3.5 py-1.5 rounded-full text-sm font-medium transition-colors',
+                  tab === t.id ? 'bg-ink text-white' : 'text-ink hover:bg-surface')}>
+                {t.label} <span className="tnum opacity-60">{t.count}</span>
               </Link>
             ))}
           </nav>
-
-          <form className="mt-4 flex flex-wrap items-center gap-2" action="/admin/facebook">
+          <form className="flex flex-1 flex-wrap items-center gap-2 justify-end" action="/admin/facebook">
             <input type="hidden" name="tab" value={tab} />
-            <label className="relative flex-1 min-w-[220px] max-w-md">
+            <label className="relative flex-1 min-w-[200px] max-w-sm">
               <span className="sr-only">Search text</span>
-              <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-muted" />
-              <input name="q" defaultValue={q} placeholder="Search post or comment text (Khmer or English)"
-                className="w-full rounded-full border border-line bg-surface pl-11 pr-4 py-2.5 text-sm focus:outline-none focus:border-brand" />
+              <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted" />
+              <input name="q" defaultValue={q} placeholder="Search Khmer or English…"
+                className="w-full rounded-full border border-line bg-surface pl-10 pr-4 py-2 text-sm focus:outline-none focus:border-brand" />
             </label>
             {(tab === 'posts' || tab === 'buyers') && (
-              <select name="query" defaultValue={query} className="rounded-full border border-line bg-surface px-4 py-2.5 text-sm">
-                <option value="">All search queries</option>
+              <select name="query" defaultValue={query} className="rounded-full border border-line bg-surface px-3 py-2 text-sm max-w-[200px]">
+                <option value="">All searches</option>
                 {queries.map((x) => <option key={x} value={x}>{x}</option>)}
               </select>
             )}
             {tab === 'posts' && (
-              <label className="inline-flex items-center gap-2 text-sm text-ink px-2">
-                <input type="checkbox" name="buyers" value="1" defaultChecked={buyersOnly} /> Only posts with buyers
+              <label className="inline-flex items-center gap-2 text-sm text-ink px-1">
+                <input type="checkbox" name="buyers" value="1" defaultChecked={buyersOnly} /> With buyers
               </label>
             )}
-            <button className="px-5 py-2.5 rounded-full bg-ink text-white text-sm font-semibold hover:bg-brand transition-colors">Apply</button>
-            {(q || query || buyersOnly) && <Link href={`/admin/facebook?tab=${tab}`} className="text-sm text-brand px-2">Clear</Link>}
+            <button className="px-4 py-2 rounded-full bg-ink text-white text-sm font-semibold hover:bg-brand transition-colors">Apply</button>
+            {(q || query || buyersOnly) && <Link href={`/admin/facebook?tab=${tab}`} className="text-sm text-brand px-1">Clear</Link>}
           </form>
         </div>
       </div>
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* ── Buyer comments ── */}
+        {/* ── Buyers: screenshot-first cards ── */}
         {tab === 'buyers' && (
-          <div className="space-y-3">
-            {buyers
-              .filter((c) => textHit(c.comment_text) && (!query || postById.get(c.post_id)?.search_query === query))
-              .map((c) => {
-                const p = postById.get(c.post_id)
-                const parent = c.parent_comment_id ? commentById.get(c.parent_comment_id) : undefined
-                return (
-                  <article key={c.id} className="rounded-3xl border border-line bg-paper/60 p-3 md:p-4 space-y-3">
-                    <PostPreview p={p} shot={postShots.get(c.post_id)} />
-                    {parent && (
-                      <div className="ml-4 md:ml-6 rounded-2xl border border-line bg-surface p-3 text-sm">
-                        <span className="text-xs text-muted">Replying to {shortKey(parent.commenter_key)}:</span>
-                        <p className="mt-1 text-ink whitespace-pre-wrap line-clamp-3">{parent.comment_text}</p>
-                      </div>
-                    )}
-                    <CommentCard c={c} depth={parent ? 1 : 0} shot={commentShots.get(c.id)} />
-                    <p className="text-xs text-muted pl-2">
-                      Comment link: <FbLink href={c.canonical_comment_url ?? c.source_comment_url} label={c.canonical_comment_url || c.source_comment_url ? 'Open comment on Facebook' : undefined} /> · captured {fmt(c.captured_at)}
-                    </p>
-                  </article>
-                )
-              })}
-            {buyers.length === 0 && <p className="text-muted">No buyer comments yet.</p>}
-          </div>
+          <>
+            <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
+              {shownBuyers.map((c) => (
+                <LeadCard key={c.id} c={c} p={postById.get(c.post_id)}
+                  parent={c.parent_comment_id ? commentById.get(c.parent_comment_id) : undefined}
+                  postShot={postShots.get(c.post_id)} commentShot={commentShots.get(c.id)} />
+              ))}
+            </div>
+            {shownBuyers.length === 0 && <p className="text-muted">No buyer comments{q || query ? ' match these filters' : ' yet'}.</p>}
+          </>
         )}
 
         {/* ── Posts with full threads ── */}

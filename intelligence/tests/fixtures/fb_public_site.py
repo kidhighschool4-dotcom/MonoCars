@@ -28,7 +28,7 @@ def result(href: str, label: str = "", group_text: str = "", body: str = "") -> 
 
 
 SEARCH = f"""<!doctype html><html><head><title>car sedan - Search results | Facebook</title></head><body>
-<div role="main"><div role="feed">
+<div role="main" style="max-width:680px;margin:0 auto"><div role="feed">
 {result("https://web.facebook.com/carshop.pp/posts/pfbid0111?__cft__[0]=AZX&__tn__=%2CO%2CP-R", "Shared with Public", body="2019 Camry sedan for sale $18,500")}
 {result("https://www.facebook.com/john.smith/posts/222222222", "Shared with Friends", body="my sedan")}
 {result("https://www.facebook.com/groups/555001/posts/333333333/", "", "Private group", "sedan in private group")}
@@ -52,7 +52,7 @@ def comment(kind: str, text: str, permalink: str | None, author: str | None, tim
 
 P = "https://www.facebook.com/carshop.pp/posts/pfbid0111"
 POST_111 = f"""<!doctype html><html><head><title>Car Shop PP | Facebook</title></head><body>
-<div role="main">
+<div role="main" style="max-width:680px;margin:0 auto">
  <div role="article">
   <h2><a href="https://www.facebook.com/carshop.pp?__cft__[0]=Q">Car Shop PP</a></h2>
   <a href="{P}?__cft__[0]=Z">2d</a> {icon("Shared with Public")}
@@ -74,14 +74,14 @@ POST_111 = f"""<!doctype html><html><head><title>Car Shop PP | Facebook</title><
 </div>{EXPAND_JS}</body></html>"""
 
 G = "https://www.facebook.com/groups/carskh/posts/444444444"
-POST_444 = f"""<!doctype html><html><head><title>Cars KH | Facebook</title></head><body><div role="main">
+POST_444 = f"""<!doctype html><html><head><title>Cars KH | Facebook</title></head><body><div role="main" style="max-width:680px;margin:0 auto">
  <div role="article"><span>Cars Cambodia · Public group</span>
   <a href="https://www.facebook.com/seller.one">Seller</a> <a href="{G}">1d</a>
   <div data-ad-preview="message">Honda Accord sedan 2018 for sale</div></div>
  {comment("comment", "Interested, inbox me", G + "?comment_id=G1", "https://www.facebook.com/buyer.two", "4h")}
 </div></body></html>"""
 
-POST_777 = """<!doctype html><html><head><title>Dealer | Facebook</title></head><body><div role="main">
+POST_777 = """<!doctype html><html><head><title>Dealer | Facebook</title></head><body><div role="main" style="max-width:680px;margin:0 auto">
  <div role="article"><a href="https://www.facebook.com/dealer.kh">Dealer</a>
   <a href="https://www.facebook.com/dealer.kh/posts/777777777">1d</a><span><svg><title>Shared with Friends</title></svg></span>
   <div data-ad-preview="message">Now friends only</div></div></div></body></html>"""
@@ -95,7 +95,7 @@ SEARCH_BLOCKED = f"""<!doctype html><html><head><title>Search | Facebook</title>
 R = "https://www.facebook.com/realshape.kh/posts/999999999"
 POST_REAL_SHAPE = f"""<!doctype html><html><head><title>Real shape | Facebook</title></head><body>
 <div role="dialog"><div>Notifications</div><div role="article" aria-label="">unrelated</div></div>
-<div role="main"><div>feed behind the dialog</div></div>
+<div role="main" style="max-width:680px;margin:0 auto"><div>feed behind the dialog</div></div>
 <div role="dialog">
   <div><a href="https://www.facebook.com/realshape.kh">Real Shape Auto</a> <a href="{R}?__cft__[0]=q">5h</a>
        <span><svg><title>Shared with Public</title></svg></span></div>
@@ -108,7 +108,7 @@ POST_REAL_SHAPE = f"""<!doctype html><html><head><title>Real shape | Facebook</t
 </div></body></html>"""
 
 T = "https://www.facebook.com/tall.kh/posts/121212121"
-POST_TALL = f"""<!doctype html><html><head><title>Tall | Facebook</title></head><body><div role="main">
+POST_TALL = f"""<!doctype html><html><head><title>Tall | Facebook</title></head><body><div role="main" style="max-width:680px;margin:0 auto">
  <div role="article"><h3><a href="https://www.facebook.com/tall.kh"><svg width="40" height="40"><image href="data:,"/></svg>Tall Seller</a></h3>
   <a href="{T}">3h</a><span><svg><title>Shared with Public</title></svg></span>
   <div data-ad-preview="message" style="height:3000px">Range Rover 2020 for sale, many photos below</div></div>

@@ -207,12 +207,52 @@ _MARK_COMMENT_JS = r"""([snippet, id]) => {
 }"""
 
 _REGION_RECT_JS = r"""(maxH) => {
-  const el = document.querySelector('[data-fbm-post-region]');
-  if (!el) return null;
-  const r = el.getBoundingClientRect();
-  const docW = Math.max(document.documentElement.scrollWidth, document.body ? document.body.scrollWidth : 0);
-  const x = Math.max(0, r.left + window.scrollX), y = Math.max(0, r.top + window.scrollY);
-  return {x, y, width: Math.min(r.width, docW - x), height: Math.min(r.height, maxH)};
+  // The post CARD, not the full-screen overlay: the widest ancestor of the post message / first comment that is still
+  // clearly narrower than the window. If none qualifies, return null (no screenshot rather than the whole window).
+  const region = document.querySelector('[data-fbm-post-region]');
+  if (!region) return null;
+  const vw = window.innerWidth;
+  const seed = region.querySelector('[data-ad-comet-preview="message"],[data-ad-preview="message"],[data-testid="post-message"]')
+            || region.querySelector('[role="article"][aria-label^="Comment by" i]') || region.querySelector('img');
+  if (!seed) return null;
+  let best = null;
+  for (let e = seed; e && e !== region.parentElement; e = e.parentElement) {
+    const r = e.getBoundingClientRect();
+    if (r.width > 0.8 * vw) break;
+    if (r.width >= 300 && r.height >= 120) best = e;
+  }
+  if (!best) return null;
+  // Facebook shows posts in a fixed overlay with its own scroller: bring the card to the top of the screen and clip to
+  // what is visible (viewport coordinates), instead of page coordinates that point at empty background.
+  best.scrollIntoView({block: 'start'});
+  seed.scrollIntoView({block: 'start'});   // then the post's own text/media at the top of the shot
+  const r = best.getBoundingClientRect();
+  const top = Math.max(0, r.top), left = Math.max(0, r.left);
+  const h = Math.min(r.bottom, window.innerHeight) - top, w = Math.min(r.right, vw) - left;
+  if (w < 200 || h < 100) return null;
+  return {x: left, y: top, width: w, height: Math.min(h, maxH)};
+}"""
+
+
+# Facebook chrome that can show the OWNER's or friends' names (composer "Comment as …", birthdays, contacts, menus)
+_HIDE_CHROME_JS = r"""() => {
+  const keep = document.querySelector('[data-ad-comet-preview="message"],[data-ad-preview="message"],[data-testid="post-message"]')
+            || document.querySelector('[role="article"][aria-label^="Comment by" i]');
+  const safe = el => el && el !== document.body && el !== document.documentElement && !(keep && el.contains(keep));
+  const hide = el => { if (safe(el)) el.setAttribute('data-fbm-hide', '1'); };
+  document.querySelectorAll('[role="banner"],[role="navigation"],[role="complementary"],[role="menu"],[role="listbox"],' +
+    '[role="dialog"] h2,[role="dialog"] h1,[contenteditable="true"],[aria-label^="Comment as" i],[aria-label^="Write a" i],' +
+    '[aria-label^="Reply as" i],[aria-placeholder]').forEach(hide);
+  for (const el of document.querySelectorAll('span,div')) {
+    if (el.children.length > 2) continue;
+    const t = (el.textContent || '').trim();
+    if (t.length > 120) continue;                       // short UI text only, never a big container
+    if (/^(comment as|reply as|write a (public )?comment|answer as)\b/i.test(t) || /birthday/i.test(t) || /^contacts$/i.test(t)) {
+      const target = el.closest('form') || el.closest('[role="complementary"]') || el;
+      hide(safe(target) ? target : el);
+    }
+  }
+  return true;
 }"""
 
 
@@ -454,6 +494,7 @@ class FacebookPublicPostsAdapter:
         """Hide commenter/author names, profile links and avatars. Must run before every capture."""
         s.page.add_style_tag(content=_HIDE_CSS)
         s.page.evaluate(_MARK_NAMES_JS)
+        s.page.evaluate(_HIDE_CHROME_JS)
 
     def capture_evidence(self, s: BrowserSession, post: PublicPost) -> None:
         """One post-region screenshot + one per buyer-intent comment. Failures are logged, never raised."""
@@ -480,7 +521,8 @@ class FacebookPublicPostsAdapter:
         clip = s.page.evaluate(_REGION_RECT_JS, POST_SHOT_MAX_HEIGHT)
         if not clip or clip["width"] <= 0 or clip["height"] <= 0:
             return None
-        return _evidence(s.page.screenshot(full_page=True, clip=clip), "post")
+        s.page.wait_for_timeout(400)            # let images settle after scrolling the card into view
+        return _evidence(s.page.screenshot(clip=clip), "post")
 
     def _screenshot_comment(self, s: BrowserSession, text: str, n: int) -> Evidence | None:
         snippet = comment_snippet(text)
