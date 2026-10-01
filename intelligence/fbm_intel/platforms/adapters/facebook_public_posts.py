@@ -33,7 +33,9 @@ def to_social(p: PublicPost, adapter_version: str) -> SocialPost:
             commenter_key_scope="profile" if c.commenter_key else "comment_only", comment_text=c.comment_text,
             displayed_timestamp=None, commented_at_observed=c.commented_at_observed, content_hash=c.content_hash,
             intent=score_comment(c.comment_text), screenshot=getattr(c, "screenshot", None),
-            is_post_author=bool(p.author_key and c.commenter_key == p.author_key)))
+            is_post_author=bool(p.author_key and c.commenter_key == p.author_key), source_post_url=p.canonical_post_url,
+            account_type=c.account_type, business_page_name=c.business_page_name if c.account_type == "business" else None,
+            business_page_url=c.business_page_url if c.account_type == "business" else None))
     return SocialPost(
         platform="facebook", source_content_type="facebook_post", source_post_id=p.source_post_id,
         source_post_url=p.source_post_url, canonical_post_url=p.canonical_post_url, document_title=None, post_title=None,
@@ -140,6 +142,11 @@ class FacebookPublicPostsAdapter(BrowserAdapterBase):
 
     def collect_comments(self, post: SocialPost) -> CommentBatch:
         return CommentBatch(post.comments, post.completeness_status, post.comment_expansion_rounds)
+
+    def capture_business_page(self, url, account_type):
+        from ...fb_public.adapter import _HIDE_CHROME_JS
+        from ..base import capture_business_page_in
+        return capture_business_page_in(self, url, account_type, extra_hide_js=_HIDE_CHROME_JS)
 
     def capture_evidence(self, item):
         return getattr(item, "screenshot", None)  # taken on the post page (names hidden) during collect_post

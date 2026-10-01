@@ -68,6 +68,20 @@ interface Comment {
   needs_human_review: boolean; screenshot_path: string | null
   lead_type?: LeadType | null; lead_use_case?: string | null; lead_confidence?: number | null; lead_reasons?: string[]
   lead_needs_review?: boolean; rx300_mentioned?: boolean; is_post_author?: boolean
+  account_type?: 'individual' | 'business' | 'unknown'; business_page_name?: string | null; business_page_url?: string | null
+  business_page_screenshot?: string | null
+}
+function AccountChip({ c, bizShot }: { c: Comment; bizShot?: string }) {
+  if (c.account_type === 'business') {
+    return (
+      <span className="inline-flex items-center gap-1.5">
+        <Chip className="bg-ink text-white"><Building2 className="w-3 h-3" /> Business</Chip>
+        <Ext href={c.business_page_url} label={c.business_page_name ?? 'business page'} />
+        {bizShot && <a href={bizShot} target="_blank" rel="noopener noreferrer" className="text-xs text-brand underline">page screenshot</a>}
+      </span>
+    )
+  }
+  return <Chip className="bg-paper text-muted">{c.account_type === 'individual' ? 'Individual' : 'Unknown'} · identity hidden</Chip>
 }
 interface Status {
   platform: string; enabled: boolean; state: string; detail: string | null; consecutive_failures: number
@@ -124,7 +138,7 @@ function PostPreview({ p, shot }: { p: Post; shot?: string }) {
   )
 }
 
-function CommentCard({ c, shot, depth }: { c: Comment; shot?: string; depth: number }) {
+function CommentCard({ c, shot, depth, bizShot }: { c: Comment; shot?: string; depth: number; bizShot?: string }) {
   const lt = leadOf(c)
   return (
     <div className={clsx('rounded-2xl border p-4', lt === 'confirmed_rx300_buyer' ? 'border-emerald-200 bg-emerald-50/50'
@@ -136,6 +150,7 @@ function CommentCard({ c, shot, depth }: { c: Comment; shot?: string; depth: num
         {c.lead_use_case && <Chip className="bg-paper text-ink">{c.lead_use_case === 'taxi' ? 'Taxi use' : 'Family car'}</Chip>}
         <Chip className="bg-paper text-ink">intent {c.buyer_intent_score}{c.intent_type ? ` · ${c.intent_type.replaceAll('_', ' ')}` : ''}</Chip>
         {(c.lead_needs_review || c.needs_human_review) && <Chip className="bg-amber-50 text-amber-800"><Eye className="w-3 h-3" /> check</Chip>}
+        <AccountChip c={c} bizShot={bizShot} />
         <span className="text-xs text-subtle ml-auto">{c.displayed_timestamp ?? ''} · {c.commenter_key ? `#${c.commenter_key.slice(0, 8)}` : 'comment-only id'}</span>
       </div>
       <p className="mt-3 text-[15px] text-ink whitespace-pre-wrap">{c.comment_text}</p>
@@ -224,6 +239,9 @@ export default async function SocialDataPage({ searchParams }: { searchParams: P
   ])
   const postShots = new Map<string, string | undefined>(pShots)
   const commentShots = new Map<string, string | undefined>(cShots)
+  const bizShots = new Map<string, string | undefined>(await Promise.all(shownComments
+    .filter((c) => c.account_type === 'business' && c.business_page_screenshot)
+    .map(async (c) => [c.id, await sign(c.business_page_screenshot)] as const)))
 
   const href = (next: Record<string, string>) => {
     const p = new URLSearchParams({ view, ...(platform && { platform }), ...(lead !== 'buyers' && { lead }), ...(q && { q }), ...next })
@@ -234,7 +252,7 @@ export default async function SocialDataPage({ searchParams }: { searchParams: P
     <div className="space-y-3">
       {list.filter((c) => c.parent_comment_id === parent).map((c) => (
         <div key={c.id} className="space-y-3">
-          <CommentCard c={c} shot={commentShots.get(c.id)} depth={depth} />
+          <CommentCard c={c} shot={commentShots.get(c.id)} bizShot={bizShots.get(c.id)} depth={depth} />
           <Thread list={list} parent={c.id} depth={depth + 1} />
         </div>
       ))}
@@ -336,7 +354,7 @@ export default async function SocialDataPage({ searchParams }: { searchParams: P
                       <p className="mt-1 text-ink whitespace-pre-wrap line-clamp-3">{parent.comment_text}</p>
                     </div>
                   )}
-                  <CommentCard c={c} shot={commentShots.get(c.id)} depth={parent ? 1 : 0} />
+                  <CommentCard c={c} shot={commentShots.get(c.id)} bizShot={bizShots.get(c.id)} depth={parent ? 1 : 0} />
                   <p className="text-xs text-muted pl-2">
                     {c.comment_url_available ? <Ext href={c.source_comment_url} label="Open comment" /> : <>Comment on <Ext href={p?.canonical_post_url} label="this post" /></>} · captured {fmt(c.captured_at)}
                   </p>

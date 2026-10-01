@@ -108,7 +108,8 @@ def type_leads(adapter: PlatformAdapter, post: SocialPost) -> None:
                       author_is_organization=bool(org), search_query=post.search_query or "")
     post.lead = classify_post(ctx)
     for c in post.comments:
-        c.lead = classify_comment(c.comment_text, ctx, intent=c.intent, is_post_author=c.is_post_author)
+        c.lead = classify_comment(c.comment_text, ctx, intent=c.intent, is_post_author=c.is_post_author,
+                                  is_business=c.account_type == "business")
 
 
 def run_cycle(name: str, *, cfg: dict, state: WorkerState, sink, keyer: PersonKeyer, headed: bool = True,
@@ -216,6 +217,7 @@ def _collect_one(adapter, name, item: SearchItem, canon, pcfg, state, sink, budg
     else:
         post.completeness_status = "comments_unavailable"
     type_leads(adapter, post)
+    _business_pages(adapter, post, state, budget)
     apply_recency(post, pcfg.get("recency", {}))
     _ai_second_opinion(post, pcfg.get("_reviewer"), budget)
     res.posts += 1
@@ -250,6 +252,28 @@ def _collect_one(adapter, name, item: SearchItem, canon, pcfg, state, sink, budg
     if pcfg.get("_notifier") is not None:            # after saving, so the alert's lead is on the dashboard
         res.alerts += pcfg["_notifier"].consider(post)
     state.mark_seen(name, canon)
+
+
+def _business_pages(adapter, post: SocialPost, state, budget: Budget, refresh_days: int = 30) -> None:
+    """Public business pages only (account_type == business), once per page per window, within the screenshot budget.
+    Personal profiles are never visited."""
+    targets = [c for c in post.comments if c.account_type == "business" and c.business_page_url]
+    org = post.organization
+    for c in targets:
+        if state.business_page_recent(c.business_page_url, timedelta(days=refresh_days)) or not budget.try_take("screenshots"):
+            continue
+        info = adapter.capture_business_page(c.business_page_url, c.account_type)
+        state.mark_business_page(c.business_page_url)
+        if info is not None:
+            c.business_page_screenshot = info.screenshot
+            budget.add_storage(len(info.screenshot.png) if info.screenshot else 0)
+    if org is not None and org.url and org.screenshot is None and \
+            not state.business_page_recent(org.url, timedelta(days=refresh_days)) and budget.try_take("screenshots"):
+        info = adapter.capture_business_page(org.url, "business")
+        state.mark_business_page(org.url)
+        if info is not None:
+            org.screenshot, org.category, org.sales_location, org.contact_channels = (
+                info.screenshot, info.category, info.sales_location, info.contact_channels)
 
 
 def _ai_second_opinion(post: SocialPost, reviewer, budget: Budget) -> None:

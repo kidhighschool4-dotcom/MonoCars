@@ -56,6 +56,9 @@ interface CommentRow {
   adapter_version: string
   expires_at: string
   screenshot_path?: string | null
+  account_type?: 'individual' | 'business' | 'unknown'
+  business_page_name?: string | null
+  business_page_url?: string | null
 }
 interface SkipRow {
   id: number
@@ -211,7 +214,11 @@ function LeadCard({ c, p, parent, postShot, commentShot }: {
         <div className="flex flex-wrap items-center gap-1.5">
           <Chip className="bg-emerald-600 text-white"><Star className="w-3 h-3" /> Buyer</Chip>
           {c.buyer_intent_signals.map((s) => <Chip key={s} className="bg-emerald-50 text-emerald-800">{SIGNAL_LABEL[s] ?? s}</Chip>)}
-          <span className="ml-auto text-[11px] text-subtle">{shortKey(c.commenter_key)}</span>
+          <span className="ml-auto text-[11px] text-subtle">
+            {c.account_type === 'business'
+              ? <FbLink href={c.business_page_url ?? null} label={`Business: ${c.business_page_name ?? 'page'}`} />
+              : `${shortKey(c.commenter_key)} · identity hidden`}
+          </span>
         </div>
 
         {parent && (

@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import contextlib
 import hashlib
+import re
 import io
 import logging
 import time
@@ -16,7 +17,7 @@ from pathlib import Path
 import httpx
 
 from ..social.model import Evidence
-from .contract import AdapterContext, Challenged, Health, LoginRequired, PlatformAdapter
+from .contract import AdapterContext, BusinessInfo, Challenged, Health, LoginRequired, PlatformAdapter
 from .http import PoliteHttp
 
 log = logging.getLogger("fbm_intel.platforms")
@@ -140,3 +141,68 @@ class BrowserAdapterBase(PlatformAdapter):
         else:
             png = locator.screenshot()
         return evidence_from_png(png, kind)
+
+
+# People on a business page (followers, friends, customers, commenters) are hidden before the screenshot and never read.
+BUSINESS_PEOPLE_HIDE_CSS = (
+    "[role='article'], [role='feed'], [role='complementary'], [role='banner'], [role='navigation'], "
+    "a[href*='/friends'], a[href*='followers'], a[href*='following'], a[href*='/people'], "
+    "[aria-label*='follower' i], [aria-label*='friend' i], [data-e2e*='follow'], [data-e2e*='comment'], "
+    "[contenteditable='true'], [aria-label^='Comment as' i] { visibility: hidden !important; }")
+_BIZ_TEXT_JS = r"""() => {
+  const lines = (document.body.innerText || '').split('\n').map(t => t.trim()).filter(t => t && t.length < 160).slice(0, 220);
+  const links = Array.from(document.querySelectorAll('a[href^="http"]')).map(a => a.href).slice(0, 200);
+  return {lines, links, title: document.title};
+}"""
+_PHONE = re.compile(r"(?:\+?855|0)[\s.-]?\d{2}[\s.-]?\d{3}[\s.-]?\d{3,4}")
+_EMAIL = re.compile(r"[\w.+-]+@[\w-]+\.[\w.]+")
+
+
+def extract_business_info(lines: list[str], links: list[str], own_hosts: tuple[str, ...]) -> dict:
+    """Business-relevant facts only: category, sales location, official contact channels."""
+    category = next((l.split("·", 1)[1].strip() for l in lines if re.match(r"^(page|business|shop)\s*·", l, re.I)), None)
+    location = next((l for l in lines if re.search(r"(phnom penh|ភ្នំពេញ|siem reap|battambang|cambodia|កម្ពុជា|street|ផ្លូវ|sangkat|khan)", l, re.I)
+                     and len(l) < 120), None)
+    contacts: dict = {}
+    phones = sorted({m.group(0).strip() for l in lines for m in [_PHONE.search(l)] if m})[:3]
+    emails = sorted({m.group(0) for l in lines for m in [_EMAIL.search(l)] if m})[:2]
+    sites = sorted({u for u in links if not any(h in u for h in own_hosts) and not u.startswith("https://l.facebook.com")})[:2]
+    if phones:
+        contacts["phone"] = phones
+    if emails:
+        contacts["email"] = emails
+    if sites:
+        contacts["website"] = sites
+    return {"category": category, "sales_location": location, "contact_channels": contacts}
+
+
+def capture_business_page_in(adapter, url: str, account_type: str, extra_hide_js: str | None = None,
+                             max_height: int = 1100) -> BusinessInfo | None:
+    """Shared browser routine: a NEW tab in the adapter's session (the post page stays as it is)."""
+    if account_type != "business":
+        raise PermissionError("business pages only — personal profiles are never opened")
+    from urllib.parse import urlsplit
+    from .http import host_allowed
+    if not host_allowed(urlsplit(url).netloc, adapter.allowed_hosts):
+        return None
+    s = adapter.session()
+    page = s.context.new_page()
+    try:
+        s.limiter.wait()
+        page.goto(url, wait_until="domcontentloaded", timeout=30000)
+        page.wait_for_timeout(3500)
+        page.add_style_tag(content=BUSINESS_PEOPLE_HIDE_CSS)
+        if extra_hide_js:
+            page.evaluate(extra_hide_js)
+        page.wait_for_timeout(200)
+        data = page.evaluate(_BIZ_TEXT_JS)
+        vp = page.viewport_size or {"width": 1280, "height": 900}
+        png = page.screenshot(clip={"x": 0, "y": 0, "width": vp["width"], "height": min(max_height, vp["height"])})
+        info = extract_business_info(data["lines"], data["links"], tuple(adapter.allowed_hosts))
+        return BusinessInfo(name=None, url=url, screenshot=evidence_from_png(png, "business"), **info)
+    except Exception as e:  # noqa: BLE001 - optional evidence; never stops collection
+        log.info("business page capture failed for %s: %s", url, type(e).__name__)
+        return None
+    finally:
+        with contextlib.suppress(Exception):
+            page.close()

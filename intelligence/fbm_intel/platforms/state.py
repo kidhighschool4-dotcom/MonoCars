@@ -38,6 +38,9 @@ CREATE TABLE IF NOT EXISTS seen_urls (
   platform TEXT NOT NULL, canonical_url TEXT NOT NULL, first_seen TEXT NOT NULL, last_seen TEXT NOT NULL,
   PRIMARY KEY (platform, canonical_url)
 );
+CREATE TABLE IF NOT EXISTS business_pages (
+  url TEXT PRIMARY KEY, captured_at TEXT NOT NULL
+);
 CREATE TABLE IF NOT EXISTS notified (
   fingerprint TEXT PRIMARY KEY, platform TEXT NOT NULL, notified_at TEXT NOT NULL, delivered INTEGER NOT NULL
 );
@@ -170,6 +173,17 @@ class WorkerState:
         with self._lock, self._conn() as c:
             c.execute("INSERT INTO seen_urls VALUES (?,?,?,?) ON CONFLICT(platform, canonical_url) DO UPDATE SET last_seen=excluded.last_seen",
                       (platform, url, t, t))
+
+    # ── business pages (captured at most once per window) ──
+    def business_page_recent(self, url: str, within: timedelta) -> bool:
+        with self._conn() as c:
+            r = c.execute("SELECT captured_at FROM business_pages WHERE url=?", (url,)).fetchone()
+        return bool(r and parse(r[0]) > now() - within)
+
+    def mark_business_page(self, url: str) -> None:
+        with self._lock, self._conn() as c:
+            c.execute("INSERT INTO business_pages VALUES (?,?) ON CONFLICT(url) DO UPDATE SET captured_at=excluded.captured_at",
+                      (url, iso(now())))
 
     # ── best-buyer alerts ──
     def was_notified(self, fingerprint: str) -> bool:

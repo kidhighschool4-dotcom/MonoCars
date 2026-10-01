@@ -136,6 +136,21 @@ class Organization:
     url: str | None
     kind: Literal["dealer", "shop", "page", "channel", "marketplace_seller", "forum", "media", "other"]
     evidence: str                  # why we consider it organizational (self-description, platform business flag…)
+    category: str | None = None
+    sales_location: str | None = None
+    contact_channels: dict = field(default_factory=dict)
+    screenshot: Evidence | None = None
+
+
+@dataclass
+class BusinessInfo:
+    """Publicly displayed business information from a business page (never a personal profile)."""
+    name: str | None
+    url: str
+    category: str | None = None
+    sales_location: str | None = None
+    contact_channels: dict = field(default_factory=dict)   # official channels shown: phone, website, email
+    screenshot: Evidence | None = None
 
 
 @dataclass
@@ -211,6 +226,11 @@ class PlatformAdapter(abc.ABC):
 
     # helpers
     last_skip_reason: str | None = None
+
+    def capture_business_page(self, url: str, account_type: str) -> BusinessInfo | None:  # noqa: ARG002
+        """Open a CLEARLY organizational page and capture its public business info. Adapters that support it
+        override; it must refuse anything that is not account_type == 'business'."""
+        return None
 
     def organization_for_post(self, post: SocialPost) -> Organization | None:  # noqa: ARG002
         """Override when the platform exposes a clear organizational author (business page, dealer channel…)."""

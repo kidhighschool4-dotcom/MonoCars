@@ -106,7 +106,9 @@ class FacebookPublicRepo:
             if not self._missing_shot_col(e):
                 raise
             self._no_shot_cols(e)
-            strip = (lambda r: {k: v for k, v in r.items() if k != "screenshot_path"})
+            _new = {"screenshot_path", "comment_context_screenshot", "source_post_url", "identity_redacted", "account_type",
+                    "business_page_name", "business_page_url"}
+            strip = (lambda r: {k: v for k, v in r.items() if k not in _new})
             return self._req(method, table, body=[strip(r) for r in body] if isinstance(body, list) else strip(body), **kw)
 
     def save_post(self, p: PublicPost) -> tuple[str, int, int]:
@@ -152,7 +154,13 @@ class FacebookPublicRepo:
                     "buyer_intent_signals": c.buyer_intent_signals, "matched_phrases": c.matched_phrases,
                     "intent_classifier_version": c.intent_classifier_version}
                 if self._shot_cols:
-                    r["screenshot_path"] = self._upload(c.screenshot)   # same keys in every row of a bulk insert
+                    path = self._upload(c.screenshot)
+                    biz = c.account_type == "business"
+                    r.update({"screenshot_path": path,   # same keys in every row of a bulk insert
+                              "comment_context_screenshot": path, "source_post_url": p.canonical_post_url,
+                              "identity_redacted": True, "account_type": c.account_type,
+                              "business_page_name": c.business_page_name if biz else None,
+                              "business_page_url": c.business_page_url if biz else None})
                 batch.append(r)
             if batch:
                 created = self._write("POST", "facebook_public_comments", batch,

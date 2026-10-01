@@ -99,7 +99,9 @@ class SocialRepo:
                     "matched_signals": i.matched_signals, "matched_phrases": i.matched_phrases,
                     "negative_signals": i.negative_signals, "spam_score": i.spam_score, "intent_reason": i.reason,
                     "needs_human_review": i.needs_human_review, "scorer_version": i.scorer_version,
-                    "screenshot_path": self._upload(p.platform, c.screenshot)})
+                    **(lambda path: {"screenshot_path": path, "comment_context_screenshot": path})(self._upload(p.platform, c.screenshot)),
+                    "source_post_url": p.canonical_post_url, "identity_redacted": True if c.account_type != "business" else c.identity_redacted,
+                    "account_type": c.account_type})
             if batch:
                 created = self._req("POST", "/rest/v1/public_social_comments", params={"on_conflict": "post_id,comment_fingerprint"},
                                     prefer="return=representation,resolution=ignore-duplicates", body=batch)

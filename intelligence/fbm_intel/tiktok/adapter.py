@@ -78,6 +78,9 @@ _COMMENTS_JS = """(cfg) => {
       level, key: selfKey, parent_key: parentKey,
       text,
       author_href: author ? author.getAttribute('href') : null,     // transient: hashed in Python, never stored
+      // transient: nickname only decides individual vs business in Python; never stored for individuals
+      author_name: (() => { const u = item.querySelector('[data-e2e^="comment-username"]') || author;
+                            return u ? (u.textContent || '').trim().slice(0, 80) : null; })(),
       time: time ? (time.textContent || '').trim() : null,
       comment_id: item.getAttribute('data-comment-id') || item.id || null,
       visible: !!(item.offsetWidth || item.offsetHeight || item.getClientRects().length),
@@ -408,6 +411,9 @@ class TikTokPublicVideosAdapter:
                              source_comment_url=None, occurrence_counter=counter)
             if c is None or any(x.fingerprint == c.fingerprint for x in out):
                 continue
+            from ..social.accounts import classify_account
+            c.set_account(classify_account(r.get("author_name"), f"https://www.tiktok.com/@{ident}" if ident else None,
+                                           has_profile=bool(ident)))
             out.append(c)
             by_key[r["key"]] = c
             if is_reply:

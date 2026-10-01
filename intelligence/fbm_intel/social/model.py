@@ -46,6 +46,21 @@ class SocialComment:
     screenshot: Evidence | None = None
     lead: Any = None                       # fbm_intel.platforms.leads.LeadResult
     is_post_author: bool = False           # commenter is the post's author (seller replying) — never a buyer lead
+    source_post_url: str | None = None     # the public post the comment belongs to
+    account_type: str = "unknown"          # individual | business | unknown
+    identity_redacted: bool = True         # screenshots hide name + avatar; no identity stored
+    business_page_name: str | None = None  # ONLY when account_type == "business"
+    business_page_url: str | None = None
+    business_page_screenshot: Evidence | None = None
+
+    def set_account(self, acct) -> None:
+        """Apply an accounts.Account; business fields are cleared unless it is a business."""
+        self.account_type = acct.type
+        biz = acct.type == "business"
+        self.business_page_name = acct.business_page_name if biz else None
+        self.business_page_url = acct.business_page_url if biz else None
+        if not biz:
+            self.business_page_screenshot = None
 
 
 @dataclass
@@ -126,7 +141,8 @@ def make_comment(*, platform: str, post_url: str, raw_text: str, is_reply: bool,
         commenter_key_version=key_version if commenter_key else None,
         commenter_key_scope="profile" if commenter_key else "comment_only",
         comment_text=text, displayed_timestamp=displayed_timestamp, commented_at_observed=commented_at,
-        content_hash=sha256_hex(text.casefold()), intent=intent,
+        content_hash=sha256_hex(text.casefold()), intent=intent, source_post_url=post_url,
+        account_type="individual" if commenter_key else "unknown",
     )
 
 

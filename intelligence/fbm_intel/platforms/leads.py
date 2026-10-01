@@ -145,7 +145,7 @@ def classify_post(ctx: PostContext, rules: LeadRules | None = None) -> LeadResul
 
 
 def classify_comment(text: str, post: PostContext | None = None, *, intent: IntentScore | None = None,
-                     is_post_author: bool = False, rules: LeadRules | None = None) -> LeadResult:
+                     is_post_author: bool = False, is_business: bool = False, rules: LeadRules | None = None) -> LeadResult:
     r = rules or load_rules()
     post = post or PostContext()
     intent = intent or score_comment(text)
@@ -162,6 +162,8 @@ def classify_comment(text: str, post: PostContext | None = None, *, intent: Inte
 
     if is_post_author:
         return LeadResult("seller_or_dealer", confidence=95, reasons=["post_author_reply"], **base)
+    if is_business:
+        return LeadResult("seller_or_dealer", confidence=90, reasons=["business_account"], **base)
     if seller and not buyer:
         return LeadResult("seller_or_dealer", confidence=70, reasons=["seller_offer", *seller[:3]], **base)
     if intent.spam_score >= 60 and not strong:

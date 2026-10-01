@@ -85,6 +85,10 @@ class TikTokAdapter(BrowserAdapterBase):
         # comments + replies were expanded on the video page in collect_post (same page visit)
         return CommentBatch(post.comments, post.completeness_status, post.comment_expansion_rounds)
 
+    def capture_business_page(self, url, account_type):
+        from ..base import capture_business_page_in
+        return capture_business_page_in(self, url, account_type, max_height=700)   # header + bio, not the follower lists
+
     def capture_evidence(self, item):
         return getattr(item, "screenshot", None)  # captured on the page (names hidden) during collect_post
 

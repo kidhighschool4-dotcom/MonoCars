@@ -43,6 +43,10 @@ def comment_record(c: SocialComment) -> dict:
                    "negatives": i.negative_signals, "spam": i.spam_score, "review": i.needs_human_review},
         "lead": c.lead.as_dict() if c.lead is not None else None,
         "screenshot": _plain(c.screenshot),
+        "source_post_url": c.source_post_url, "identity_redacted": c.identity_redacted, "account_type": c.account_type,
+        "business_page_name": c.business_page_name if c.account_type == "business" else None,
+        "business_page_url": c.business_page_url if c.account_type == "business" else None,
+        "business_page_screenshot": _plain(c.business_page_screenshot) if c.account_type == "business" else None,
     }
 
 
@@ -83,6 +87,8 @@ class PreviewSink:
         for c, rc in zip(p.comments, rec["comments"]):
             if c.screenshot:
                 rc["screenshot"]["file"] = self._shot(c.screenshot, f"{name}-comment")
+            if c.business_page_screenshot and c.account_type == "business":
+                rc["business_page_screenshot"]["file"] = self._shot(c.business_page_screenshot, f"{name}-business")
         with open(self.dir / f"{name}.jsonl", "a", encoding="utf-8") as f:
             f.write(json.dumps(rec, ensure_ascii=False, default=str) + "\n")
         return rec
@@ -117,10 +123,17 @@ class SupabaseSink:
             if c.lead is None or c.fingerprint not in ids:
                 continue
             L = c.lead
+            biz = c.account_type == "business"
+            biz_shot = self.repo._upload(p.platform, c.business_page_screenshot) if biz and c.business_page_screenshot else None
             self.repo._req("PATCH", "/rest/v1/public_social_comments", params={"id": f"eq.{ids[c.fingerprint]}"}, body={
                 "lead_type": L.lead_type, "lead_use_case": L.use_case, "lead_confidence": L.confidence,
                 "lead_reasons": L.reasons, "lead_needs_review": L.needs_review, "lead_version": L.version,
-                "rx300_mentioned": L.rx300_mentioned, "rx300_context": L.rx300_context, "is_post_author": c.is_post_author})
+                "rx300_mentioned": L.rx300_mentioned, "rx300_context": L.rx300_context, "is_post_author": c.is_post_author,
+                "source_post_url": c.source_post_url or p.canonical_post_url, "account_type": c.account_type,
+                "identity_redacted": c.identity_redacted or not biz,
+                "business_page_name": c.business_page_name if biz else None,
+                "business_page_url": c.business_page_url if biz else None,
+                **({"business_page_screenshot": biz_shot} if biz_shot else {})})
         return {"post_id": post_id}
 
     def _org(self, p: SocialPost) -> str | None:
@@ -129,6 +142,9 @@ class SupabaseSink:
                               prefer="return=representation,resolution=merge-duplicates", body={
             "owner_id": self.owner_id, "platform": o.platform, "name": o.name[:300], "url": o.url, "kind": o.kind,
             "evidence": o.evidence[:500], "last_seen_at": datetime.now(timezone.utc).isoformat(),
+            "category": o.category, "sales_location": o.sales_location, "contact_channels": o.contact_channels or {},
+            **({"screenshot_path": self.repo._upload(o.platform, o.screenshot), "captured_at": datetime.now(timezone.utc).isoformat()}
+               if o.screenshot else {}),
             "expires_at": (datetime.now(timezone.utc) + timedelta(days=365)).isoformat()})
         return rows[0]["id"] if rows else None
 

@@ -145,6 +145,8 @@ def test_tiktok_through_contract(tmp_path):
     assert res.posts == 2 and {x["reason"] for x in res.skipped} == {"private_unavailable_or_not_verified_public"}
     assert res.comments > 0 and res.screenshots > 0
     rows = [json.loads(x) for x in (sink.dir / "tiktok.jsonl").read_text().splitlines()]
+    for r in rows:   # business names/pages are allowed by design; individuals must stay anonymous
+        r["comments"] = [c for c in r["comments"] if c["account_type"] != "business"]
     blob = json.dumps(rows, ensure_ascii=False)
     for leak in ("buyer.one", "Visible", "friend.kh"):
         assert leak not in blob

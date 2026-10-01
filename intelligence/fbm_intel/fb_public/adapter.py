@@ -137,7 +137,7 @@ _POST_JS = """() => {
     comments: comments.map(c => {
       const mine = el => el.closest('[role="article"]') === c;
       const links = Array.from(c.querySelectorAll('a[href]')).filter(mine)
-        .map(x => ({href: x.href, text: (x.innerText || '').trim().slice(0, 20)}));
+        .map(x => ({href: x.href, text: (x.innerText || '').trim().slice(0, 80)}));   // name read in memory only
       // Tagged people are links inside the text: replace them with [mention] so no names are ever read out.
       const bodyText = el => { const k = el.cloneNode(true); k.querySelectorAll('a').forEach(a => a.replaceWith('[mention]'));
                                return (k.textContent || '').trim(); };
@@ -474,10 +474,12 @@ class FacebookPublicPostsAdapter:
         raw = []
         for c in data["comments"]:
             permalink = next((l["href"] for l in c["links"] if "comment_id=" in l["href"] and is_post_url(l["href"])), None)
-            author = next((l["href"] for l in c["links"] if canonical_profile_url(l["href"])), None)
+            author_link = next((l for l in c["links"] if canonical_profile_url(l["href"])), None)
+            author = author_link["href"] if author_link else None
             time_txt = next((l["text"] for l in c["links"] if l["href"] == permalink), None)
             raw.append(RawComment(kind=c["kind"], text=c["text"], permalink=permalink, author_href=author,
-                                  time_text=time_txt, dom_parent=c["parent_index"]))
+                                  time_text=time_txt, dom_parent=c["parent_index"],
+                                  author_name=author_link["text"] if author_link else None))
         comments, truncated = build_comments(raw, final_canon, self.keyer, self.limits)
         post.comments = comments
         post.comment_expansion_rounds = rounds

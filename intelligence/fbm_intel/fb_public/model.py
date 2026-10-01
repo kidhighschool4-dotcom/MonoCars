@@ -39,6 +39,7 @@ class RawComment:
     author_href: str | None
     time_text: str | None
     dom_parent: int | None = None  # index of the enclosing top-level comment in the raw list, if known
+    author_name: str | None = None # transient: only decides individual vs business; never stored for individuals
 
 
 @dataclass
@@ -59,6 +60,10 @@ class PublicComment:
     buyer_intent_signals: list[str] = field(default_factory=list)
     matched_phrases: list[str] = field(default_factory=list)
     intent_classifier_version: str | None = None
+    account_type: str = "unknown"          # individual | business | unknown
+    business_page_name: str | None = None  # only for clear businesses
+    business_page_url: str | None = None
+    source_post_url: str | None = None
     screenshot: Evidence | None = None   # buyer-intent comments only; commenter name/avatar hidden before capture
 
 
@@ -201,8 +206,14 @@ def build_comments(raw: list[RawComment], post_canonical_url: str, keyer: Person
             source_comment_url=source_url, canonical_comment_url=canon,
             commenter_key=key, commenter_key_version=keyer.version if key else None,
             comment_text=text, commented_at_observed=parse_fb_time(r.time_text, now),
-            content_hash=sha256_hex(text.casefold()),
+            content_hash=sha256_hex(text.casefold()), source_post_url=post_canonical_url,
         )
+        from ..social.accounts import classify_account
+        from .urls import canonical_profile_url
+        acct = classify_account(r.author_name, canonical_profile_url(r.author_href), has_profile=bool(r.author_href))
+        c.account_type = acct.type
+        if acct.type == "business":          # name + page URL kept ONLY for clear businesses
+            c.business_page_name, c.business_page_url = acct.business_page_name, acct.business_page_url
         out.append(c)
         by_raw_index[i] = c
         if own_id:
