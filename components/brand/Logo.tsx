@@ -13,14 +13,20 @@ const sizes = {
   lg: { mark: 'w-10 h-10', text: 'text-2xl' },
 }
 
-/** FBM mark: a blue tile with three speed lines stepping forward. */
-export function LogoMark({ className }: { className?: string }) {
+/**
+ * FBM mark — an "F" drawn as a car in profile: the stem is the rear, the two arms are roofline and body,
+ * and the wheel doubles as the full stop in "FBM.". Built on a 32px grid; reads at 16px.
+ */
+export function LogoMark({ className, tone = 'brand' }: { className?: string; tone?: 'brand' | 'ink' | 'white' }) {
+  const tile = tone === 'brand' ? 'var(--brand)' : tone === 'ink' ? 'var(--ink)' : '#fff'
+  const fg = tone === 'white' ? 'var(--ink)' : '#fff'
   return (
     <svg viewBox="0 0 32 32" aria-hidden="true" className={className}>
-      <rect width="32" height="32" rx="9" fill="var(--brand)" />
-      <rect x="8" y="9" width="16" height="3.2" rx="1.6" fill="#fff" />
-      <rect x="8" y="14.4" width="11" height="3.2" rx="1.6" fill="#fff" />
-      <rect x="8" y="19.8" width="6" height="3.2" rx="1.6" fill="#fff" opacity="0.75" />
+      <rect width="32" height="32" rx="8" fill={tile} />
+      {/* stem + roof arm as one stroke so the corner reads as a single bent line */}
+      <path d="M10.5 23.5V10.25c0-.97.78-1.75 1.75-1.75H23" fill="none" stroke={fg} strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round" />
+      <path d="M10.5 16H18.5" fill="none" stroke={fg} strokeWidth="3.5" strokeLinecap="round" />
+      <circle cx="21.75" cy="22" r="2.6" fill={fg} />
     </svg>
   )
 }

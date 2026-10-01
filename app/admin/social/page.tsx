@@ -1,6 +1,6 @@
 import Link from 'next/link'
 import { notFound, redirect } from 'next/navigation'
-import { ExternalLink, CornerDownRight, Star, AlertTriangle, CheckCircle2, Search, Eye, Building2, CircleDot, Clock } from 'lucide-react'
+import { ExternalLink, CornerDownRight, Star, Search, Eye, Building2 } from 'lucide-react'
 import clsx from 'clsx'
 import { canViewFacebookData, getServerUser } from '@/lib/auth-server'
 import { supabaseAdmin } from '@/lib/supabase-server'
@@ -116,28 +116,6 @@ function leadOf(c: Comment): LeadType {
   return c.buyer_intent_label === 'not_buyer_intent' ? 'irrelevant' : 'potential_rx300_fit' // before lead columns exist
 }
 
-function PostPreview({ p, shot }: { p: Post; shot?: string }) {
-  return (
-    <div className="rounded-2xl border border-line bg-surface p-4">
-      <div className="flex flex-wrap items-center gap-2 text-xs text-muted">
-        <Chip className="bg-brand-soft text-brand">{PLATFORM_LABEL[p.platform] ?? p.platform}</Chip>
-        {p.lead_type && <Chip className={LEAD[p.lead_type].cls}>post: {LEAD[p.lead_type].text}</Chip>}
-        <span>search “{p.search_query}”</span>
-        <span>· {p.published_text_displayed ?? fmt(p.published_at_observed ?? p.captured_at)}</span>
-        <span className="ml-auto"><Ext href={p.canonical_post_url} label="Open post" /></span>
-      </div>
-      <div className={clsx('mt-3 grid gap-4', shot && 'md:grid-cols-[minmax(0,1fr)_280px]')}>
-        <div className="min-w-0">
-          {(p.post_title || p.document_title) && <p className="font-semibold text-ink">{p.post_title ?? p.document_title}</p>}
-          <p className="text-sm text-ink whitespace-pre-wrap line-clamp-[8]">{p.post_text ?? <span className="text-subtle">(no text)</span>}</p>
-          {p.hashtags.length > 0 && <p className="mt-2 flex flex-wrap gap-1.5">{p.hashtags.slice(0, 8).map((h) => <Chip key={h} className="bg-paper text-muted">{h}</Chip>)}</p>}
-        </div>
-        <Shot src={shot} alt="Post screenshot (names hidden)" />
-      </div>
-    </div>
-  )
-}
-
 function CommentCard({ c, shot, depth, bizShot }: { c: Comment; shot?: string; depth: number; bizShot?: string }) {
   const lt = leadOf(c)
   return (
@@ -170,6 +148,83 @@ function CommentCard({ c, shot, depth, bizShot }: { c: Comment; shot?: string; d
         </dl>
       </details>
     </div>
+  )
+}
+
+const ago = (d: string | null | undefined) => {
+  if (!d) return '—'
+  const m = Math.round((Date.now() - new Date(d).getTime()) / 60000)
+  if (m < 1) return 'just now'
+  if (m < 60) return `${m} min ago`
+  const h = Math.round(m / 60)
+  if (h < 36) return `${h} h ago`
+  return `${Math.round(h / 24)} days ago`
+}
+
+function LeadTile({ c, p, parent, postShot, commentShot, bizShot }: {
+  c: Comment; p?: Post; parent?: Comment; postShot?: string; commentShot?: string; bizShot?: string
+}) {
+  const lt = leadOf(c)
+  const commentLink = c.comment_url_available ? c.source_comment_url : null
+  return (
+    <article className="group flex flex-col rounded-2xl border border-line bg-surface overflow-hidden hover:border-ink/30 transition-colors">
+      <a href={postShot ?? p?.canonical_post_url ?? '#'} target="_blank" rel="noopener noreferrer"
+        className="relative block aspect-[16/10] bg-paper overflow-hidden border-b border-line">
+        {postShot ? (
+          // eslint-disable-next-line @next/next/no-img-element -- short-lived signed URL from a private bucket
+          <img src={postShot} alt="Post (names hidden)" className="w-full h-full object-cover object-top" />
+        ) : (
+          <div className="absolute inset-0 p-5 flex flex-col">
+            <p className="text-[15px] leading-snug text-ink line-clamp-6 whitespace-pre-wrap">
+              {[p?.post_title, p?.post_text].filter(Boolean).join('\n') || 'No post text'}
+            </p>
+            <span className="mt-auto text-[11px] text-subtle">No screenshot for this post</span>
+          </div>
+        )}
+        <span className="absolute left-3 top-3 rounded-md bg-white/95 px-2 py-0.5 text-[11px] font-semibold text-ink shadow-sm">
+          {PLATFORM_LABEL[c.platform] ?? c.platform}
+        </span>
+      </a>
+
+      <div className="flex flex-1 flex-col gap-3 p-4">
+        <div className="flex items-center gap-2 text-xs">
+          <span className={clsx('inline-flex items-center gap-1 rounded-md px-2 py-0.5 font-semibold', LEAD[lt].cls)}>{LEAD[lt].text}</span>
+          {c.lead_use_case && <span className="text-muted">{c.lead_use_case === 'taxi' ? 'taxi use' : 'family car'}</span>}
+          <span className="ml-auto text-subtle tnum">{c.displayed_timestamp ?? ago(c.captured_at)}</span>
+        </div>
+
+        {parent && <p className="text-xs text-muted line-clamp-2 border-l-2 border-line pl-2">↳ reply to “{parent.comment_text}”</p>}
+
+        <p className="text-[17px] leading-snug font-medium text-ink whitespace-pre-wrap break-words">“{c.comment_text}”</p>
+
+        {commentShot && (
+          <a href={commentShot} target="_blank" rel="noopener noreferrer" className="block rounded-lg border border-line bg-paper overflow-hidden">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={commentShot} alt="Comment in context (name hidden)" className="w-full max-h-36 object-contain object-left-top" />
+          </a>
+        )}
+
+        {p && postShot && (p.post_title || p.post_text) && (
+          <p className="text-xs text-muted line-clamp-2">{p.post_title ?? p.post_text}</p>
+        )}
+
+        <div className="mt-auto flex items-center gap-2 pt-1">
+          {commentLink ? (
+            <a href={commentLink} target="_blank" rel="noopener noreferrer"
+              className="inline-flex items-center gap-1 rounded-lg bg-ink px-3 py-1.5 text-xs font-semibold text-white hover:bg-brand transition-colors">
+              Open comment <ExternalLink className="w-3 h-3" />
+            </a>
+          ) : null}
+          {p && (
+            <a href={p.canonical_post_url} target="_blank" rel="noopener noreferrer"
+              className="inline-flex items-center gap-1 rounded-lg border border-line px-3 py-1.5 text-xs font-medium text-ink hover:border-ink transition-colors">
+              Open post <ExternalLink className="w-3 h-3" />
+            </a>
+          )}
+          <span className="ml-auto"><AccountChip c={c} bizShot={bizShot} /></span>
+        </div>
+      </div>
+    </article>
   )
 }
 
@@ -259,172 +314,211 @@ export default async function SocialDataPage({ searchParams }: { searchParams: P
     </div>
   )
 
+  const active = ADAPTERS.filter((a) => (postsPerPlatform[a.platform] ?? 0) > 0 || ['ok', 'budget_exhausted', 'challenged', 'rate_limited'].includes(status.get(a.id)?.state ?? ''))
+  const inactive = ADAPTERS.filter((a) => !active.includes(a))
+  const buyerPosts = new Set(comments.filter((c) => leadOf(c) === 'confirmed_rx300_buyer').map((c) => c.post_id)).size
+  const lastRun = Array.from(status.values()).map((s) => s.last_success_at).filter(Boolean).sort().pop() ?? null
+  const NEEDS: Record<string, string> = { login_required: 'needs your login', misconfigured: 'needs an API key / setup' }
+
   return (
-    <div className="min-h-screen">
-      <div className="bg-surface border-b border-line">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-12 pb-8">
-          <p className="inline-flex items-center gap-2 text-sm font-medium text-muted mb-3"><span className="w-1.5 h-1.5 rounded-full bg-brand" />Private · {user.email}</p>
-          <h1 className="text-4xl md:text-5xl font-semibold tracking-tight text-ink">Lexus RX300 buyers</h1>
-          <p className="mt-3 text-muted max-w-3xl">
-            Public posts and comments from every platform, typed as RX300 buyers, potential fits, sellers or irrelevant.
-            Commenters are pseudonymous keys; screenshots hide names. Businesses are listed apart from buyer leads.
-          </p>
-
-          <section className="mt-8" aria-label="Platforms">
-            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2">
-              {ADAPTERS.map((a) => {
-                const s = status.get(a.id)
-                const st = s ? STATE[s.state] ?? STATE.error : null
-                const active = platform === a.platform
-                return (
-                  <Link key={a.id} href={href({ platform: active ? '' : a.platform })} title={s?.detail ?? undefined}
-                    className={clsx('rounded-2xl border p-3 transition-colors min-w-0', active ? 'border-ink bg-paper' : 'border-line bg-surface hover:border-ink')}>
-                    <div className="flex items-center justify-between gap-2">
-                      <span className="text-sm font-semibold text-ink truncate">{a.label}</span>
-                      <span className="text-[10px] text-subtle">T{a.tier}</span>
-                    </div>
-                    <div className="mt-2 flex flex-wrap items-center gap-1.5">
-                      {st ? <Chip className={st.cls}>{st.text}</Chip> : <Chip className="bg-paper text-subtle"><CircleDot className="w-3 h-3" /> off</Chip>}
-                      <span className="text-xs text-muted tnum">{postsPerPlatform[a.platform] ?? 0} posts</span>
-                    </div>
-                    {s && (
-                      <p className="mt-1.5 text-[11px] text-subtle leading-snug">
-                        {s.circuit_open_until && new Date(s.circuit_open_until) > new Date() ? <>paused until {fmt(s.circuit_open_until)}</>
-                          : <><Clock className="inline w-3 h-3 -mt-0.5" /> next {fmt(s.next_run_at)}</>}
-                        {s.consecutive_failures > 0 && <> · {s.consecutive_failures} fail</>}
-                        {s.last_success_at && <><br />ok {fmt(s.last_success_at)}</>}
-                      </p>
-                    )}
-                  </Link>
-                )
-              })}
+    <div className="min-h-screen bg-paper/50">
+      <header className="bg-surface border-b border-line">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+          <div className="flex flex-wrap items-end justify-between gap-6">
+            <div className="min-w-0">
+              <p className="text-xs font-medium text-muted">Private · {user.email}</p>
+              <h1 className="mt-1 text-3xl md:text-4xl font-semibold tracking-tight text-ink">Lexus RX300 buyers</h1>
+              <p className="mt-1.5 text-sm text-muted max-w-xl">People asking to buy an RX300 in public comments on sale posts. Names are never stored; open the comment to see it on the platform.</p>
             </div>
-          </section>
+            <dl className="flex items-stretch divide-x divide-line rounded-xl border border-line bg-surface">
+              <div className="px-5 py-3">
+                <dt className="text-[11px] uppercase tracking-wider text-muted">RX300 buyers</dt>
+                <dd className="text-3xl font-semibold tnum text-ink leading-tight">{counts.confirmed}</dd>
+              </div>
+              <div className="px-5 py-3">
+                <dt className="text-[11px] uppercase tracking-wider text-muted">On sale posts</dt>
+                <dd className="text-3xl font-semibold tnum text-ink leading-tight">{buyerPosts}</dd>
+              </div>
+              <div className="px-5 py-3 hidden sm:block">
+                <dt className="text-[11px] uppercase tracking-wider text-muted">Last run</dt>
+                <dd className="text-sm font-medium text-ink mt-2">{ago(lastRun)}</dd>
+              </div>
+            </dl>
+          </div>
 
-          <nav className="mt-6 flex flex-wrap gap-2" aria-label="Views">
-            {([['leads', 'Leads'], ['posts', 'Posts & threads'], ['organizations', `Businesses ${orgs.length}`], ['skipped', `Skipped ${skips.length}`]] as const).map(([id, label]) => (
-              <Link key={id} href={href({ view: id })} className={clsx('px-4 py-2.5 rounded-full text-sm font-medium border transition-colors',
-                view === id ? 'bg-ink text-white border-ink' : 'bg-surface text-ink border-line hover:border-ink')}>{label}</Link>
+          {/* Sources: only what is actually collecting, the rest folded away */}
+          <div className="mt-6 flex flex-wrap items-center gap-2">
+            <span className="text-xs text-muted mr-1">Sources</span>
+            <Link href={href({ platform: '' })}
+              className={clsx('rounded-lg border px-3 py-1.5 text-sm transition-colors', !platform ? 'border-ink bg-ink text-white' : 'border-line bg-surface text-ink hover:border-ink')}>
+              All
+            </Link>
+            {active.map((a) => {
+              const st = status.get(a.id)
+              const dot = !st ? 'bg-subtle' : st.state === 'ok' || st.state === 'budget_exhausted' ? 'bg-emerald-500' : st.state === 'challenged' ? 'bg-rose-500' : 'bg-amber-500'
+              const on = platform === a.platform
+              return (
+                <Link key={a.id} href={href({ platform: on ? '' : a.platform })} title={st?.detail ?? undefined}
+                  className={clsx('inline-flex items-center gap-2 rounded-lg border px-3 py-1.5 text-sm transition-colors',
+                    on ? 'border-ink bg-ink text-white' : 'border-line bg-surface text-ink hover:border-ink')}>
+                  <span className={clsx('w-1.5 h-1.5 rounded-full', dot)} />
+                  {a.label}
+                  <span className={clsx('tnum text-xs', on ? 'text-white/70' : 'text-muted')}>{postsPerPlatform[a.platform] ?? 0}</span>
+                </Link>
+              )
+            })}
+            {inactive.length > 0 && (
+              <details className="relative">
+                <summary className="list-none cursor-pointer select-none rounded-lg border border-dashed border-line px-3 py-1.5 text-sm text-muted hover:text-ink">
+                  +{inactive.length} not set up
+                </summary>
+                <div className="absolute z-30 mt-2 w-[340px] rounded-xl border border-line bg-surface p-2 shadow-[0_18px_50px_-12px_rgba(0,0,0,0.25)]">
+                  {inactive.map((a) => {
+                    const st = status.get(a.id)
+                    return (
+                      <div key={a.id} className="flex items-center justify-between gap-3 rounded-lg px-2.5 py-2 text-sm hover:bg-paper">
+                        <span className="text-ink">{a.label}</span>
+                        <span className="text-xs text-muted text-right">{st ? (NEEDS[st.state] ?? STATE[st.state]?.text ?? st.state) : 'off'}</span>
+                      </div>
+                    )
+                  })}
+                </div>
+              </details>
+            )}
+          </div>
+        </div>
+      </header>
+
+      {/* Sticky toolbar */}
+      <div className="sticky top-16 z-20 border-b border-line bg-surface/90 backdrop-blur">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-2.5 flex flex-wrap items-center gap-2">
+          <nav className="flex rounded-lg bg-paper p-0.5" aria-label="Views">
+            {([['leads', 'Leads'], ['posts', 'Posts'], ['organizations', `Businesses ${orgs.length}`], ['skipped', `Skipped ${skips.length}`]] as const).map(([id, label]) => (
+              <Link key={id} href={href({ view: id })}
+                className={clsx('rounded-md px-3 py-1.5 text-sm font-medium transition-colors', view === id ? 'bg-surface text-ink shadow-sm' : 'text-muted hover:text-ink')}>
+                {label}
+              </Link>
             ))}
           </nav>
-
           {view === 'leads' && (
-            <form className="mt-4 flex flex-wrap items-center gap-2" action="/admin/social">
+            <form className="flex flex-1 flex-wrap items-center justify-end gap-2" action="/admin/social">
               <input type="hidden" name="view" value="leads" />
               {platform && <input type="hidden" name="platform" value={platform} />}
-              <label className="relative flex-1 min-w-[220px] max-w-md">
+              <label className="relative flex-1 min-w-[180px] max-w-xs">
                 <span className="sr-only">Search comment text</span>
-                <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-muted" />
-                <input name="q" defaultValue={q} placeholder="Search comment text (Khmer or English)" className="w-full rounded-full border border-line bg-surface pl-11 pr-4 py-2.5 text-sm focus:outline-none focus:border-brand" />
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted" />
+                <input name="q" defaultValue={q} placeholder="Search comments…"
+                  className="w-full rounded-lg border border-line bg-surface py-1.5 pl-9 pr-3 text-sm focus:outline-none focus:border-brand" />
               </label>
-              <select name="lead" defaultValue={lead} className="rounded-full border border-line bg-surface px-4 py-2.5 text-sm">
-                <option value="confirmed_rx300_buyer">Confirmed RX300 buyers</option>
-                <option value="buyers">RX300 buyers + potential fits</option>
-                <option value="potential_rx300_fit">Potential RX300 fits</option>
+              <select name="lead" defaultValue={lead} className="rounded-lg border border-line bg-surface px-2.5 py-1.5 text-sm">
+                <option value="confirmed_rx300_buyer">RX300 buyers</option>
+                <option value="buyers">+ potential fits</option>
                 <option value="seller_or_dealer">Sellers / dealers</option>
                 <option value="all">Everything</option>
               </select>
-              <button className="px-5 py-2.5 rounded-full bg-ink text-white text-sm font-semibold hover:bg-brand transition-colors">Apply</button>
+              <button className="rounded-lg bg-ink px-3.5 py-1.5 text-sm font-semibold text-white hover:bg-brand transition-colors">Apply</button>
             </form>
           )}
-
-          <dl className="mt-6 grid grid-cols-2 md:grid-cols-5 gap-3">
-            {[['Posts', posts.length], ['Comments stored', comments.length], ['RX300 buyers', counts.confirmed], ['Potential fits', counts.potential], ['Businesses', orgs.length]].map(([l, v]) => (
-              <div key={l as string} className="rounded-2xl bg-paper border border-line p-4"><dt className="text-sm text-muted">{l}</dt><dd className="text-2xl font-semibold text-ink tnum mt-1">{v as number}</dd></div>
-            ))}
-          </dl>
         </div>
       </div>
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
-        {tablesMissing && <p className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-amber-900 text-sm">The social tables aren&apos;t created yet — apply <code>supabase/migrations/20261001_public_social_generalized.sql</code>.</p>}
-        {!tablesMissing && leadsMissing && <p className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-amber-900 text-sm">Lead types, businesses and platform status need <code>supabase/migrations/20261002_multi_platform_discovery.sql</code>. Until then buyers are shown by intent score only.</p>}
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
+        {tablesMissing && <p className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-amber-900 text-sm">The social tables aren&apos;t created yet — apply <code>supabase/migrations/20261001_public_social_generalized.sql</code>.</p>}
+        {!tablesMissing && leadsMissing && <p className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-amber-900 text-sm">Lead types need <code>supabase/migrations/20261002_multi_platform_discovery.sql</code>.</p>}
 
         {view === 'leads' && (
           <>
-            {leads.map((c) => {
-              const p = postById.get(c.post_id)
-              const parent = c.parent_comment_id ? commentById.get(c.parent_comment_id) : undefined
-              return (
-                <article key={c.id} className="rounded-3xl border border-line bg-paper/60 p-3 md:p-4 space-y-3">
-                  {p && <PostPreview p={p} shot={postShots.get(p.id)} />}
-                  {parent && (
-                    <div className="ml-4 md:ml-6 rounded-2xl border border-line bg-surface p-3 text-sm">
-                      <span className="text-xs text-muted">Replying to {parent.commenter_key ? `#${parent.commenter_key.slice(0, 8)}` : 'a comment'}:</span>
-                      <p className="mt-1 text-ink whitespace-pre-wrap line-clamp-3">{parent.comment_text}</p>
-                    </div>
-                  )}
-                  <CommentCard c={c} shot={commentShots.get(c.id)} bizShot={bizShots.get(c.id)} depth={parent ? 1 : 0} />
-                  <p className="text-xs text-muted pl-2">
-                    {c.comment_url_available ? <Ext href={c.source_comment_url} label="Open comment" /> : <>Comment on <Ext href={p?.canonical_post_url} label="this post" /></>} · captured {fmt(c.captured_at)}
-                  </p>
-                </article>
-              )
-            })}
-            {!tablesMissing && leads.length === 0 && <p className="text-muted">No leads{platform ? ` on ${PLATFORM_LABEL[platform]}` : ''} yet.</p>}
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              {leads.map((c) => (
+                <LeadTile key={c.id} c={c} p={postById.get(c.post_id)}
+                  parent={c.parent_comment_id ? commentById.get(c.parent_comment_id) : undefined}
+                  postShot={postShots.get(c.post_id)} commentShot={commentShots.get(c.id)} bizShot={bizShots.get(c.id)} />
+              ))}
+            </div>
+            {!tablesMissing && leads.length === 0 && (
+              <div className="rounded-2xl border border-dashed border-line bg-surface p-10 text-center">
+                <p className="text-ink font-medium">No RX300 buyers{platform ? ` on ${PLATFORM_LABEL[platform]}` : ''} yet</p>
+                <p className="mt-1 text-sm text-muted">New buyers appear here as the worker finds them.</p>
+              </div>
+            )}
           </>
         )}
 
         {view === 'posts' && shownPosts.map((p) => {
           const mine = comments.filter((c) => c.post_id === p.id)
           return (
-            <article key={p.id} className="rounded-3xl bg-surface border border-line overflow-hidden">
-              <div className="p-6 border-b border-line">
-                <PostPreview p={p} shot={postShots.get(p.id)} />
-                <dl className="mt-4 grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <Field label="Found by search">“{p.search_query}” <Ext href={p.search_url} label="results" /></Field>
-                  <Field label="Visibility"><CheckCircle2 className="inline w-3 h-3 text-emerald-600" /> {p.visibility_evidence}</Field>
-                  <Field label="Comments">{p.completeness_status === 'complete' ? 'all collected' : <><AlertTriangle className="inline w-3 h-3 text-amber-600" /> {p.completeness_status}</>} · {p.comments_collected_count} / {p.replies_collected_count} replies{p.rejected_comment_count ? ` · ${p.rejected_comment_count} not stored` : ''}</Field>
-                  <Field label="Engagement (shown)">{Object.entries(p.engagement).map(([k, v]) => `${k} ${v}`).join(' · ') || '—'}</Field>
-                  <Field label="Captured">{fmt(p.captured_at)}</Field>
-                  <Field label="Adapter" mono>{p.source_adapter ?? p.adapter_version}</Field>
-                </dl>
+            <article key={p.id} className="rounded-2xl bg-surface border border-line overflow-hidden">
+              <div className="grid md:grid-cols-[320px_minmax(0,1fr)]">
+                <div className="bg-paper border-b md:border-b-0 md:border-r border-line">
+                  {postShots.get(p.id)
+                    // eslint-disable-next-line @next/next/no-img-element
+                    ? <a href={postShots.get(p.id)} target="_blank" rel="noopener noreferrer"><img src={postShots.get(p.id)} alt="Post (names hidden)" className="w-full h-full max-h-[420px] object-cover object-top" /></a>
+                    : <p className="p-5 text-sm text-muted">No screenshot</p>}
+                </div>
+                <div className="p-5 min-w-0">
+                  <div className="flex flex-wrap items-center gap-2 text-xs text-muted">
+                    <span className="rounded-md bg-paper px-2 py-0.5 font-semibold text-ink">{PLATFORM_LABEL[p.platform] ?? p.platform}</span>
+                    {p.lead_type && <span className={clsx('rounded-md px-2 py-0.5 font-semibold', LEAD[p.lead_type].cls)}>{LEAD[p.lead_type].text}</span>}
+                    <span>“{p.search_query}”</span>
+                    <span className="ml-auto">{p.published_text_displayed ?? fmt(p.published_at_observed ?? p.captured_at)}</span>
+                  </div>
+                  {(p.post_title || p.document_title) && <p className="mt-3 font-semibold text-ink">{p.post_title ?? p.document_title}</p>}
+                  <p className="mt-2 text-sm text-ink whitespace-pre-wrap line-clamp-6">{p.post_text ?? '(no text)'}</p>
+                  <div className="mt-3 flex flex-wrap gap-3 text-xs text-muted">
+                    <span>{p.comments_collected_count} comments · {p.replies_collected_count} replies{p.rejected_comment_count ? ` · ${p.rejected_comment_count} not stored` : ''}</span>
+                    <span>{p.completeness_status === 'complete' ? 'all comments read' : p.completeness_status.replaceAll('_', ' ')}</span>
+                    <Ext href={p.canonical_post_url} label="Open post" />
+                  </div>
+                  <div className="mt-4 space-y-3">{mine.length ? <Thread list={mine} parent={null} depth={0} /> : <p className="text-sm text-muted">No stored comments.</p>}</div>
+                </div>
               </div>
-              <div className="p-6 bg-paper/60">{mine.length ? <Thread list={mine} parent={null} depth={0} /> : <p className="text-sm text-muted">No stored comments.</p>}</div>
             </article>
           )
         })}
         {view === 'posts' && !tablesMissing && shownPosts.length === 0 && <p className="text-muted">No posts yet.</p>}
 
         {view === 'organizations' && (
-          <div className="rounded-3xl bg-surface border border-line overflow-x-auto">
+          <div className="rounded-2xl bg-surface border border-line overflow-x-auto">
             <table className="w-full text-sm">
-              <thead className="text-left text-muted border-b border-line"><tr>{['Business', 'Platform', 'Kind', 'Why organizational', 'Last seen'].map((h) => <th key={h} className="px-4 py-3 font-medium">{h}</th>)}</tr></thead>
+              <thead className="text-left text-xs uppercase tracking-wider text-muted border-b border-line">
+                <tr>{['Business', 'Platform', 'Category', 'Location', 'Contact', 'Last seen'].map((h) => <th key={h} className="px-4 py-3 font-medium">{h}</th>)}</tr>
+              </thead>
               <tbody className="divide-y divide-line">
                 {orgs.filter((o) => !platform || o.platform === platform).map((o) => (
                   <tr key={o.id}>
-                    <td className="px-4 py-3"><Building2 className="inline w-4 h-4 text-muted mr-1" />{o.url ? <Ext href={o.url} label={o.name} /> : o.name}</td>
+                    <td className="px-4 py-3"><Building2 className="inline w-4 h-4 text-muted mr-1.5" />{o.url ? <Ext href={o.url} label={o.name} /> : o.name}</td>
                     <td className="px-4 py-3">{PLATFORM_LABEL[o.platform] ?? o.platform}</td>
-                    <td className="px-4 py-3">{o.kind}</td>
-                    <td className="px-4 py-3 text-muted">{o.evidence}</td>
-                    <td className="px-4 py-3 whitespace-nowrap">{fmt(o.last_seen_at)}</td>
+                    <td className="px-4 py-3 text-muted">{(o as Org & { category?: string }).category ?? o.kind}</td>
+                    <td className="px-4 py-3 text-muted">{(o as Org & { sales_location?: string }).sales_location ?? '—'}</td>
+                    <td className="px-4 py-3 text-muted">{Object.values((o as Org & { contact_channels?: Record<string, string[]> }).contact_channels ?? {}).flat().slice(0, 2).join(', ') || '—'}</td>
+                    <td className="px-4 py-3 whitespace-nowrap text-muted">{ago(o.last_seen_at)}</td>
                   </tr>
                 ))}
               </tbody>
             </table>
-            {orgs.length === 0 && <p className="px-4 py-3 text-sm text-muted">No businesses recorded yet.</p>}
+            {orgs.length === 0 && <p className="px-4 py-6 text-sm text-muted">No businesses recorded yet.</p>}
           </div>
         )}
 
         {view === 'skipped' && (
-          <div className="rounded-3xl bg-surface border border-line overflow-x-auto">
+          <div className="rounded-2xl bg-surface border border-line overflow-x-auto">
             <table className="w-full text-sm">
-              <thead className="text-left text-muted border-b border-line"><tr>{['When', 'Platform', 'Post', 'Search', 'Reason'].map((h) => <th key={h} className="px-4 py-3 font-medium">{h}</th>)}</tr></thead>
+              <thead className="text-left text-xs uppercase tracking-wider text-muted border-b border-line"><tr>{['When', 'Platform', 'Post', 'Search', 'Why skipped'].map((h) => <th key={h} className="px-4 py-3 font-medium">{h}</th>)}</tr></thead>
               <tbody className="divide-y divide-line">
                 {skips.map((s) => (
                   <tr key={s.id}>
-                    <td className="px-4 py-3 whitespace-nowrap">{fmt(s.observed_at)}</td>
+                    <td className="px-4 py-3 whitespace-nowrap text-muted">{ago(s.observed_at)}</td>
                     <td className="px-4 py-3">{PLATFORM_LABEL[s.platform] ?? s.platform}</td>
-                    <td className="px-4 py-3"><Ext href={s.canonical_post_url} /></td>
+                    <td className="px-4 py-3"><Ext href={s.canonical_post_url} label="Open" /></td>
                     <td className="px-4 py-3">{s.search_query}</td>
-                    <td className="px-4 py-3 font-mono text-xs">{s.skip_reason}</td>
+                    <td className="px-4 py-3 text-muted">{s.skip_reason.replaceAll('_', ' ')}</td>
                   </tr>
                 ))}
               </tbody>
             </table>
           </div>
         )}
-      </div>
+      </main>
     </div>
   )
 }
