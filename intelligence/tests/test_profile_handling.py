@@ -77,9 +77,11 @@ def test_tiktok_cycle_business_vs_individual(tmp_path):
     rows = [json.loads(x) for x in (sink.dir / "tiktok.jsonl").read_text().splitlines()]
     comments = [c for r in rows for c in r["comments"]]
     biz = [c for c in comments if c["account_type"] == "business"]
-    assert len(biz) == 1 and biz[0]["business_page_url"] == "https://www.tiktok.com/@sok.auto.import"
-    assert biz[0]["lead"]["lead_type"] == "seller_or_dealer"
-    assert biz[0]["business_page_screenshot"] and biz[0]["business_page_screenshot"].get("file")
+    by_url = {c["business_page_url"]: c for c in biz}
+    assert set(by_url) == {"https://www.tiktok.com/@sok.auto.import", "https://www.tiktok.com/@dealer.kh"}  # dealer + the seller
+    assert all(c["lead"]["lead_type"] == "seller_or_dealer" for c in biz)
+    shot = by_url["https://www.tiktok.com/@sok.auto.import"]["business_page_screenshot"]
+    assert shot and shot.get("file")
     for c in comments:
         if c["account_type"] != "business":
             assert c["business_page_name"] is None and c["business_page_url"] is None and c["business_page_screenshot"] is None
