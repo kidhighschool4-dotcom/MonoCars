@@ -36,6 +36,7 @@
              "notes": "Live runs only message the owner for top confirmed RX300 buyers; everything else stays on the dashboard."},
   "ai_review": {"enabled": false, "notes": "Advisory second opinion on borderline buyer leads via the local OpenClaw gateway; counts against the AI budgets."},
   "persist_policy": "buyers",
+  "revisit_after_h": 3,
   "platforms": {
     "facebook_public_posts": {"tier": 1, "enabled": false, "schedule": "cambodia_high_value", "rate": {"min_interval_s": 12, "concurrency": 1}},
     "facebook_marketplace":  {"excluded": "owner: seller listings only, no public comments", "tier": 1, "enabled": false, "schedule": "cambodia_high_value", "rate": {"min_interval_s": 12, "concurrency": 1}},

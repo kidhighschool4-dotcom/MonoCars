@@ -77,4 +77,5 @@ def platform_config(name: str, cfg: dict | None = None) -> dict:
             "screenshot_min_score": p.get("screenshot_min_score", cfg.get("screenshot_min_score", 70)),
             "persist_policy": p.get("persist_policy", cfg.get("persist_policy", "buyers")),
             "ai_review": p.get("ai_review", cfg.get("ai_review", {"enabled": False})),
-            "recency": {**cfg.get("recency", {}), **p.get("recency", {})}}
+            "recency": {**cfg.get("recency", {}), **p.get("recency", {})},
+            "revisit_after_h": p.get("revisit_after_h", cfg.get("revisit_after_h", 12))}
