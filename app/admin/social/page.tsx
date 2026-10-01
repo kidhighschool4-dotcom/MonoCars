@@ -6,7 +6,7 @@ import { canViewFacebookData, getServerUser } from '@/lib/auth-server'
 import { supabaseAdmin } from '@/lib/supabase-server'
 
 export const dynamic = 'force-dynamic'
-export const metadata = { title: 'Social data | FBM', robots: { index: false, follow: false } }
+export const metadata = { title: 'RX300 buyers | FBM', robots: { index: false, follow: false } }
 
 // Worker adapter name → stored `platform` value + label (mirrors intelligence/config/platforms_v1.json)
 const ADAPTERS = [
@@ -182,7 +182,7 @@ export default async function SocialDataPage({ searchParams }: { searchParams: P
   const str = (k: string) => (typeof sp[k] === 'string' ? (sp[k] as string) : '')
   const view = (['leads', 'posts', 'organizations', 'skipped'].includes(str('view')) ? str('view') : 'leads') as 'leads' | 'posts' | 'organizations' | 'skipped'
   const platform = str('platform') in PLATFORM_LABEL ? str('platform') : ''
-  const lead = ['confirmed_rx300_buyer', 'potential_rx300_fit', 'seller_or_dealer', 'buyers', 'all'].includes(str('lead')) ? str('lead') : 'buyers'
+  const lead = ['confirmed_rx300_buyer', 'potential_rx300_fit', 'seller_or_dealer', 'buyers', 'all'].includes(str('lead')) ? str('lead') : 'confirmed_rx300_buyer'
   const q = str('q').trim().slice(0, 100).toLowerCase()
 
   const postsQ = supabaseAdmin.from('public_social_posts').select('*').eq('owner_id', user.id).order('captured_at', { ascending: false }).limit(500)
@@ -244,7 +244,7 @@ export default async function SocialDataPage({ searchParams }: { searchParams: P
     .map(async (c) => [c.id, await sign(c.business_page_screenshot)] as const)))
 
   const href = (next: Record<string, string>) => {
-    const p = new URLSearchParams({ view, ...(platform && { platform }), ...(lead !== 'buyers' && { lead }), ...(q && { q }), ...next })
+    const p = new URLSearchParams({ view, ...(platform && { platform }), ...(lead !== 'confirmed_rx300_buyer' && { lead }), ...(q && { q }), ...next })
     for (const [k, v] of Array.from(p.entries())) if (!v) p.delete(k)
     return `/admin/social?${p.toString()}`
   }
@@ -264,7 +264,7 @@ export default async function SocialDataPage({ searchParams }: { searchParams: P
       <div className="bg-surface border-b border-line">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-12 pb-8">
           <p className="inline-flex items-center gap-2 text-sm font-medium text-muted mb-3"><span className="w-1.5 h-1.5 rounded-full bg-brand" />Private · {user.email}</p>
-          <h1 className="text-4xl md:text-5xl font-semibold tracking-tight text-ink">Social data</h1>
+          <h1 className="text-4xl md:text-5xl font-semibold tracking-tight text-ink">Lexus RX300 buyers</h1>
           <p className="mt-3 text-muted max-w-3xl">
             Public posts and comments from every platform, typed as RX300 buyers, potential fits, sellers or irrelevant.
             Commenters are pseudonymous keys; screenshots hide names. Businesses are listed apart from buyer leads.
@@ -318,8 +318,8 @@ export default async function SocialDataPage({ searchParams }: { searchParams: P
                 <input name="q" defaultValue={q} placeholder="Search comment text (Khmer or English)" className="w-full rounded-full border border-line bg-surface pl-11 pr-4 py-2.5 text-sm focus:outline-none focus:border-brand" />
               </label>
               <select name="lead" defaultValue={lead} className="rounded-full border border-line bg-surface px-4 py-2.5 text-sm">
-                <option value="buyers">RX300 buyers + potential fits</option>
                 <option value="confirmed_rx300_buyer">Confirmed RX300 buyers</option>
+                <option value="buyers">RX300 buyers + potential fits</option>
                 <option value="potential_rx300_fit">Potential RX300 fits</option>
                 <option value="seller_or_dealer">Sellers / dealers</option>
                 <option value="all">Everything</option>

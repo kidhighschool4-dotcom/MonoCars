@@ -292,6 +292,23 @@ export default async function FacebookDataPage({ searchParams }: { searchParams:
     supabaseAdmin.from('listings').select('id,title_raw,price_text_raw,price_usd,location_text_raw,source_url,lifecycle_status,status_reason,first_captured_at,last_seen_at')
       .in('source_platform', ['facebook']).order('last_seen_at', { ascending: false }),
   ])
+  // Lexus RX300 buyers on Facebook from the multi-platform worker (public_social_*, platform = facebook)
+  const { data: rxCommentsData } = await supabaseAdmin.from('public_social_comments')
+    .select('id,post_id,comment_text,source_comment_url,canonical_comment_url,commenter_key,matched_signals,matched_phrases,comment_fingerprint,' +
+      'commented_at_observed,captured_at,screenshot_path,account_type,business_page_name,business_page_url,parent_comment_id')
+    .eq('owner_id', user.id).eq('platform', 'facebook').eq('lead_type', 'confirmed_rx300_buyer')
+    .order('captured_at', { ascending: false }).limit(200)
+  type RxComment = { id: string; post_id: string; comment_text: string; source_comment_url: string | null; canonical_comment_url: string | null
+    commenter_key: string | null; matched_signals: string[] | null; matched_phrases: string[] | null; comment_fingerprint: string
+    commented_at_observed: string | null; captured_at: string; screenshot_path: string | null; account_type?: string
+    business_page_name?: string | null; business_page_url?: string | null; parent_comment_id: string | null }
+  const rxComments = (rxCommentsData ?? []) as unknown as RxComment[]
+  const rxPostIds = Array.from(new Set(rxComments.map((c) => c.post_id)))
+  const { data: rxPostsData } = rxPostIds.length
+    ? await supabaseAdmin.from('public_social_posts').select('id,canonical_post_url,post_text,post_title,published_at_observed,search_query,screenshot_path').in('id', rxPostIds)
+    : { data: [] }
+  const rxPosts = new Map(((rxPostsData ?? []) as { id: string; canonical_post_url: string; post_text: string | null; post_title: string | null
+    published_at_observed: string | null; search_query: string; screenshot_path: string | null }[]).map((p) => [p.id, p]))
   const posts = (postsData ?? []) as PostRow[]
   const comments = (commentsData ?? []) as CommentRow[]
   const skips = (skipsData ?? []) as SkipRow[]
@@ -309,6 +326,12 @@ export default async function FacebookDataPage({ searchParams }: { searchParams:
     Promise.all(shotPosts.map(async (p) => [p.id, await sign(p.screenshot_path)] as const)),
     Promise.all(shotComments.map(async (c) => [c.id, await sign(c.screenshot_path)] as const)),
   ])
+  const [rxPostShotList, rxCommentShotList] = tab === 'buyers' ? await Promise.all([
+    Promise.all(Array.from(rxPosts.values()).filter((p) => p.screenshot_path).map(async (p) => [p.id, await sign(p.screenshot_path)] as const)),
+    Promise.all(rxComments.filter((c) => c.screenshot_path).map(async (c) => [c.id, await sign(c.screenshot_path)] as const)),
+  ]) : [[], []]
+  const rxPostShots = new Map<string, string | undefined>(rxPostShotList)
+  const rxCommentShots = new Map<string, string | undefined>(rxCommentShotList)
   const postShots = new Map<string, string | undefined>(postShotList)
   const commentShots = new Map<string, string | undefined>(commentShotList)
   const commentById = new Map(comments.map((c) => [c.id, c]))
@@ -402,6 +425,27 @@ export default async function FacebookDataPage({ searchParams }: { searchParams:
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* ── Buyers: screenshot-first cards ── */}
+        {tab === 'buyers' && rxComments.length > 0 && !q && !query && (
+          <section className="mb-10">
+            <div className="flex items-end justify-between gap-3 mb-4">
+              <div>
+                <h2 className="text-2xl font-semibold tracking-tight text-ink">Lexus RX300 buyers <span className="text-muted tnum">{rxComments.length}</span></h2>
+                <p className="text-sm text-muted">People asking to buy an RX300 on Facebook, from the RX300 searches.</p>
+              </div>
+              <Link href="/admin/social?platform=facebook" className="text-sm font-medium text-brand">All platforms →</Link>
+            </div>
+            <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
+              {rxComments.map((c) => {
+                const p = rxPosts.get(c.post_id)
+                const asComment = { ...c, buyer_intent: true, buyer_intent_signals: c.matched_signals ?? [], matched_phrases: c.matched_phrases ?? [],
+                  account_type: (c.account_type ?? 'unknown') as CommentRow['account_type'] } as unknown as CommentRow
+                const asPost = p ? ({ ...p, post_text: [p.post_title, p.post_text].filter(Boolean).join('\n') || null } as unknown as PostRow) : undefined
+                return <LeadCard key={c.id} c={asComment} p={asPost} postShot={rxPostShots.get(c.post_id)} commentShot={rxCommentShots.get(c.id)} />
+              })}
+            </div>
+            <h2 className="mt-12 mb-4 text-lg font-semibold text-ink">Other car buyers (earlier general crawl)</h2>
+          </section>
+        )}
         {tab === 'buyers' && (
           <>
             <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
