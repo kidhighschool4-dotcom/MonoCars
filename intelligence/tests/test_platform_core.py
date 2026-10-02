@@ -606,3 +606,9 @@ def test_facebook_and_tiktok_search_lexus_rx300_1999():
         qs = [q.text for q in queries_for(plat)]
         assert qs and all(("1999" in q or "99" in q or "៩៩" in q) for q in qs), qs
         assert {q.language for q in queries_for(plat)} == {"en", "km", "romanized_km"}
+
+
+def test_dm_if_interested_is_a_seller():
+    ctx = PostContext("2020 Lexus RX300 F Sport for sale")
+    assert classify_comment("📲DM if interested 2020 LEXUS RX300 2.0 F SPORT FACELIFT", ctx).lead_type == "seller_or_dealer"
+    assert classify_comment("RX300 ចង់ទិញ ib មក", ctx).lead_type == "confirmed_rx300_buyer"

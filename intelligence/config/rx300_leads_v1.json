@@ -1,5 +1,5 @@
 {
-  "version": "rx300-leads-v2",
+  "version": "rx300-leads-v3",
   "notes": "Phrases are matched on casefolded text with Khmer digits mapped to ASCII and whitespace collapsed. Khmer spellings vary; add variants here, not in code.",
   "rx300_model": {
     "regex": [
@@ -122,6 +122,10 @@
       "chor cha",
       "contact us",
       "dealer",
+      "dm for more",
+      "dm for price",
+      "dm if interested",
+      "facelift",
       "first owner",
       "for sale",
       "full option",
@@ -129,12 +133,20 @@
       "i have a",
       "i have one",
       "i sell mine",
+      "ib សួរតម្លៃ",
+      "if interested",
       "in stock",
+      "inbox for more",
+      "inbox for price",
+      "inbox សួរតម្លៃ",
       "knhom mean",
+      "low mileage",
       "mean lok",
       "mine is for sale",
       "negotiable",
+      "pm if interested",
       "ready stock",
+      "ready to drive",
       "selling",
       "showroom",
       "tax paper",
@@ -215,6 +227,30 @@
       "ស្រោមកៅអី",
       "ទ្រនាប់ជើង",
       "ប៉ារ៉ាសុក"
+    ]
+  },
+  "seller_strong": {
+    "phrases": [
+      "dm if interested",
+      "pm if interested",
+      "inbox if interested",
+      "message if interested",
+      "dm for price",
+      "dm for more",
+      "inbox for price",
+      "pm for price",
+      "i have a",
+      "i also have",
+      "i have one",
+      "mine is for sale",
+      "we have",
+      "in stock",
+      "ready stock",
+      "ខ្ញុំក៏មាន",
+      "ខ្ញុំមានលក់",
+      "មានលក់",
+      "ib សួរតម្លៃ",
+      "inbox សួរតម្លៃ"
     ]
   }
 }

@@ -51,6 +51,7 @@ class LeadRules:
     seller_regex: tuple[re.Pattern, ...]
     org_hints: tuple[str, ...]
     parts: tuple[str, ...] = ()
+    seller_strong: tuple[str, ...] = ()
 
 
 @lru_cache(maxsize=4)
@@ -64,6 +65,7 @@ def load_rules(path: str = str(CONFIG_PATH)) -> LeadRules:
         family=low(c["family_suv_need"]["phrases"]), taxi=low(c["taxi_use"]["phrases"]), seeking=low(c["seeking"]["phrases"]),
         seller=low(c["seller_offer"]["phrases"]), seller_regex=tuple(re.compile(r, re.I) for r in c["seller_offer"].get("regex", [])),
         org_hints=low(c["organization_name_hints"]), parts=low(c.get("parts_accessories", {}).get("phrases", [])),
+        seller_strong=low(c.get("seller_strong", {}).get("phrases", [])),
     )
 
 
@@ -187,6 +189,9 @@ def classify_comment(text: str, post: PostContext | None = None, *, intent: Inte
     # unless the comment itself says it wants to buy an RX300
     if post.text.strip() and not post.is_sale and not post.is_sale_of_car() and not (rx_here and (buyer or seeking)):
         return LeadResult("irrelevant", confidence=70, reasons=["not_a_sale_post"], **base)
+    strong_seller = _hits(t, r.seller_strong)
+    if strong_seller:          # "DM if interested", "I also have one", "we have … in stock" — offers, even with buyer words
+        return LeadResult("seller_or_dealer", confidence=85, reasons=["seller_offer", *strong_seller[:3]], **base)
     if seller and not buyer:
         return LeadResult("seller_or_dealer", confidence=70, reasons=["seller_offer", *seller[:3]], **base)
     if intent.spam_score >= 60 and not strong:
