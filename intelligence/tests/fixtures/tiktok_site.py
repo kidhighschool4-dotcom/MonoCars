@@ -79,7 +79,8 @@ def search_behind_captcha(links):
     items = "".join(f'<div data-e2e="search_video-item"><a href="https://www.tiktok.com{h}">video</a></div>' for h in links)
     return ("<!doctype html><html><head><title>car sedan - Search | TikTok</title></head><body><main id='m'>"
             "<div id='captcha_container'>Drag the slider to fit the puzzle</div></main><script>"
-            f"setTimeout(() => {{ document.getElementById('m').innerHTML = {items!r}; }}, 2000);</script></body></html>")
+            f"setTimeout(() => {{ document.cookie = 'captcha_ok=1; path=/'; document.getElementById('m').innerHTML = {items!r}; }}, 2000);"
+            "</script></body></html>")
 
 
 def search_page(links):
@@ -102,7 +103,8 @@ def install(context, *, search="normal") -> list[str]:
         if path == "/search/video":
             body = {"normal": search_page([V1, V2, V3, V4, V1 + "?is_from_webapp=1&sender_device=pc"]),
                     "blocked": search_page([BLOCKED, V1]), "login": LOGIN,
-                    "captcha_solved": search_behind_captcha([V1]), "captcha_stuck": CHALLENGE}[search]
+                    "captcha_solved": search_page([V1]) if "captcha_ok=1" in (route.request.headers.get("cookie") or "")
+                    else search_behind_captcha([V1]), "captcha_stuck": CHALLENGE}[search]
         elif path == "/@sok.auto.import":
             body = BUSINESS_PAGE
         else:

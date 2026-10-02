@@ -203,7 +203,12 @@ class TikTokPublicVideosAdapter:
         while time.monotonic() < deadline:
             time.sleep(3)
             if self.page_state(s) != "access_blocked":
-                log.info("CAPTCHA cleared by you; continuing after a pause")
+                log.info("CAPTCHA cleared by you; reloading the page so its results load")
+                s.page.wait_for_timeout(1500)
+                try:   # TikTok leaves the list empty after a challenge until the page is loaded again
+                    s.page.reload(wait_until="domcontentloaded")
+                except Exception:  # noqa: BLE001
+                    pass
                 s.page.wait_for_timeout(self.lim["settle_ms"])
                 return
         raise AccessBlocked(s.page.url, "challenge_not_solved_in_time")
