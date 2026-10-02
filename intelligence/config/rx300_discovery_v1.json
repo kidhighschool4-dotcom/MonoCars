@@ -202,17 +202,22 @@
     },
     "youtube": {
       "query_groups": [
-        "rx300_confirmed",
-        "rx300_family",
-        "rx300_taxi"
+        "rx300_1999"
       ],
       "region_code": "KH",
       "relevance_language": "km"
     },
     "instagram": {
       "use_hashtags": true,
+      "hashtags": [
+        "#rx300",
+        "#lexusrx300",
+        "#rx3001999",
+        "#lexusrx3001999",
+        "#rx300cambodia"
+      ],
       "query_groups": [
-        "rx300_confirmed"
+        "rx300_1999"
       ]
     },
     "tiktok": {

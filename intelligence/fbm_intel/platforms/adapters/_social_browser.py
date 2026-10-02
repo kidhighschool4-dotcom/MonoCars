@@ -467,10 +467,20 @@ class SocialBrowserAdapter(BrowserAdapterBase):
         if self.s is None or self._current_url != url:
             self._goto(self._nav.get(url, url), as_url=url)
 
+    premark_js: str | None = None   # platform pre-pass that tags comment blocks the generic selectors can't express
+
+    def _premark(self) -> None:
+        if self.premark_js:
+            try:
+                self.s.page.evaluate(self.premark_js)
+            except Exception:  # noqa: BLE001
+                pass
+
     def collect_comments(self, post: SocialPost) -> CommentBatch:
         if not self.supports_comments:
             return CommentBatch([], "comments_unavailable")
         self._ensure_on(post.canonical_post_url)
+        self._premark()
         if self._has("comments_disabled"):
             return CommentBatch([], "comments_unavailable")
         if not self._has("comment_item") and self._has("comments_button"):
@@ -489,6 +499,7 @@ class SocialBrowserAdapter(BrowserAdapterBase):
         return CommentBatch(comments, status, rounds)
 
     def _read(self, seen: dict) -> None:
+        self._premark()
         for c in self.s.page.evaluate(_COMMENTS_JS, {"selectors": self.sel}):
             seen.setdefault(c["key"], c)
 

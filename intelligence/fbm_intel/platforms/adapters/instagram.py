@@ -24,6 +24,28 @@ from ._social_browser import SocialBrowserAdapter, load_adapter_config
 
 _CFG = load_adapter_config("instagram")
 
+# Live Instagram (2026) renders comments as anonymous <div>s, not ul/li. Every comment has its own permalink
+# /p/<code>/c/<id>/ (replies: /c/<id>/r/<rid>/): tag the smallest block around each permalink as the comment, its text
+# span (longest dir=auto span that is not a link, button or UI word) and replies. Read-only marks, nothing else changes.
+PREMARK_JS = r"""() => {
+  if (document.querySelector('article ul li')) return false;   // older list layout: the generic selectors handle it
+  const UI = /^(reply|replies|see translation|like|likes|•|·|\d+[smhdwy]|\d+ (like|likes))$/i;
+  for (const a of document.querySelectorAll('a[href*="/c/"]')) {
+    const href = a.getAttribute('href') || '';
+    if (!/\/(p|reel)\/[^/]+\/c\/\d+/.test(href)) continue;
+    let e = a;
+    while (e.parentElement && e.parentElement.querySelectorAll('a[href*="/c/"]').length === 1 && e.parentElement.tagName !== 'MAIN') e = e.parentElement;
+    if (e.hasAttribute('data-fbm-comment')) continue;
+    e.setAttribute('data-fbm-comment', '1');
+    if (/\/c\/\d+\/r\/\d+/.test(href)) e.setAttribute('data-fbm-reply', '1');
+    const spans = Array.from(e.querySelectorAll('span[dir="auto"]'))
+      .filter(sp => !sp.closest('a') && !sp.closest('button,[role="button"]') && !UI.test((sp.textContent || '').trim()));
+    const best = spans.sort((x, y) => (y.textContent || '').length - (x.textContent || '').length)[0];
+    if (best) best.setAttribute('data-fbm-ctext', '1');
+  }
+  return true;
+}"""
+
 
 @register
 class InstagramAdapter(SocialBrowserAdapter):
@@ -39,3 +61,4 @@ class InstagramAdapter(SocialBrowserAdapter):
     login_url = _CFG["login"]["url"]
     login_cookie_url = _CFG["login"]["cookie_url"]
     login_cookies = tuple(_CFG["login"]["cookies"])
+    premark_js = PREMARK_JS
