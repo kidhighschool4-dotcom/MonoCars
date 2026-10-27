@@ -43,6 +43,9 @@ them (and may push back with questions) before anything is imported.
   around either, so nothing was collected and the 20 existing cars were **not** deleted. Recon notes + a Nuxt data
   parser are in `../khmer24-scrape/` in case Khmer24 grants permission or a feed. Other ways to fill the catalogue:
   a CSV/JSON the owner is allowed to use (format below), or demo listings.
+  Ready to run once the owner allowlists this Mac (IP 36.37.169.142) in Cloudflare:
+  `../khmer24-scrape/.venv/bin/python k24_scrape.py --check` → `k24_scrape.py` (Scrapling plain Fetcher, 5 per model,
+  resumable) → `import_supabase.py` (dry run) → `import_supabase.py --apply` (backs up + replaces the demo cars).
 
 ### Khmer24 output format (`../khmer24-scrape/out/cars.json`)
 
