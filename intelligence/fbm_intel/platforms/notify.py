@@ -20,6 +20,7 @@ from pathlib import Path
 import httpx
 
 from ..social.model import SocialPost
+from .campaign import current
 from .state import WorkerState
 
 log = logging.getLogger("fbm_intel.alerts")
@@ -132,7 +133,7 @@ class BestBuyerNotifier:
 
     def is_best(self, c, post: SocialPost | None = None) -> bool:
         L, i = c.lead, c.intent
-        return (self.is_recent(c, post) and L is not None and L.lead_type == "confirmed_rx300_buyer" and L.confidence >= self.cfg["min_confidence"]
+        return (self.is_recent(c, post) and L is not None and L.lead_type == current().focus and L.confidence >= self.cfg["min_confidence"]
                 and i.buyer_intent_score >= self.cfg["min_intent_score"] and i.spam_score <= self.cfg["max_spam_score"]
                 and not c.is_post_author and (self.cfg["allow_needs_review"] or not L.needs_review))
 
@@ -156,10 +157,11 @@ class BestBuyerNotifier:
 def format_alert(post: SocialPost, c) -> str:
     L, i = c.lead, c.intent
     what = ", ".join(SIGNAL.get(s, s.replace("_", " ")) for s in i.matched_signals[:3]) or "buyer intent"
-    use = {"taxi": " · taxi use", "family": " · family car"}.get(L.use_case or "", "")
+    use = {"taxi": " · taxi use", "family": " · family car", "house": " · house", "apartment": " · apartment",
+           "room": " · room", "commercial": " · shophouse / office"}.get(L.use_case or "", "")
     link = c.canonical_comment_url or c.source_comment_url
     lines = [
-        f"🚗 Best RX300 buyer · {PLATFORM_LABEL.get(post.platform, post.platform)}",
+        f"{current().label} · {PLATFORM_LABEL.get(post.platform, post.platform)}",
         f"“{c.comment_text[:280]}”",
         f"{what}{use} · confidence {L.confidence} · intent {i.buyer_intent_score}",
         f"Post: {post.canonical_post_url}",

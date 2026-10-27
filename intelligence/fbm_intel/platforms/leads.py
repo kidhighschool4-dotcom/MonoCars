@@ -33,6 +33,8 @@ class LeadResult:
     reasons: list[str] = field(default_factory=list)
     needs_review: bool = False
     version: str = ""
+    post_score: int | None = None        # posts only: 0–100 % lead quality (see rental_leads.score_post)
+    post_score_detail: dict | None = None
 
     def as_dict(self) -> dict:
         return asdict(self)

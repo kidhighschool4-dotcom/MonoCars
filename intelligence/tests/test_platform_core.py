@@ -339,8 +339,8 @@ def test_ai_review_is_advisory_and_budgeted(fake_registry, state, tmp_path):
     import fbm_intel.platforms.worker as W
     orig = W.type_leads
 
-    def borderline(adapter, post):
-        orig(adapter, post)
+    def borderline(adapter, post, campaign=None):
+        orig(adapter, post, campaign)
         for c in post.comments:
             c.lead.needs_review = True
     W.type_leads = borderline

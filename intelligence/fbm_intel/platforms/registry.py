@@ -79,4 +79,5 @@ def platform_config(name: str, cfg: dict | None = None) -> dict:
             "ai_review": p.get("ai_review", cfg.get("ai_review", {"enabled": False})),
             "recency": {**cfg.get("recency", {}), **p.get("recency", {})},
             "revisit_after_h": p.get("revisit_after_h", cfg.get("revisit_after_h", 12)),
-            "lead_focus": p.get("lead_focus", cfg.get("lead_focus"))}
+            "lead_focus": p.get("lead_focus", cfg.get("lead_focus")),
+            "campaign": cfg.get("campaign", "rx300")}

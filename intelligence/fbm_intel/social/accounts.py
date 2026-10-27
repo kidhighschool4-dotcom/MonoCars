@@ -20,7 +20,8 @@ class Account:
 
 def classify_account(display_name: str | None, page_url: str | None, *, business_marker: bool = False,
                      has_profile: bool = True) -> Account:
-    from ..platforms.leads import looks_organizational
+    from ..platforms.campaign import current
+    looks_organizational = current().rules.looks_organizational
     if business_marker or looks_organizational(display_name):
         name = (display_name or "").strip()[:300] or None
         return Account("business", name, page_url)

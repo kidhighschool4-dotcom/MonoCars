@@ -12,6 +12,19 @@ from fbm_intel.schemas import ProductBrief, SearchProfile
 from .fixtures.build_site import build
 
 
+@pytest.fixture(autouse=True)
+def rx300_campaign(request, monkeypatch):
+    """The worker fixtures and expectations are RX300 buyers; the shipped config may run another campaign.
+    Tests marked `rental_campaign` see the rental campaign instead."""
+    from fbm_intel.platforms import registry
+    name = "rental" if request.node.get_closest_marker("rental_campaign") else "rx300"
+    raw = registry._raw_config
+
+    def pinned(path: str) -> dict:
+        return {**raw(path), "campaign": name}
+    monkeypatch.setattr(registry, "_raw_config", pinned)
+
+
 @pytest.fixture(scope="session")
 def fixture_site(tmp_path_factory) -> str:
     """Serve the static FBM-shaped fixture marketplace on 127.0.0.1:<random port>."""

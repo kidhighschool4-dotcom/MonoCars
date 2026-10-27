@@ -173,14 +173,18 @@ class TikTokPublicVideosAdapter:
         except Exception:  # noqa: BLE001
             return None
 
-    def guard(self, s: BrowserSession) -> None:
+    def guard(self, s: BrowserSession) -> bool:
+        """True when a CAPTCHA was solved and the page reloaded (open panels, e.g. comments, are closed again)."""
         st = self.page_state(s)
+        solved = False
         if st == "access_blocked":
             self.diagnose(s, "access_blocked")
             self.wait_for_manual_challenge(s)
+            solved = True
             st = self.page_state(s)
         if st == "login_required":
             self.wait_for_manual_login(s)
+        return solved
 
     def wait_for_manual_challenge(self, s: BrowserSession) -> None:
         """Headed runs: show the CAPTCHA to the human and wait for them to solve it. Never solved automatically.
@@ -245,14 +249,17 @@ class TikTokPublicVideosAdapter:
             pass
 
     # ── search ──
-    def search(self, s: BrowserSession, phrase: str) -> list[Found]:
+    def search(self, s: BrowserSession, phrase: str, is_seen=None) -> list[Found]:
+        """Up to max_results_per_query videos not yet collected (`is_seen`); scrolls past already-seen ones."""
         url = search_url(self.cfg["search_url"], phrase)
         log.info("Opening TikTok search: %r → %s", phrase, url)
         s.goto(url, wait_until="domcontentloaded")
         s.page.wait_for_timeout(self.lim["settle_ms"])
         self.guard(s)
         found: dict[str, Found] = {}
-        for _ in range(3):
+        known: set[str] = set()
+        rounds = self.lim.get("max_search_scrolls", 8) if is_seen else 3
+        for _ in range(rounds):
             for sel in self.sel["search_result_link"]:
                 try:
                     hrefs = s.page.eval_on_selector_all(sel, "els => els.map(e => e.href)")
@@ -261,8 +268,13 @@ class TikTokPublicVideosAdapter:
                 for h in hrefs:
                     if is_video_url(h):
                         c = canonical_video_url(h)
-                        found.setdefault(c, Found(h, c, phrase, url))
-                if found:
+                        if c in found or c in known:
+                            continue
+                        if is_seen and is_seen(c):
+                            known.add(c)
+                            continue
+                        found[c] = Found(h, c, phrase, url)
+                if found or known:
                     break
             if len(found) >= self.lim["max_results_per_query"]:
                 break
@@ -270,8 +282,8 @@ class TikTokPublicVideosAdapter:
             s.page.wait_for_timeout(self.lim["scroll_pause_ms"])
             self.guard(s)
         res = list(found.values())[: self.lim["max_results_per_query"]]
-        log.info("Search %r: %d public video result(s) visible", phrase, len(res))
-        if not res:
+        log.info("Search %r: %d new video(s), %d already seen (skipped)", phrase, len(res), len(known))
+        if not res and not known:
             self.diagnose(s, "no_search_results")
         return res
 
@@ -314,7 +326,11 @@ class TikTokPublicVideosAdapter:
         seen: dict[tuple, dict] = {}
         no_new = rounds = 0
         while True:
-            self.guard(s)
+            if self.guard(s):
+                # the reload after a solved CAPTCHA closes the comment panel: open it again and keep what was read
+                log.info("Reopening comments after the CAPTCHA (%d already read)", len(seen))
+                self.open_comments(s)
+                deadline = time.monotonic() + self.lim["comment_time_limit_s"]   # time spent solving doesn't count
             for c in s.page.evaluate(_COMMENTS_JS, self.sel):
                 seen.setdefault(c["key"], c)
             if len(seen) >= self.lim["max_comments_per_post"]:
@@ -359,6 +375,11 @@ class TikTokPublicVideosAdapter:
         s.goto(f.canonical_url, wait_until="domcontentloaded")
         s.page.wait_for_timeout(self.lim["settle_ms"])
         self.guard(s)
+        if is_video_url(f.canonical_url) and not is_video_url(s.page.url):
+            # a CAPTCHA can land on another page; go back to the video before reading it
+            s.goto(f.canonical_url, wait_until="domcontentloaded")
+            s.page.wait_for_timeout(self.lim["settle_ms"])
+            self.guard(s)
         state = self.page_state(s)
         if state in ("private", "unavailable"):
             log.info("Skipped %s — %s", f.canonical_url, state)

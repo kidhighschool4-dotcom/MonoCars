@@ -1,0 +1,44 @@
+{
+  "version": "rental-leads-v1",
+  "notes": "Phrases are matched on casefolded text with Khmer digits mapped to ASCII and whitespace collapsed. Khmer spellings vary; add variants here, not in code.",
+  "rental_offer": {
+    "phrases": ["for rent", "for lease", "to let", "house for rent", "room for rent", "apartment for rent", "condo for rent",
+                "villa for rent", "shophouse for rent", "office for rent", "available for rent", "per month", "/month", "monthly rent",
+                "ផ្ទះជួល", "ជួលផ្ទះ", "បន្ទប់ជួល", "សម្រាប់ជួល", "អោយជួល", "ឲ្យជួល", "ផ្ទះល្វែងជួល", "ខុនដូជួល", "អាផាតមិនជួល",
+                "វីឡាជួល", "ជួលបន្ទាន់", "ក្នុងមួយខែ", "/ខែ", "មួយខែ",
+                "ptes chhoul", "bontob chhoul", "oy chhoul", "aoy chhoul", "chhoul ptes"]
+  },
+  "seeking": {
+    "phrases": ["looking for a room", "looking for room", "looking for a house", "looking for house", "looking for an apartment",
+                "looking for apartment", "looking for a place", "looking for a condo", "looking to rent", "want to rent", "wanna rent",
+                "need a room", "need room", "need a house", "need an apartment", "need a place", "anyone renting", "any room for rent",
+                "any house for rent", "any apartment for rent", "i want to rent", "we want to rent", "searching for a room",
+                "រកផ្ទះជួល", "រកបន្ទប់ជួល", "រកបន្ទប់", "រកជួល", "ចង់ជួល", "ត្រូវការជួល", "ត្រូវការផ្ទះ", "ត្រូវការបន្ទប់",
+                "មានផ្ទះជួលទេ", "មានបន្ទប់ជួលទេ", "មានបន្ទប់ទំនេរទេ", "ខ្ញុំចង់ជួល",
+                "rok ptes", "rok bontob", "rok chhoul", "jong chhoul", "chong chhoul", "trov ka chhoul", "trov kar chhoul"]
+  },
+  "inquiry": {
+    "phrases": ["still available", "is it available", "available?", "how much per month", "price per month", "monthly price",
+                "how much a month", "deposit", "can i see", "can i visit", "view the room", "see the room", "where is it",
+                "which area", "location?", "is it furnished", "include electricity", "include water", "contract",
+                "ទំនេរទេ", "នៅទំនេរ", "ប៉ុន្មានមួយខែ", "មួយខែប៉ុន្មាន", "ខែប៉ុន្មាន", "ជួលប៉ុន្មាន", "កក់ប៉ុន្មាន", "ប្រាក់កក់",
+                "ចង់មើល", "សុំមើល", "ទៅមើល", "នៅណា", "ទីតាំងនៅណា", "ទីតាំង", "ភ្លើងទឹក", "តម្លៃប៉ុន្មាន",
+                "tomne te", "tomne ot", "khe ponman", "kok ponman", "nov na", "teetang"]
+  },
+  "landlord_strong": {
+    "phrases": ["dm if interested", "pm if interested", "inbox if interested", "dm for price", "inbox for price", "we have",
+                "i have a room", "i have a house", "i have an apartment", "i also have", "available now", "contact us",
+                "call now", "agent", "real estate", "free viewing",
+                "ខ្ញុំមានផ្ទះជួល", "ខ្ញុំមានបន្ទប់", "ខ្ញុំក៏មាន", "មានបន្ទប់ទំនេរ", "មានផ្ទះជួល", "ទំនាក់ទំនង", "ib សួរតម្លៃ",
+                "inbox សួរតម្លៃ", "knhom mean ptes", "knhom mean bontob"]
+  },
+  "kinds": {
+    "commercial": ["shophouse", "shop house", "office", "warehouse", "retail space", "commercial", "ផ្ទះល្វែង", "ការិយាល័យ",
+                   "ឃ្លាំង", "តូប", "ptes lveng"],
+    "room": ["room", "boarding", "dorm", "បន្ទប់", "bontob"],
+    "apartment": ["apartment", "condo", "studio", "serviced apartment", "flat", "អាផាតមិន", "ខុនដូ"],
+    "house": ["house", "villa", "borey", "home", "ផ្ទះ", "វីឡា", "បុរី", "ptes"]
+  },
+  "organization_name_hints": ["real estate", "realty", "property", "properties", "agency", "residence", "residences", "apartment",
+                              "condo", "housing", "rental", "rentals", "homes", "អចលនទ្រព្យ", "ភ្នាក់ងារ"]
+}

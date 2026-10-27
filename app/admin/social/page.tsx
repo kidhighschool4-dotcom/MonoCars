@@ -6,7 +6,7 @@ import { canViewFacebookData, getServerUser } from '@/lib/auth-server'
 import { supabaseAdmin } from '@/lib/supabase-server'
 
 export const dynamic = 'force-dynamic'
-export const metadata = { title: 'RX300 buyers | FBM', robots: { index: false, follow: false } }
+export const metadata = { title: 'Rental seekers | FBM', robots: { index: false, follow: false } }
 
 // Worker adapter name → stored `platform` value + label (mirrors intelligence/config/platforms_v1.json)
 const ADAPTERS = [
@@ -33,12 +33,28 @@ const PLATFORM_LABEL: Record<string, string> = {
   mastodon: 'Mastodon', forum: 'Forums', classifieds: 'Classifieds', web: 'Web',
 }
 const LEAD = {
+  rental_seeker: { text: 'Rental seeker', cls: 'bg-emerald-600 text-white' },
+  potential_rental_seeker: { text: 'Maybe renting', cls: 'bg-brand text-white' },
   confirmed_rx300_buyer: { text: 'RX300 buyer', cls: 'bg-emerald-600 text-white' },
   potential_rx300_fit: { text: 'Potential RX300 fit', cls: 'bg-brand text-white' },
-  seller_or_dealer: { text: 'Seller / dealer', cls: 'bg-paper text-ink' },
+  seller_or_dealer: { text: 'Landlord / agent', cls: 'bg-paper text-ink' },
   irrelevant: { text: 'Irrelevant', cls: 'bg-paper text-subtle' },
 } as const
 type LeadType = keyof typeof LEAD
+const SEEKERS: LeadType[] = ['rental_seeker', 'potential_rental_seeker']
+const isSeeker = (lt: LeadType) => lt === 'rental_seeker' || lt === 'potential_rental_seeker' || lt === 'confirmed_rx300_buyer' || lt === 'potential_rx300_fit'
+const isTop = (lt: LeadType) => lt === 'rental_seeker' || lt === 'confirmed_rx300_buyer'
+const USE_CASE: Record<string, string> = {
+  house: 'House / villa', apartment: 'Apartment / condo', room: 'Room', commercial: 'Shophouse / office', family: 'Family car', taxi: 'Taxi use',
+}
+// Only the columns the page renders: the full rows carry large text/json fields
+const POST_COLS = 'id,platform,canonical_post_url,post_title,document_title,post_text,published_text_displayed,published_at_observed,' +
+  'engagement,search_query,captured_at,completeness_status,comments_collected_count,replies_collected_count,rejected_comment_count,' +
+  'screenshot_path,lead_type,lead'
+const COMMENT_COLS = 'id,post_id,platform,parent_comment_id,comment_type,source_comment_url,comment_url_available,comment_fingerprint,' +
+  'commenter_key,commenter_key_scope,comment_text,displayed_timestamp,captured_at,buyer_intent_score,buyer_intent_label,intent_type,' +
+  'detected_language,matched_phrases,negative_signals,spam_score,needs_human_review,screenshot_path,lead_type,lead_use_case,' +
+  'lead_confidence,lead_reasons,lead_needs_review,is_post_author,account_type,business_page_name,business_page_url,business_page_screenshot'
 const STATE: Record<string, { text: string; cls: string }> = {
   ok: { text: 'Running', cls: 'bg-emerald-50 text-emerald-700' },
   budget_exhausted: { text: 'Budget reached', cls: 'bg-amber-50 text-amber-800' },
@@ -50,14 +66,15 @@ const STATE: Record<string, { text: string; cls: string }> = {
   error: { text: 'Failing', cls: 'bg-rose-50 text-rose-700' },
 }
 
+interface PostScore { leads: number; fresh: number; engagement: number; relevance: number; seekers: number; potential: number }
 interface Post {
-  id: string; platform: string; source_content_type: string; source_post_id: string | null; canonical_post_url: string
-  document_title: string | null; post_title: string | null; post_text: string | null; hashtags: string[]
+  id: string; platform: string; canonical_post_url: string
+  document_title: string | null; post_title: string | null; post_text: string | null
   published_text_displayed: string | null; published_at_observed: string | null; engagement: Record<string, string>
-  visibility_evidence: string; search_query: string; search_url: string | null; captured_at: string; adapter_version: string
-  completeness_status: string; comments_collected_count: number; replies_collected_count: number; comment_expansion_rounds: number
-  rejected_comment_count: number; screenshot_path: string | null; expires_at: string
-  lead_type?: LeadType | null; organization_id?: string | null; source_adapter?: string | null
+  search_query: string; captured_at: string
+  completeness_status: string; comments_collected_count: number; replies_collected_count: number
+  rejected_comment_count: number; screenshot_path: string | null
+  lead_type?: LeadType | null; lead?: { post_score?: number | null; post_score_detail?: PostScore | null } | null
 }
 interface Comment {
   id: string; post_id: string; platform: string; parent_comment_id: string | null; comment_type: 'comment' | 'reply'
@@ -113,19 +130,34 @@ function Shot({ src, alt, className }: { src?: string; alt: string; className?: 
 }
 function leadOf(c: Comment): LeadType {
   if (c.lead_type) return c.lead_type
-  return c.buyer_intent_label === 'not_buyer_intent' ? 'irrelevant' : 'potential_rx300_fit' // before lead columns exist
+  return c.buyer_intent_label === 'not_buyer_intent' ? 'irrelevant' : 'potential_rental_seeker' // before lead columns exist
+}
+const scoreOf = (p?: Post) => p?.lead?.post_score ?? null
+/** Post rating: 0–100 % lead quality (renter comments, freshness, engagement, relevance — see intelligence rental_leads.score_post). */
+function Rating({ p, size = 'sm' }: { p?: Post; size?: 'sm' | 'lg' }) {
+  const v = scoreOf(p)
+  if (v == null) return null
+  const d = p?.lead?.post_score_detail
+  const tone = v >= 70 ? 'bg-emerald-600 text-white' : v >= 40 ? 'bg-amber-400 text-ink' : 'bg-paper text-muted'
+  const title = d ? `Leads ${d.leads}/60 · fresh ${d.fresh}/20 · engagement ${d.engagement}/10 · rental post ${d.relevance}/10 · ${d.seekers} seeker(s)` : undefined
+  return (
+    <span title={title} className={clsx('inline-flex items-center gap-1 rounded-md font-semibold tnum', tone,
+      size === 'lg' ? 'px-2.5 py-1 text-sm' : 'px-2 py-0.5 text-[11px]')}>
+      {v}%
+    </span>
+  )
 }
 
 function CommentCard({ c, shot, depth, bizShot }: { c: Comment; shot?: string; depth: number; bizShot?: string }) {
   const lt = leadOf(c)
   return (
-    <div className={clsx('rounded-2xl border p-4', lt === 'confirmed_rx300_buyer' ? 'border-emerald-200 bg-emerald-50/50'
-      : lt === 'potential_rx300_fit' ? 'border-brand/30 bg-brand-soft/60' : 'border-line bg-surface', depth > 0 && 'ml-6 md:ml-10')}>
+    <div className={clsx('rounded-2xl border p-4', isTop(lt) ? 'border-emerald-200 bg-emerald-50/50'
+      : isSeeker(lt) ? 'border-brand/30 bg-brand-soft/60' : 'border-line bg-surface', depth > 0 && 'ml-6 md:ml-10')}>
       <div className="flex flex-wrap items-center gap-2">
         {depth > 0 && <CornerDownRight className="w-4 h-4 text-subtle" />}
         <Chip className="bg-paper text-muted">{c.comment_type}</Chip>
-        <Chip className={LEAD[lt].cls}>{(lt === 'confirmed_rx300_buyer' || lt === 'potential_rx300_fit') && <Star className="w-3 h-3" />}{LEAD[lt].text}{c.lead_confidence != null ? ` · ${c.lead_confidence}` : ''}</Chip>
-        {c.lead_use_case && <Chip className="bg-paper text-ink">{c.lead_use_case === 'taxi' ? 'Taxi use' : 'Family car'}</Chip>}
+        <Chip className={LEAD[lt].cls}>{isSeeker(lt) && <Star className="w-3 h-3" />}{LEAD[lt].text}{c.lead_confidence != null ? ` · ${c.lead_confidence}` : ''}</Chip>
+        {c.lead_use_case && <Chip className="bg-paper text-ink">{USE_CASE[c.lead_use_case] ?? c.lead_use_case}</Chip>}
         <Chip className="bg-paper text-ink">intent {c.buyer_intent_score}{c.intent_type ? ` · ${c.intent_type.replaceAll('_', ' ')}` : ''}</Chip>
         {(c.lead_needs_review || c.needs_human_review) && <Chip className="bg-amber-50 text-amber-800"><Eye className="w-3 h-3" /> check</Chip>}
         <AccountChip c={c} bizShot={bizShot} />
@@ -184,12 +216,13 @@ function LeadTile({ c, p, parent, postShot, commentShot, bizShot }: {
         <span className="absolute left-3 top-3 rounded-md bg-white/95 px-2 py-0.5 text-[11px] font-semibold text-ink shadow-sm">
           {PLATFORM_LABEL[c.platform] ?? c.platform}
         </span>
+        <span className="absolute right-3 top-3 shadow-sm"><Rating p={p} /></span>
       </a>
 
       <div className="flex flex-1 flex-col gap-3 p-4">
         <div className="flex items-center gap-2 text-xs">
           <span className={clsx('inline-flex items-center gap-1 rounded-md px-2 py-0.5 font-semibold', LEAD[lt].cls)}>{LEAD[lt].text}</span>
-          {c.lead_use_case && <span className="text-muted">{c.lead_use_case === 'taxi' ? 'taxi use' : 'family car'}</span>}
+          {c.lead_use_case && <span className="text-muted">{USE_CASE[c.lead_use_case] ?? c.lead_use_case}</span>}
           <span className="ml-auto text-subtle tnum">{c.displayed_timestamp ?? ago(c.captured_at)}</span>
         </div>
 
@@ -237,69 +270,89 @@ export default async function SocialDataPage({ searchParams }: { searchParams: P
   const str = (k: string) => (typeof sp[k] === 'string' ? (sp[k] as string) : '')
   const view = (['leads', 'posts', 'organizations', 'skipped'].includes(str('view')) ? str('view') : 'leads') as 'leads' | 'posts' | 'organizations' | 'skipped'
   const platform = str('platform') in PLATFORM_LABEL ? str('platform') : ''
-  const lead = ['confirmed_rx300_buyer', 'potential_rx300_fit', 'seller_or_dealer', 'buyers', 'all'].includes(str('lead')) ? str('lead') : 'confirmed_rx300_buyer'
-  const q = str('q').trim().slice(0, 100).toLowerCase()
+  const lead = ['rental_seeker', 'potential_rental_seeker', 'seller_or_dealer', 'buyers', 'all'].includes(str('lead')) ? str('lead') : 'rental_seeker'
+  const q = str('q').trim().slice(0, 100)
+  const owner = user.id
+  const db = supabaseAdmin
 
-  const postsQ = supabaseAdmin.from('public_social_posts').select('*').eq('owner_id', user.id).order('captured_at', { ascending: false }).limit(500)
-  const commentsQ = supabaseAdmin.from('public_social_comments').select('*').eq('owner_id', user.id).order('captured_at', { ascending: false }).limit(3000)
-  const skipsQ = supabaseAdmin.from('public_social_post_skips').select('*').eq('owner_id', user.id).order('observed_at', { ascending: false }).limit(200)
-  const [{ data: postsData, error }, { data: commentsData }, { data: skipsData }, statusRes, orgRes] = await Promise.all([
-    platform ? postsQ.eq('platform', platform) : postsQ,
-    platform ? commentsQ.eq('platform', platform) : commentsQ,
-    platform ? skipsQ.eq('platform', platform) : skipsQ,
-    supabaseAdmin.from('social_platform_status').select('*').eq('owner_id', user.id),
-    supabaseAdmin.from('public_social_organizations').select('*').eq('owner_id', user.id).order('last_seen_at', { ascending: false }).limit(300),
+  // Everything below is filtered in the database and only the columns the view renders are fetched.
+  const leadTypes: LeadType[] | null = lead === 'all' ? null : lead === 'buyers' ? SEEKERS : [lead as LeadType]
+  let commentsQ = db.from('public_social_comments').select(COMMENT_COLS).eq('owner_id', owner)
+  if (platform) commentsQ = commentsQ.eq('platform', platform)
+  if (leadTypes) commentsQ = commentsQ.in('lead_type', leadTypes)
+  if (q) commentsQ = commentsQ.ilike('comment_text', `%${q.replace(/[%_\\]/g, (m) => `\\${m}`)}%`)
+  let rankedQ = db.from('public_social_posts').select(POST_COLS).eq('owner_id', owner)
+    .order('lead->post_score', { ascending: false, nullsFirst: false }).order('captured_at', { ascending: false }).limit(60)
+  if (platform) rankedQ = rankedQ.eq('platform', platform)
+  const count = (table: string) => db.from(table).select('id', { count: 'exact', head: true }).eq('owner_id', owner)
+
+  const [leadRes, rankedRes, platformRes, seekerRes, statusRes, skipCount, orgCount, skipsRes, orgRes] = await Promise.all([
+    view === 'leads' ? commentsQ.order('captured_at', { ascending: false }).limit(300) : Promise.resolve({ data: [], error: null }),
+    view === 'posts' ? rankedQ : Promise.resolve({ data: [], error: null }),
+    db.from('public_social_posts').select('platform').eq('owner_id', owner).limit(5000),
+    db.from('public_social_comments').select('post_id').eq('owner_id', owner).eq('lead_type', 'rental_seeker').limit(5000),
+    db.from('social_platform_status').select('*').eq('owner_id', owner),
+    count('public_social_post_skips'),
+    count('public_social_organizations'),
+    view === 'skipped'
+      ? (platform ? db.from('public_social_post_skips').select('*').eq('owner_id', owner).eq('platform', platform) : db.from('public_social_post_skips').select('*').eq('owner_id', owner))
+        .order('observed_at', { ascending: false }).limit(200)
+      : Promise.resolve({ data: [], error: null }),
+    view === 'organizations'
+      ? db.from('public_social_organizations').select('*').eq('owner_id', owner).order('last_seen_at', { ascending: false }).limit(300)
+      : Promise.resolve({ data: [], error: null }),
   ])
+  const error = platformRes.error
   const tablesMissing = missingTable(error)
   const leadsMissing = missingTable(statusRes.error)
-  const posts = (postsData ?? []) as Post[]
-  const comments = (commentsData ?? []) as Comment[]
-  const skips = (skipsData ?? []) as { id: number; platform: string; canonical_post_url: string | null; search_query: string; skip_reason: string; observed_at: string }[]
+  const skips = (skipsRes.data ?? []) as { id: number; platform: string; canonical_post_url: string | null; search_query: string; skip_reason: string; observed_at: string }[]
   const status = new Map(((statusRes.data ?? []) as Status[]).map((s) => [s.platform, s]))
   const orgs = (orgRes.data ?? []) as Org[]
-  const postById = new Map(posts.map((p) => [p.id, p]))
-  const commentById = new Map(comments.map((c) => [c.id, c]))
   const postsPerPlatform: Record<string, number> = {}
-  for (const p of posts) postsPerPlatform[p.platform] = (postsPerPlatform[p.platform] ?? 0) + 1
+  for (const { platform: pl } of (platformRes.data ?? []) as { platform: string }[]) postsPerPlatform[pl] = (postsPerPlatform[pl] ?? 0) + 1
+  const seekerPostIds = ((seekerRes.data ?? []) as { post_id: string }[]).map((r) => r.post_id)
+  const counts = { seekers: seekerPostIds.length, posts: new Set(seekerPostIds).size }
 
-  const leadMatch = (c: Comment) => {
-    const lt = leadOf(c)
-    if (lead === 'all') return true
-    if (lead === 'buyers') return lt === 'confirmed_rx300_buyer' || lt === 'potential_rx300_fit'
-    return lt === lead
-  }
-  const leads = comments.filter((c) => leadMatch(c) && (!q || c.comment_text.toLowerCase().includes(q)))
-    .sort((a, b) => (leadOf(a) === 'confirmed_rx300_buyer' ? 0 : 1) - (leadOf(b) === 'confirmed_rx300_buyer' ? 0 : 1)
+  const leads = ((leadRes.data ?? []) as unknown as Comment[])
+    .sort((a, b) => (isTop(leadOf(a)) ? 0 : 1) - (isTop(leadOf(b)) ? 0 : 1)
       || (b.lead_confidence ?? b.buyer_intent_score) - (a.lead_confidence ?? a.buyer_intent_score))
     .slice(0, 200)
-  const counts = {
-    confirmed: comments.filter((c) => leadOf(c) === 'confirmed_rx300_buyer').length,
-    potential: comments.filter((c) => leadOf(c) === 'potential_rx300_fit').length,
-  }
+  const rankedPosts = (rankedRes.data ?? []) as unknown as Post[]
 
-  // Private bucket → short-lived signed URLs (10 min), only for what this view renders
-  const sign = async (path: string | null | undefined) => {
-    if (!path) return undefined
-    const { data } = await supabaseAdmin.storage.from('listing-evidence').createSignedUrl(path, 600)
-    return data?.signedUrl
-  }
-  const shownPosts = view === 'leads'
-    ? (Array.from(new Set(leads.map((c) => c.post_id))).map((id) => postById.get(id)).filter(Boolean) as Post[])
-    : view === 'posts' ? posts.slice(0, 60) : []
-  const shownIds = new Set(shownPosts.map((p) => p.id))
-  const shownComments = view === 'leads' ? leads : view === 'posts' ? comments.filter((c) => shownIds.has(c.post_id)) : []
-  const [pShots, cShots] = await Promise.all([
-    Promise.all(shownPosts.filter((p) => p.screenshot_path).map(async (p) => [p.id, await sign(p.screenshot_path)] as const)),
-    Promise.all(shownComments.filter((c) => c.screenshot_path).map(async (c) => [c.id, await sign(c.screenshot_path)] as const)),
+  // Second round: the posts behind the shown leads (+ reply parents), or the comments under the shown posts
+  const leadPostIds = Array.from(new Set(leads.map((c) => c.post_id)))
+  const parentIds = Array.from(new Set(leads.map((c) => c.parent_comment_id).filter(Boolean))) as string[]
+  const rankedIds = rankedPosts.map((p) => p.id)
+  const [leadPostsRes, parentsRes, threadRes] = await Promise.all([
+    leadPostIds.length ? db.from('public_social_posts').select(POST_COLS).in('id', leadPostIds) : Promise.resolve({ data: [] }),
+    parentIds.length ? db.from('public_social_comments').select(COMMENT_COLS).in('id', parentIds) : Promise.resolve({ data: [] }),
+    rankedIds.length ? db.from('public_social_comments').select(COMMENT_COLS).in('post_id', rankedIds).order('captured_at').limit(3000) : Promise.resolve({ data: [] }),
   ])
-  const postShots = new Map<string, string | undefined>(pShots)
-  const commentShots = new Map<string, string | undefined>(cShots)
-  const bizShots = new Map<string, string | undefined>(await Promise.all(shownComments
-    .filter((c) => c.account_type === 'business' && c.business_page_screenshot)
-    .map(async (c) => [c.id, await sign(c.business_page_screenshot)] as const)))
+  const shownPosts = view === 'leads' ? ((leadPostsRes.data ?? []) as unknown as Post[]) : rankedPosts
+  const comments = view === 'leads' ? [...leads, ...((parentsRes.data ?? []) as unknown as Comment[])] : ((threadRes.data ?? []) as unknown as Comment[])
+  const postById = new Map(shownPosts.map((p) => [p.id, p]))
+  const commentById = new Map(comments.map((c) => [c.id, c]))
+  const shownComments = view === 'leads' ? leads : comments
+  const bestPost = view === 'posts' ? rankedPosts[0] : [...shownPosts].sort((a, b) => (scoreOf(b) ?? -1) - (scoreOf(a) ?? -1))[0]
+
+  // Private bucket → short-lived signed URLs (10 min), one batch call for every screenshot this view renders
+  const paths = Array.from(new Set([
+    ...shownPosts.map((p) => p.screenshot_path),
+    ...shownComments.map((c) => c.screenshot_path),
+    ...shownComments.filter((c) => c.account_type === 'business').map((c) => c.business_page_screenshot),
+  ].filter(Boolean) as string[]))
+  const signed = new Map<string, string>()
+  if (paths.length) {
+    const { data } = await db.storage.from('listing-evidence').createSignedUrls(paths, 600)
+    for (const r of data ?? []) if (r.path && r.signedUrl) signed.set(r.path, r.signedUrl)
+  }
+  const sign = (path: string | null | undefined) => (path ? signed.get(path) : undefined)
+  const postShots = new Map(shownPosts.map((p) => [p.id, sign(p.screenshot_path)]))
+  const commentShots = new Map(shownComments.map((c) => [c.id, sign(c.screenshot_path)]))
+  const bizShots = new Map(shownComments.map((c) => [c.id, c.account_type === 'business' ? sign(c.business_page_screenshot) : undefined]))
 
   const href = (next: Record<string, string>) => {
-    const p = new URLSearchParams({ view, ...(platform && { platform }), ...(lead !== 'confirmed_rx300_buyer' && { lead }), ...(q && { q }), ...next })
+    const p = new URLSearchParams({ view, ...(platform && { platform }), ...(lead !== 'rental_seeker' && { lead }), ...(q && { q }), ...next })
     for (const [k, v] of Array.from(p.entries())) if (!v) p.delete(k)
     return `/admin/social?${p.toString()}`
   }
@@ -316,7 +369,6 @@ export default async function SocialDataPage({ searchParams }: { searchParams: P
 
   const active = ADAPTERS.filter((a) => (postsPerPlatform[a.platform] ?? 0) > 0 || ['ok', 'budget_exhausted', 'challenged', 'rate_limited'].includes(status.get(a.id)?.state ?? ''))
   const inactive = ADAPTERS.filter((a) => !active.includes(a))
-  const buyerPosts = new Set(comments.filter((c) => leadOf(c) === 'confirmed_rx300_buyer').map((c) => c.post_id)).size
   const lastRun = Array.from(status.values()).map((s) => s.last_success_at).filter(Boolean).sort().pop() ?? null
   const NEEDS: Record<string, string> = { login_required: 'needs your login', misconfigured: 'needs an API key / setup' }
 
@@ -327,18 +379,25 @@ export default async function SocialDataPage({ searchParams }: { searchParams: P
           <div className="flex flex-wrap items-end justify-between gap-6">
             <div className="min-w-0">
               <p className="text-xs font-medium text-muted">Private · {user.email}</p>
-              <h1 className="mt-1 text-3xl md:text-4xl font-semibold tracking-tight text-ink">Lexus RX300 buyers</h1>
-              <p className="mt-1.5 text-sm text-muted max-w-xl">People asking to buy an RX300 in public comments on sale posts. Names are never stored; open the comment to see it on the platform.</p>
+              <h1 className="mt-1 text-3xl md:text-4xl font-semibold tracking-tight text-ink">Rental seekers · Phnom Penh</h1>
+              <p className="mt-1.5 text-sm text-muted max-w-xl">People looking for a house, apartment, room or shophouse to rent, from public comments on rental posts. Every post is rated 0–100 % by how worth following up it is. Names are never stored.</p>
             </div>
             <dl className="flex items-stretch divide-x divide-line rounded-xl border border-line bg-surface">
               <div className="px-5 py-3">
-                <dt className="text-[11px] uppercase tracking-wider text-muted">RX300 buyers</dt>
-                <dd className="text-3xl font-semibold tnum text-ink leading-tight">{counts.confirmed}</dd>
+                <dt className="text-[11px] uppercase tracking-wider text-muted">Rental seekers</dt>
+                <dd className="text-3xl font-semibold tnum text-ink leading-tight">{counts.seekers}</dd>
               </div>
               <div className="px-5 py-3">
-                <dt className="text-[11px] uppercase tracking-wider text-muted">On sale posts</dt>
-                <dd className="text-3xl font-semibold tnum text-ink leading-tight">{buyerPosts}</dd>
+                <dt className="text-[11px] uppercase tracking-wider text-muted">On rental posts</dt>
+                <dd className="text-3xl font-semibold tnum text-ink leading-tight">{counts.posts}</dd>
               </div>
+              {bestPost && scoreOf(bestPost) != null && (
+                <div className="px-5 py-3">
+                  <dt className="text-[11px] uppercase tracking-wider text-muted">Best post</dt>
+                  <dd className="mt-1.5 flex items-center gap-2"><Rating p={bestPost} size="lg" />
+                    <a href={bestPost.canonical_post_url} target="_blank" rel="noopener noreferrer" className="text-xs text-brand hover:underline">open</a></dd>
+                </div>
+              )}
               <div className="px-5 py-3 hidden sm:block">
                 <dt className="text-[11px] uppercase tracking-wider text-muted">Last run</dt>
                 <dd className="text-sm font-medium text-ink mt-2">{ago(lastRun)}</dd>
@@ -393,7 +452,7 @@ export default async function SocialDataPage({ searchParams }: { searchParams: P
       <div className="sticky top-16 z-20 border-b border-line bg-surface/90 backdrop-blur">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-2.5 flex flex-wrap items-center gap-2">
           <nav className="flex rounded-lg bg-paper p-0.5" aria-label="Views">
-            {([['leads', 'Leads'], ['posts', 'Posts'], ['organizations', `Businesses ${orgs.length}`], ['skipped', `Skipped ${skips.length}`]] as const).map(([id, label]) => (
+            {([['leads', 'Leads'], ['posts', 'Best posts'], ['organizations', `Businesses ${orgCount.count ?? 0}`], ['skipped', `Skipped ${skipCount.count ?? 0}`]] as const).map(([id, label]) => (
               <Link key={id} href={href({ view: id })}
                 className={clsx('rounded-md px-3 py-1.5 text-sm font-medium transition-colors', view === id ? 'bg-surface text-ink shadow-sm' : 'text-muted hover:text-ink')}>
                 {label}
@@ -411,9 +470,9 @@ export default async function SocialDataPage({ searchParams }: { searchParams: P
                   className="w-full rounded-lg border border-line bg-surface py-1.5 pl-9 pr-3 text-sm focus:outline-none focus:border-brand" />
               </label>
               <select name="lead" defaultValue={lead} className="rounded-lg border border-line bg-surface px-2.5 py-1.5 text-sm">
-                <option value="confirmed_rx300_buyer">RX300 buyers</option>
-                <option value="buyers">+ potential fits</option>
-                <option value="seller_or_dealer">Sellers / dealers</option>
+                <option value="rental_seeker">Rental seekers</option>
+                <option value="buyers">+ maybe renting</option>
+                <option value="seller_or_dealer">Landlords / agents</option>
                 <option value="all">Everything</option>
               </select>
               <button className="rounded-lg bg-ink px-3.5 py-1.5 text-sm font-semibold text-white hover:bg-brand transition-colors">Apply</button>
@@ -437,8 +496,8 @@ export default async function SocialDataPage({ searchParams }: { searchParams: P
             </div>
             {!tablesMissing && leads.length === 0 && (
               <div className="rounded-2xl border border-dashed border-line bg-surface p-10 text-center">
-                <p className="text-ink font-medium">No RX300 buyers{platform ? ` on ${PLATFORM_LABEL[platform]}` : ''} yet</p>
-                <p className="mt-1 text-sm text-muted">New buyers appear here as the worker finds them.</p>
+                <p className="text-ink font-medium">No rental seekers{platform ? ` on ${PLATFORM_LABEL[platform]}` : ''} yet</p>
+                <p className="mt-1 text-sm text-muted">New people looking to rent appear here as the worker finds them.</p>
               </div>
             )}
           </>
@@ -457,6 +516,7 @@ export default async function SocialDataPage({ searchParams }: { searchParams: P
                 </div>
                 <div className="p-5 min-w-0">
                   <div className="flex flex-wrap items-center gap-2 text-xs text-muted">
+                    <Rating p={p} size="lg" />
                     <span className="rounded-md bg-paper px-2 py-0.5 font-semibold text-ink">{PLATFORM_LABEL[p.platform] ?? p.platform}</span>
                     {p.lead_type && <span className={clsx('rounded-md px-2 py-0.5 font-semibold', LEAD[p.lead_type].cls)}>{LEAD[p.lead_type].text}</span>}
                     <span>“{p.search_query}”</span>

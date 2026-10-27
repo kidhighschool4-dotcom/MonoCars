@@ -21,11 +21,11 @@ from .budget import Budget
 from .contract import (AdapterContext, BudgetExhausted, Checkpoint, Misconfigured, PlatformAdapter, PlatformError,
                        RateLimited, SearchItem)
 from .discovery import queries_for
-from .leads import PostContext, classify_comment, classify_post, looks_organizational
+from . import campaign as campaigns
 from .state import PlatformStatus, WorkerState, iso, now
 
 log = logging.getLogger("fbm_intel.worker")
-BUYER_LEADS = ("confirmed_rx300_buyer", "potential_rx300_fit")
+BUYER_LEADS = campaigns.ALL_SEEKER_LEADS     # every campaign's lead types; a campaign only ever produces its own
 
 
 @dataclass
@@ -38,8 +38,7 @@ class CycleResult:
     queries: list[dict] = field(default_factory=list)
     posts: int = 0
     comments: int = 0
-    leads: dict = field(default_factory=lambda: {k: 0 for k in ("confirmed_rx300_buyer", "potential_rx300_fit",
-                                                                   "seller_or_dealer", "irrelevant")})
+    leads: dict = field(default_factory=lambda: {k: 0 for k in (*campaigns.ALL_SEEKER_LEADS, "seller_or_dealer", "irrelevant")})
     post_leads: dict = field(default_factory=dict)
     organizations: int = 0
     screenshots: int = 0
@@ -104,15 +103,26 @@ def apply_recency(post: SocialPost, rec: dict, at: datetime | None = None) -> No
             L.lead_type = "irrelevant"
 
 
-def type_leads(adapter: PlatformAdapter, post: SocialPost) -> None:
+def type_leads(adapter: PlatformAdapter, post: SocialPost, campaign: campaigns.Campaign | None = None) -> None:
+    rules = (campaign or campaigns.current()).rules
     org = post.organization or adapter.organization_for_post(post)
     post.organization = org
-    ctx = PostContext(text=" ".join(filter(None, [post.post_title, post.document_title, post.post_text, " ".join(post.hashtags)])),
-                      author_is_organization=bool(org), search_query=post.search_query or "")
-    post.lead = classify_post(ctx)
+    ctx = rules.PostContext(text=" ".join(filter(None, [post.post_title, post.document_title, post.post_text, " ".join(post.hashtags)])),
+                            author_is_organization=bool(org), search_query=post.search_query or "")
+    post.lead = rules.classify_post(ctx)
     for c in post.comments:
-        c.lead = classify_comment(c.comment_text, ctx, intent=c.intent, is_post_author=c.is_post_author,
-                                  is_business=c.account_type == "business")
+        c.lead = rules.classify_comment(c.comment_text, ctx, intent=c.intent, is_post_author=c.is_post_author,
+                                        is_business=c.account_type == "business")
+        if hasattr(rules, "lift_intent"):
+            rules.lift_intent(c.intent, c.lead)
+
+
+def rate_post(post: SocialPost, campaign: campaigns.Campaign | None = None) -> None:
+    """0–100 % rating of the post (lead quality), kept in post.lead → posts.lead->post_score."""
+    rules = (campaign or campaigns.current()).rules
+    if post.lead is None or not hasattr(rules, "score_post"):
+        return
+    post.lead.post_score, post.lead.post_score_detail = rules.score_post(post)
 
 
 def run_cycle(name: str, *, cfg: dict, state: WorkerState, sink, keyer: PersonKeyer, headed: bool = True,
@@ -126,8 +136,9 @@ def run_cycle(name: str, *, cfg: dict, state: WorkerState, sink, keyer: PersonKe
     except KeyError as e:
         res.state, res.detail = "misconfigured", str(e).strip("'\"")
         return res
+    revisit = timedelta(hours=float(pcfg.get("revisit_after_h", 12)))
     ctx = AdapterContext(config=pcfg, keyer=keyer, budget=budget, headed=headed, preview=getattr(sink, "preview", True),
-                         fixtures=fixtures)
+                         fixtures=fixtures, is_seen=lambda url: state.seen_recently(name, url, revisit))
     pcfg["_reviewer"] = reviewer if pcfg.get("ai_review", {}).get("enabled") else None
     pcfg["_notifier"] = notifier
     try:
@@ -158,7 +169,8 @@ def _run_with_adapter(cls, ctx, name, pcfg, state, sink, budget, res, max_querie
             err = PlatformError(h.detail or h.state)
             err.state = h.state
             raise err
-        all_qs = queries_for(name, pcfg.get("discovery"), record_platform=adapter.platform)
+        all_qs = queries_for(name, pcfg.get("discovery"), record_platform=adapter.platform,
+                             config_path=campaigns.CAMPAIGNS[pcfg["campaign"]].discovery_path)
         per_cycle = max_queries or pcfg["budgets"].get("max_queries_per_cycle") or len(all_qs)
         # rotate through the whole query list across cycles instead of repeating the first few
         rot = state.checkpoint(name, "__rotation__")
@@ -219,10 +231,12 @@ def _collect_one(adapter, name, item: SearchItem, canon, pcfg, state, sink, budg
         post.comment_expansion_rounds = batch.expansion_rounds
     else:
         post.completeness_status = "comments_unavailable"
-    type_leads(adapter, post)
+    camp = campaigns.CAMPAIGNS[pcfg["campaign"]]
+    type_leads(adapter, post, camp)
     _business_pages(adapter, post, state, budget)
     apply_recency(post, pcfg.get("recency", {}))
     _ai_second_opinion(post, pcfg.get("_reviewer"), budget)
+    rate_post(post, camp)          # after recency, before dropping non-lead comments (they count as context)
     res.posts += 1
     res.comments += len(post.comments)
     budget.cycle["comments"] += len(post.comments)

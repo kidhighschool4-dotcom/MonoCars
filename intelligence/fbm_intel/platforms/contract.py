@@ -169,6 +169,7 @@ class AdapterContext:
     headed: bool = True                        # visible browser for browser_session adapters
     preview: bool = True                       # no database writes anywhere when True
     fixtures: Any = None                       # tests: install routes / fake transports
+    is_seen: Any = None                        # callable(canonical_url) -> bool: already collected within revisit_after_h
 
 
 class PlatformAdapter(abc.ABC):

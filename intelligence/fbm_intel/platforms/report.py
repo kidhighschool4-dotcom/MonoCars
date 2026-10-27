@@ -42,12 +42,14 @@ def _count(xs) -> dict:
 
 
 def markdown(rep: dict) -> str:
-    L = ["# Multi-platform preview", "", "| Platform | Tier | Access | Result | Posts | Comments | RX300 buyers | Potential fits | Sellers | Skipped |",
+    from .campaign import current
+    top, fit = current().seeker_leads
+    L = ["# Multi-platform preview", "", f"| Platform | Tier | Access | Result | Posts | Comments | {top} | {fit} | Sellers | Skipped |",
          "|---|---|---|---|---|---|---|---|---|---|"]
     for r in rep["platforms"]:
         L.append(f"| {r['platform']} | {r['tier']} | {r['access']} | {STATE_HINT.get(r['state'], r['state'])}"
                  f"{': ' + r['detail'][:80] if r['detail'] else ''} | {r['posts']} | {r['comments']} | "
-                 f"{r['leads'].get('confirmed_rx300_buyer', 0)} | {r['leads'].get('potential_rx300_fit', 0)} | "
+                 f"{r['leads'].get(top, 0)} | {r['leads'].get(fit, 0)} | "
                  f"{r['leads'].get('seller_or_dealer', 0)} | {r['skipped']} |")
     for r in rep["platforms"]:
         if not r["review"]:
@@ -63,10 +65,12 @@ def markdown(rep: dict) -> str:
 
 
 def print_table(rep: dict) -> None:
+    from .campaign import current
+    top, fit = current().seeker_leads
     w = max([len(r["platform"]) for r in rep["platforms"]] + [8])
-    print(f"{'platform':<{w}}  tier  result              posts  comments  rx300  fit  seller  skipped  detail")
+    print(f"{'platform':<{w}}  tier  result              posts  comments   lead  fit  seller  skipped  detail")
     for r in rep["platforms"]:
         L = r["leads"]
         print(f"{r['platform']:<{w}}  {str(r['tier']):<4}  {r['state']:<18}  {r['posts']:>5}  {r['comments']:>8}  "
-              f"{L.get('confirmed_rx300_buyer', 0):>5}  {L.get('potential_rx300_fit', 0):>3}  {L.get('seller_or_dealer', 0):>6}  "
+              f"{L.get(top, 0):>5}  {L.get(fit, 0):>3}  {L.get('seller_or_dealer', 0):>6}  "
               f"{r['skipped']:>7}  {r['detail'][:90]}")

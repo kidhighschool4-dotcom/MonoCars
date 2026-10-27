@@ -1,0 +1,70 @@
+{
+  "version": "rental-discovery-v1-phnom-penh",
+  "notes": "Rental posts in Phnom Penh (houses, villas, apartments, condos, rooms, shophouses, offices). Their comments hold the people looking to rent.",
+  "groups": {
+    "rental_posts": {
+      "en": [
+        "house for rent Phnom Penh",
+        "apartment for rent Phnom Penh",
+        "room for rent Phnom Penh",
+        "condo for rent Phnom Penh",
+        "villa for rent Phnom Penh",
+        "shophouse for rent Phnom Penh",
+        "office for rent Phnom Penh",
+        "flat for rent Phnom Penh",
+        "studio for rent BKK1",
+        "apartment for rent Toul Kork"
+      ],
+      "km": [
+        "ផ្ទះជួល ភ្នំពេញ",
+        "បន្ទប់ជួល ភ្នំពេញ",
+        "ផ្ទះល្វែងជួល ភ្នំពេញ",
+        "ខុនដូជួល ភ្នំពេញ",
+        "អាផាតមិនជួល ភ្នំពេញ",
+        "វីឡាជួល ភ្នំពេញ",
+        "ផ្ទះសម្រាប់ជួល",
+        "ជួលផ្ទះ ភ្នំពេញ",
+        "ការិយាល័យជួល ភ្នំពេញ",
+        "បន្ទប់ជួល តម្លៃថោក"
+      ],
+      "romanized_km": [
+        "ptes chhoul phnom penh",
+        "bontob chhoul",
+        "chhoul ptes",
+        "ptes lveng chhoul",
+        "condo chhoul"
+      ]
+    },
+    "rental_seekers": {
+      "en": [
+        "looking for room to rent Phnom Penh",
+        "looking for apartment Phnom Penh",
+        "need house to rent Phnom Penh"
+      ],
+      "km": [
+        "រកផ្ទះជួល",
+        "រកបន្ទប់ជួល",
+        "ចង់ជួលផ្ទះ",
+        "ត្រូវការជួលបន្ទប់"
+      ],
+      "romanized_km": [
+        "rok ptes chhoul",
+        "rok bontob chhoul",
+        "jong chhoul ptes"
+      ]
+    }
+  },
+  "hashtags": ["houseforrent", "apartmentforrent", "phnompenhrental", "phnompenhapartment", "roomforrent", "condoforrent", "phnompenhrealestate"],
+  "per_platform": {
+    "reddit": {"subreddits": ["cambodia", "phnompenh", "expatcambodia"], "query_groups": ["rental_seekers", "rental_posts"], "languages": ["en"]},
+    "youtube": {"query_groups": ["rental_posts"], "region_code": "KH", "relevance_language": "km"},
+    "instagram": {"use_hashtags": true, "query_groups": ["rental_posts"]},
+    "tiktok": {"query_groups": ["rental_posts", "rental_seekers"]},
+    "telegram": {"query_groups": ["rental_posts"], "languages": ["en", "km", "romanized_km"]},
+    "mastodon": {"use_hashtags": true, "hashtags": ["phnompenh", "cambodia", "houseforrent", "apartmentforrent"]},
+    "bluesky": {"query_groups": ["rental_seekers"], "languages": ["en"]},
+    "classifieds": {"query_groups": ["rental_posts"], "languages": ["en"]},
+    "facebook_public_posts": {"query_groups": ["rental_posts", "rental_seekers"]},
+    "facebook": {"query_groups": ["rental_posts", "rental_seekers"]}
+  }
+}

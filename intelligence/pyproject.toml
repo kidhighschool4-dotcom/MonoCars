@@ -29,5 +29,6 @@ testpaths = ["tests"]
 markers = [
   "live: talks to real Supabase / OpenClaw (run with -m live)",
   "browser: launches a real Playwright browser against local fixtures",
+  "rental_campaign: run with the rental campaign instead of RX300",
 ]
 addopts = "-m 'not live'"

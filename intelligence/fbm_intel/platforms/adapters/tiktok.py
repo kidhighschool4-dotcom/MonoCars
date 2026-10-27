@@ -63,7 +63,7 @@ class TikTokAdapter(BrowserAdapterBase):
     def search(self, query: str, checkpoint: Checkpoint) -> SearchPage:
         s = self.session()
         with self._mapped():
-            found = self.inner.search(s, query)
+            found = self.inner.search(s, query, is_seen=self.ctx.is_seen)
         items = []
         for f in found:
             self._found[f.canonical_url] = f

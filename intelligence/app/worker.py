@@ -107,7 +107,7 @@ def main(argv: list[str] | None = None) -> int:
     if a.cmd == "test-alert":
         from fbm_intel.platforms.notify import BestBuyerNotifier
         n = BestBuyerNotifier(_state(cfg, preview=True), cfg.get("alerts"))
-        text = "🚗 FBM test alert\nThis is how a best RX300 buyer alert will look.\nPost: https://fbm-pied.vercel.app/admin/social"
+        text = "🔔 FBM test alert\nThis is how a top-lead alert will look.\nPost: https://fbm-pied.vercel.app/admin/social"
         ok = [type(x).__name__ + (" ✓" if x.send(text) else " ✗") for x in n.senders]
         print("Sent via: " + (", ".join(ok) if ok else "no channel configured (set TELEGRAM_BOT_TOKEN/TELEGRAM_CHAT_ID)"))
         return 0
@@ -192,7 +192,7 @@ def main(argv: list[str] | None = None) -> int:
         if not a.verbose:
             _quiet_logging(ROOT / "artifacts" / "worker.log")
         print(f"Worker running quietly for: {', '.join(enabled) or 'no enabled platforms'}.\n"
-              f"You'll only hear from it when it finds a best RX300 buyer ({', '.join(type(x).__name__ for x in notifier.senders) or 'no alert channel!'}). "
+              f"You'll only hear from it when it finds a top lead ({', '.join(type(x).__name__ for x in notifier.senders) or 'no alert channel!'}). "
               f"Full log: artifacts/worker.log · status: python -m app.worker status")
         w.run_forever()
         return 0

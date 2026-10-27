@@ -1,4 +1,5 @@
-"""Discovery queries per platform from config/rx300_discovery_v1.json (Khmer, Romanized Khmer, English)."""
+"""Discovery queries per platform from the campaign's config (config/<campaign>_discovery_v1.json): Khmer,
+Romanized Khmer, English."""
 from __future__ import annotations
 
 import json
@@ -22,10 +23,10 @@ def load(path: str = str(CONFIG_PATH)) -> dict:
 
 
 def queries_for(platform: str, override: dict | None = None, *, limit: int | None = None,
-                record_platform: str | None = None) -> list[Query]:
+                record_platform: str | None = None, config_path: str | Path | None = None) -> list[Query]:
     """Ordered, de-duplicated queries for one platform. `override` = the platform's own config block, which may set
     `queries` (explicit list), `query_groups`, `languages`, `hashtags` or `use_hashtags`."""
-    c = load()
+    c = load(str(config_path)) if config_path else load()
     hints = c.get("per_platform", {})
     # adapter name first (e.g. "khmer24"), then the stored platform value it maps to (e.g. "classifieds")
     pp = {**hints.get(record_platform or "", {}), **hints.get(platform, {}), **(override or {})}
