@@ -146,3 +146,20 @@ def post_url_from_photo_set(photo_url: str, author_url: str | None) -> str | Non
     if opath == "/profile.php":
         return _build("/permalink.php", [("story_fbid", m.group(1)), ("id", dict(oq)["id"])])
     return _build(f"{opath}/posts/{m.group(1)}", [])
+
+
+def group_post_url_from_photo_set(photo_url: str) -> str | None:
+    """Group posts in Posts search have no permalink either, but their photos link to
+    /photo?fbid=…&set=gm.<POST_ID>&idorvanity=<GROUP>, which is enough for /groups/<GROUP>/posts/<POST_ID>/."""
+    try:
+        path, query = _split(photo_url)
+    except NotFacebookUrl:
+        return None
+    if path not in ("/photo", "/photo.php"):
+        return None
+    q = dict(query)
+    m = re.fullmatch(r"(?:gm|pcb)\.(\d{5,25})", q.get("set", ""))
+    group = q.get("idorvanity", "")
+    if not m or not re.fullmatch(r"[A-Za-z0-9._-]{2,100}", group):
+        return None
+    return _build(f"/groups/{group}/posts/{m.group(1)}", [])

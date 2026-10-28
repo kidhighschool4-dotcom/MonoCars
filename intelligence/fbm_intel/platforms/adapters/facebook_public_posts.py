@@ -128,7 +128,7 @@ class FacebookPublicPostsAdapter(BrowserAdapterBase):
         if r is None:
             self.last_skip_reason = "not_from_search"
             return None
-        if not r.visibility.verified:
+        if not r.visibility.verified and not r.check_on_post_page:
             self.last_skip_reason = r.visibility.skip_reason or "public_visibility_not_confirmed"
             return None
         with self._mapped():

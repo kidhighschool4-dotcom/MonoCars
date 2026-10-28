@@ -90,3 +90,12 @@ def test_shipped_config_runs_the_rental_campaign():
     qs = [q.text for q in queries_for("tiktok", config_path=c.discovery_path)]
     assert qs and not any("rx300" in q.casefold() for q in qs)
     assert any("ផ្ទះជួល" in q for q in qs) and any("phnom penh" in q.casefold() for q in qs)
+
+
+def test_group_post_url_from_photo_set():
+    from fbm_intel.fb_public.urls import group_post_url_from_photo_set, is_group_post
+    u = group_post_url_from_photo_set("https://www.facebook.com/photo/?fbid=123456&set=gm.1234567890123456&idorvanity=987654321098765")
+    assert u == "https://www.facebook.com/groups/987654321098765/posts/1234567890123456" and is_group_post(u)
+    assert group_post_url_from_photo_set("https://www.facebook.com/photo/?fbid=1&set=a.123456") is None          # album, not a post
+    assert group_post_url_from_photo_set("https://www.facebook.com/photo/?fbid=1&set=gm.1234567") is None         # no group
+    assert group_post_url_from_photo_set("https://example.com/photo/?set=gm.1234567&idorvanity=55555") is None

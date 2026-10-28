@@ -22,7 +22,7 @@ from .identity import PersonKeyer
 from ..social.model import Evidence
 from ..tiktok.adapter import _evidence
 from .model import ADAPTER_VERSION, Limits, PublicPost, RawComment, build_comments, parse_fb_time
-from .urls import (canonical_post_url, canonical_profile_url, is_group_post, is_post_url, post_id,
+from .urls import (canonical_post_url, canonical_profile_url, group_post_url_from_photo_set, is_group_post, is_post_url, post_id,
                    post_url_from_photo_set)
 from .visibility import Visibility, VisibilitySignals, verify
 
@@ -267,6 +267,7 @@ class SearchResult:
     url: str
     canonical_url: str
     visibility: Visibility
+    check_on_post_page: bool = False   # group post whose privacy the search card doesn't show: the post page decides
 
 
 class FacebookPublicPostsAdapter:
@@ -357,6 +358,11 @@ class FacebookPublicPostsAdapter:
                     # Posts search hides permalinks; rebuild from photo set=pcb.<post id> + the posting Page link
                     author = next((h for h in r["links"] if canonical_profile_url(h)), None)
                     url = next((u for u in (post_url_from_photo_set(h, author) for h in r["links"]) if u), None)
+                rebuilt_group = False
+                if not url:
+                    # group posts: photos carry set=gm.<post id> + idorvanity=<group>
+                    url = next((u for u in (group_post_url_from_photo_set(h) for h in r["links"]) if u), None)
+                    rebuilt_group = bool(url)
                 if not url:
                     no_link += 1
                     continue
@@ -366,7 +372,7 @@ class FacebookPublicPostsAdapter:
                 vis = verify(VisibilitySignals(url=canon, is_group_post=is_group_post(canon),
                                                audience_labels=tuple(r["labels"]), group_privacy_texts=tuple(r["group_texts"]),
                                                content_unavailable=r["unavailable"]))
-                results[canon] = SearchResult(url, canon, vis)
+                results[canon] = SearchResult(url, canon, vis, check_on_post_page=rebuilt_group and vis.status == "unverified")
             if len(results) >= self.limits.max_posts_per_query or i == self.limits.max_search_scrolls:
                 break
             before = len(results)
