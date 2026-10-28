@@ -15,7 +15,7 @@ export interface Car {
   sellerName: string
   sellerPhone: string
   sellerId?: string
-  estimatedValue: number
+  estimatedValue: number | null  // null for imported listings with no estimate yet
   source: 'scraped' | 'user'
   createdAt: string
   // Extended fields from DB

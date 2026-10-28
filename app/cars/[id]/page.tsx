@@ -20,7 +20,8 @@ export default async function CarDetailPage({ params }: PageProps) {
   const car = await getCar(id)
   if (!car) notFound()
 
-  const analysis = getPriceAnalysis(car)
+  // Imported listings have no market estimate yet — skip the price check instead of crashing
+  const analysis = car.estimatedValue ? getPriceAnalysis({ price: car.price, estimatedValue: car.estimatedValue }) : null
   const relatedCars = await getRelatedCars(id, car.type, 3)
   const phone = car.sellerPhone.replace(/[\s+]/g, '')
 
@@ -185,7 +186,7 @@ export default async function CarDetailPage({ params }: PageProps) {
               <p className="text-xs text-muted text-center mt-4">Usually replies Mon–Sat, 8am–6pm</p>
             </div>
 
-            <PriceAnalysis analysis={analysis} />
+            {analysis && <PriceAnalysis analysis={analysis} />}
           </aside>
         </div>
 

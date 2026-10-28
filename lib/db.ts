@@ -11,7 +11,7 @@ interface DbCarRow {
   model: string
   year: number
   price_usd: number
-  estimated_value_usd: number
+  estimated_value_usd: number | null
   price_label: string
   mileage_km: number
   color: string | null
