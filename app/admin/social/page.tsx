@@ -313,7 +313,7 @@ export default async function SocialDataPage({ searchParams }: { searchParams: P
     view === 'leads' ? commentsQ.order('captured_at', { ascending: false }).limit(300) : Promise.resolve({ data: [], error: null }),
     view === 'posts' ? rankedQ : Promise.resolve({ data: [], error: null }),
     ofCampaign(db.from('public_social_posts').select('platform').eq('owner_id', owner), 'lead->>version').limit(5000),
-    db.from('public_social_comments').select('post_id').eq('owner_id', owner).eq('lead_type', C.top).limit(5000),
+    db.from('public_social_comments').select('post_id,platform').eq('owner_id', owner).eq('lead_type', C.top).limit(5000),
     db.from('social_platform_status').select('*').eq('owner_id', owner),
     count('public_social_post_skips'),
     count('public_social_organizations'),
@@ -333,8 +333,12 @@ export default async function SocialDataPage({ searchParams }: { searchParams: P
   const orgs = (orgRes.data ?? []) as Org[]
   const postsPerPlatform: Record<string, number> = {}
   for (const { platform: pl } of (platformRes.data ?? []) as { platform: string }[]) postsPerPlatform[pl] = (postsPerPlatform[pl] ?? 0) + 1
-  const seekerPostIds = ((seekerRes.data ?? []) as { post_id: string }[]).map((r) => r.post_id)
-  const counts = { seekers: seekerPostIds.length, posts: new Set(seekerPostIds).size }
+  // Lead counts per source (chips) and for the selected source (header)
+  const topLeads = (seekerRes.data ?? []) as { post_id: string; platform: string }[]
+  const leadsPerPlatform: Record<string, number> = {}
+  for (const r of topLeads) leadsPerPlatform[r.platform] = (leadsPerPlatform[r.platform] ?? 0) + 1
+  const shownLeads = platform ? topLeads.filter((r) => r.platform === platform) : topLeads
+  const counts = { seekers: shownLeads.length, posts: new Set(shownLeads.map((r) => r.post_id)).size }
 
   const leads = ((leadRes.data ?? []) as unknown as Comment[])
     .sort((a, b) => (isTop(leadOf(a)) ? 0 : 1) - (isTop(leadOf(b)) ? 0 : 1)
@@ -393,7 +397,8 @@ export default async function SocialDataPage({ searchParams }: { searchParams: P
   const active = ADAPTERS.filter((a) => (postsPerPlatform[a.platform] ?? 0) > 0 || ['ok', 'budget_exhausted', 'challenged', 'rate_limited'].includes(status.get(a.id)?.state ?? ''))
   const inactive = ADAPTERS.filter((a) => !active.includes(a))
   const lastRun = Array.from(status.values()).map((s) => s.last_success_at).filter(Boolean).sort().pop() ?? null
-  const NEEDS: Record<string, string> = { login_required: 'needs your login', misconfigured: 'needs an API key / setup' }
+  const NEEDS: Record<string, string> = { login_required: 'needs your login', misconfigured: 'needs an API key / setup', challenged: 'CAPTCHA to solve' }
+  const EXCLUDED = new Set(['facebook_marketplace', 'telegram', 'kh_classifieds'])   // switched off by the owner (platforms_v1.json)
 
   return (
     <div className="min-h-screen bg-paper/50">
@@ -440,7 +445,7 @@ export default async function SocialDataPage({ searchParams }: { searchParams: P
 
           {/* Sources: only what is actually collecting, the rest folded away */}
           <div className="mt-6 flex flex-wrap items-center gap-2">
-            <span className="text-xs text-muted mr-1">Sources</span>
+            <span className="text-xs text-muted mr-1">{C.topLabel} by source</span>
             <Link href={href({ platform: '' })}
               className={clsx('rounded-lg border px-3 py-1.5 text-sm transition-colors', !platform ? 'border-ink bg-ink text-white' : 'border-line bg-surface text-ink hover:border-ink')}>
               All
@@ -450,19 +455,21 @@ export default async function SocialDataPage({ searchParams }: { searchParams: P
               const dot = !st ? 'bg-subtle' : st.state === 'ok' || st.state === 'budget_exhausted' ? 'bg-emerald-500' : st.state === 'challenged' ? 'bg-rose-500' : 'bg-amber-500'
               const on = platform === a.platform
               return (
-                <Link key={a.id} href={href({ platform: on ? '' : a.platform })} title={st?.detail ?? undefined}
+                <Link key={a.id} href={href({ platform: on ? '' : a.platform })}
+                  title={`${leadsPerPlatform[a.platform] ?? 0} ${C.topLabel.toLowerCase()} on ${postsPerPlatform[a.platform] ?? 0} posts${st?.detail ? ` · ${st.detail}` : ''}`}
                   className={clsx('inline-flex items-center gap-2 rounded-lg border px-3 py-1.5 text-sm transition-colors',
                     on ? 'border-ink bg-ink text-white' : 'border-line bg-surface text-ink hover:border-ink')}>
                   <span className={clsx('w-1.5 h-1.5 rounded-full', dot)} />
                   {a.label}
-                  <span className={clsx('tnum text-xs', on ? 'text-white/70' : 'text-muted')}>{postsPerPlatform[a.platform] ?? 0}</span>
+                  <span className={clsx('tnum text-xs font-semibold', on ? 'text-white/80' : 'text-ink')}>{leadsPerPlatform[a.platform] ?? 0}</span>
+                  {st && NEEDS[st.state] && <span className={clsx('text-[11px]', on ? 'text-white/70' : 'text-amber-700')}>· {NEEDS[st.state]}</span>}
                 </Link>
               )
             })}
             {inactive.length > 0 && (
               <details className="relative">
                 <summary className="list-none cursor-pointer select-none rounded-lg border border-dashed border-line px-3 py-1.5 text-sm text-muted hover:text-ink">
-                  +{inactive.length} not set up
+                  +{inactive.length} more sources
                 </summary>
                 <div className="absolute z-30 mt-2 w-[340px] rounded-xl border border-line bg-surface p-2 shadow-[0_18px_50px_-12px_rgba(0,0,0,0.25)]">
                   {inactive.map((a) => {
@@ -470,7 +477,9 @@ export default async function SocialDataPage({ searchParams }: { searchParams: P
                     return (
                       <div key={a.id} className="flex items-center justify-between gap-3 rounded-lg px-2.5 py-2 text-sm hover:bg-paper">
                         <span className="text-ink">{a.label}</span>
-                        <span className="text-xs text-muted text-right">{st ? (NEEDS[st.state] ?? STATE[st.state]?.text ?? st.state) : 'off'}</span>
+                        <span className="text-xs text-muted text-right">
+                          {EXCLUDED.has(a.id) ? 'off (your choice)' : st && st.enabled !== false ? (NEEDS[st.state] ?? STATE[st.state]?.text ?? st.state) : 'off'}
+                        </span>
                       </div>
                     )
                   })}
