@@ -1,7 +1,7 @@
 import { createServerClient } from '@supabase/auth-helpers-nextjs'
 import { cookies } from 'next/headers'
 import { NextResponse, type NextRequest } from 'next/server'
-import { getCars, type CarFilters } from '@/lib/db'
+import { getCarsPage, type CarFilters } from '@/lib/db'
 import { supabaseAdmin } from '@/lib/supabase-server'
 import { estimatePrice, getPriceLabel } from '@/lib/priceEstimation'
 
@@ -21,8 +21,8 @@ export async function GET(request: NextRequest) {
     offset:    searchParams.get('offset')    ? Number(searchParams.get('offset'))    : undefined,
   }
 
-  const cars = await getCars(filters)
-  return NextResponse.json({ cars, count: cars.length })
+  const { cars, total } = await getCarsPage(filters)
+  return NextResponse.json({ cars, count: cars.length, total })
 }
 
 export async function POST(request: NextRequest) {

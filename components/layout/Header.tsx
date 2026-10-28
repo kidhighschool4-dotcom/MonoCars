@@ -5,7 +5,8 @@ import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import {
   Menu, X, Car, Calendar, Users, LogOut, Sparkles, MessageCircle, ArrowUpRight, UserRound, Store,
-  Target, Database, Gauge, LogIn,
+  Target,
+  House, Database, Gauge, LogIn,
 } from 'lucide-react'
 import clsx from 'clsx'
 import { useAuth } from '@/lib/auth-context'
@@ -62,7 +63,8 @@ export default function Header() {
   ] : []
   const dataLinks: NavItem[] = [
     ...(canSeeData ? [
-      { href: '/admin/social', label: 'RX300 buyers', icon: Target, hint: 'Leads from every platform' },
+      { href: '/admin/social', label: 'Rental seekers', icon: House, hint: 'Renter leads + best posts' },
+      { href: '/admin/social?campaign=rx300', label: 'RX300 buyers', icon: Target, hint: 'Lexus RX300 leads found earlier' },
       { href: '/admin/facebook', label: 'Facebook data', icon: Database, hint: 'Posts, comments, screenshots' },
     ] : []),
     ...(isAdminUser ? [{ href: '/admin/intelligence', label: 'Listing intelligence', icon: Gauge, hint: 'Crawled listings & reviews' }] : []),

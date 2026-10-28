@@ -105,10 +105,18 @@ export interface CarFilters {
 }
 
 export async function getCars(filters: CarFilters = {}): Promise<Car[]> {
-  if (mock.USE_MOCK_DATA) return mock.mockGetCars(filters)
+  return (await getCarsPage(filters)).cars
+}
+
+/** One page of cars plus the total number matching the filters (for "N cars found" and "Load more"). */
+export async function getCarsPage(filters: CarFilters = {}): Promise<{ cars: Car[]; total: number }> {
+  if (mock.USE_MOCK_DATA) {
+    const cars = await mock.mockGetCars(filters)
+    return { cars, total: cars.length }
+  }
   let query = supabaseAdmin
     .from('cars')
-    .select(CAR_SELECT)
+    .select(CAR_SELECT, { count: 'exact' })
     .eq('is_available', true)
 
   if (filters.priceMin) query = query.gte('price_usd', filters.priceMin)
@@ -130,7 +138,7 @@ export async function getCars(filters: CarFilters = {}): Promise<Car[]> {
       .select('id')
       .eq('name', filters.type)
       .single()
-    if (!typeRow) return [] // unknown body type matches nothing (not everything)
+    if (!typeRow) return { cars: [], total: 0 } // unknown body type matches nothing (not everything)
     query = query.eq('car_type_id', typeRow.id)
   }
 
@@ -155,10 +163,11 @@ export async function getCars(filters: CarFilters = {}): Promise<Car[]> {
   if (filters.limit)  query = query.limit(filters.limit)
   if (filters.offset) query = query.range(filters.offset, filters.offset + (filters.limit ?? 20) - 1)
 
-  const { data, error } = await query
-  if (error) { console.error('[db.getCars]', error); return [] }
+  const { data, error, count } = await query
+  if (error) { console.error('[db.getCars]', error); return { cars: [], total: 0 } }
 
-  return (data as unknown as DbCarRow[]).map(toAppCar)
+  const cars = (data as unknown as DbCarRow[]).map(toAppCar)
+  return { cars, total: count ?? cars.length }
 }
 
 export async function getCar(id: string): Promise<Car | null> {

@@ -9,6 +9,8 @@ import CarFilters, { FilterState } from '@/components/cars/CarFilters'
 import { PRICE_RANGES } from '@/lib/carFilters'
 import type { Car } from '@/types'
 
+const PAGE_SIZE = 60
+
 export function CarGridSkeleton({ count = 8 }: { count?: number }) {
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
@@ -38,11 +40,14 @@ export default function CarsClient() {
   const [query, setQuery]     = useState(searchParams.get('q') ?? '')
   const [draft, setDraft]     = useState(query)
   const [cars, setCars]       = useState<Car[]>([])
+  const [total, setTotal]     = useState(0)
   const [loading, setLoading] = useState(true)
+  const [loadingMore, setLoadingMore] = useState(false)
   const [error, setError]     = useState('')
 
-  const fetchCars = useCallback(async () => {
-    setLoading(true)
+  const fetchCars = useCallback(async (offset = 0) => {
+    if (offset) setLoadingMore(true)
+    else setLoading(true)
     setError('')
     try {
       const params = new URLSearchParams()
@@ -52,15 +57,19 @@ export default function CarsClient() {
       if (filters.carType !== 'all') params.set('type', filters.carType)
       if (query.trim()) params.set('q', query.trim())
       params.set('sort', filters.sortBy)
-      params.set('limit', '60')
+      params.set('limit', String(PAGE_SIZE))
+      if (offset) params.set('offset', String(offset))
 
       const res  = await fetch(`/api/cars?${params}`)
       const data = await res.json()
-      setCars(data.cars ?? [])
+      const page: Car[] = data.cars ?? []
+      setCars((prev) => (offset ? [...prev, ...page] : page))
+      setTotal(data.total ?? page.length)
     } catch {
       setError('Couldn’t load listings. Please refresh the page.')
     } finally {
       setLoading(false)
+      setLoadingMore(false)
     }
   }, [filters, query])
 
@@ -115,7 +124,7 @@ export default function CarsClient() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 md:py-10">
         {!loading && !error && (
           <p className="text-sm text-muted mb-6" aria-live="polite" data-testid={cars.length ? 'results-count' : 'results-empty'}>
-            <span className="font-semibold text-ink tnum">{cars.length}</span> {cars.length === 1 ? 'car' : 'cars'} found
+            <span className="font-semibold text-ink tnum">{total}</span> {total === 1 ? 'car' : 'cars'} found
           </p>
         )}
 
@@ -128,6 +137,19 @@ export default function CarsClient() {
             {cars.map((car) => (
               <CarCard key={car.id} car={car} />
             ))}
+          </div>
+        )}
+
+        {!loading && !error && cars.length < total && (
+          <div className="mt-10 flex flex-col items-center gap-2">
+            <button
+              onClick={() => fetchCars(cars.length)}
+              disabled={loadingMore}
+              className="px-6 py-3 rounded-full bg-ink text-white text-sm font-semibold hover:bg-brand transition-colors disabled:opacity-60"
+            >
+              {loadingMore ? 'Loading…' : `Load more cars`}
+            </button>
+            <p className="text-xs text-muted tnum">Showing {cars.length} of {total}</p>
           </div>
         )}
 

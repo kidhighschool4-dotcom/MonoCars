@@ -6,7 +6,26 @@ import { canViewFacebookData, getServerUser } from '@/lib/auth-server'
 import { supabaseAdmin } from '@/lib/supabase-server'
 
 export const dynamic = 'force-dynamic'
-export const metadata = { title: 'Rental seekers | FBM', robots: { index: false, follow: false } }
+export const metadata = { title: 'Leads | FBM', robots: { index: false, follow: false } }
+
+// Each search campaign is its own view: its lead types, its posts (by the lead rules' version) and its wording
+const CAMPAIGNS = {
+  rental: {
+    tab: 'Rental seekers', title: 'Rental seekers · Phnom Penh',
+    blurb: 'People looking for a house, apartment, room or shophouse to rent, from public comments on rental posts. Every post is rated 0–100 % by how worth following up it is. Names are never stored.',
+    top: 'rental_seeker', fit: 'potential_rental_seeker', topLabel: 'Rental seekers', fitLabel: '+ maybe renting',
+    sellerLabel: 'Landlords / agents', postsLabel: 'On rental posts', version: 'rental%',
+    empty: 'No rental seekers', emptyHint: 'New people looking to rent appear here as the worker finds them.',
+  },
+  rx300: {
+    tab: 'RX300 buyers', title: 'Lexus RX300 buyers',
+    blurb: 'People asking to buy an RX300 in public comments on sale posts. Names are never stored; open the comment to see it on the platform.',
+    top: 'confirmed_rx300_buyer', fit: 'potential_rx300_fit', topLabel: 'RX300 buyers', fitLabel: '+ potential fits',
+    sellerLabel: 'Sellers / dealers', postsLabel: 'On sale posts', version: 'rx300%',
+    empty: 'No RX300 buyers', emptyHint: 'The worker now searches for renters; RX300 buyers found earlier stay here.',
+  },
+} as const
+type CampaignId = keyof typeof CAMPAIGNS
 
 // Worker adapter name → stored `platform` value + label (mirrors intelligence/config/platforms_v1.json)
 const ADAPTERS = [
@@ -41,7 +60,6 @@ const LEAD = {
   irrelevant: { text: 'Irrelevant', cls: 'bg-paper text-subtle' },
 } as const
 type LeadType = keyof typeof LEAD
-const SEEKERS: LeadType[] = ['rental_seeker', 'potential_rental_seeker']
 const isSeeker = (lt: LeadType) => lt === 'rental_seeker' || lt === 'potential_rental_seeker' || lt === 'confirmed_rx300_buyer' || lt === 'potential_rx300_fit'
 const isTop = (lt: LeadType) => lt === 'rental_seeker' || lt === 'confirmed_rx300_buyer'
 const USE_CASE: Record<string, string> = {
@@ -270,18 +288,23 @@ export default async function SocialDataPage({ searchParams }: { searchParams: P
   const str = (k: string) => (typeof sp[k] === 'string' ? (sp[k] as string) : '')
   const view = (['leads', 'posts', 'organizations', 'skipped'].includes(str('view')) ? str('view') : 'leads') as 'leads' | 'posts' | 'organizations' | 'skipped'
   const platform = str('platform') in PLATFORM_LABEL ? str('platform') : ''
-  const lead = ['rental_seeker', 'potential_rental_seeker', 'seller_or_dealer', 'buyers', 'all'].includes(str('lead')) ? str('lead') : 'rental_seeker'
+  const campaign: CampaignId = str('campaign') === 'rx300' ? 'rx300' : 'rental'
+  const C = CAMPAIGNS[campaign]
+  const lead = [C.top, C.fit, 'seller_or_dealer', 'buyers', 'all'].includes(str('lead')) ? str('lead') : C.top
   const q = str('q').trim().slice(0, 100)
   const owner = user.id
   const db = supabaseAdmin
 
   // Everything below is filtered in the database and only the columns the view renders are fetched.
-  const leadTypes: LeadType[] | null = lead === 'all' ? null : lead === 'buyers' ? SEEKERS : [lead as LeadType]
-  let commentsQ = db.from('public_social_comments').select(COMMENT_COLS).eq('owner_id', owner)
+  const leadTypes: LeadType[] | null = lead === 'all' ? null : lead === 'buyers' ? [C.top, C.fit] : [lead as LeadType]
+  // rows typed by this campaign's rules (RX300 rows from before lead versions existed count as RX300)
+  const ofCampaign = <T extends { like: (c: string, v: string) => T; or: (f: string) => T }>(qb: T, col: string) =>
+    campaign === 'rx300' ? qb.or(`${col}.like.rx300%,${col}.is.null`) : qb.like(col, C.version)
+  let commentsQ = ofCampaign(db.from('public_social_comments').select(COMMENT_COLS).eq('owner_id', owner), 'lead_version')
   if (platform) commentsQ = commentsQ.eq('platform', platform)
   if (leadTypes) commentsQ = commentsQ.in('lead_type', leadTypes)
   if (q) commentsQ = commentsQ.ilike('comment_text', `%${q.replace(/[%_\\]/g, (m) => `\\${m}`)}%`)
-  let rankedQ = db.from('public_social_posts').select(POST_COLS).eq('owner_id', owner)
+  let rankedQ = ofCampaign(db.from('public_social_posts').select(POST_COLS).eq('owner_id', owner), 'lead->>version')
     .order('lead->post_score', { ascending: false, nullsFirst: false }).order('captured_at', { ascending: false }).limit(60)
   if (platform) rankedQ = rankedQ.eq('platform', platform)
   const count = (table: string) => db.from(table).select('id', { count: 'exact', head: true }).eq('owner_id', owner)
@@ -289,8 +312,8 @@ export default async function SocialDataPage({ searchParams }: { searchParams: P
   const [leadRes, rankedRes, platformRes, seekerRes, statusRes, skipCount, orgCount, skipsRes, orgRes] = await Promise.all([
     view === 'leads' ? commentsQ.order('captured_at', { ascending: false }).limit(300) : Promise.resolve({ data: [], error: null }),
     view === 'posts' ? rankedQ : Promise.resolve({ data: [], error: null }),
-    db.from('public_social_posts').select('platform').eq('owner_id', owner).limit(5000),
-    db.from('public_social_comments').select('post_id').eq('owner_id', owner).eq('lead_type', 'rental_seeker').limit(5000),
+    ofCampaign(db.from('public_social_posts').select('platform').eq('owner_id', owner), 'lead->>version').limit(5000),
+    db.from('public_social_comments').select('post_id').eq('owner_id', owner).eq('lead_type', C.top).limit(5000),
     db.from('social_platform_status').select('*').eq('owner_id', owner),
     count('public_social_post_skips'),
     count('public_social_organizations'),
@@ -352,7 +375,7 @@ export default async function SocialDataPage({ searchParams }: { searchParams: P
   const bizShots = new Map(shownComments.map((c) => [c.id, c.account_type === 'business' ? sign(c.business_page_screenshot) : undefined]))
 
   const href = (next: Record<string, string>) => {
-    const p = new URLSearchParams({ view, ...(platform && { platform }), ...(lead !== 'rental_seeker' && { lead }), ...(q && { q }), ...next })
+    const p = new URLSearchParams({ ...(campaign !== 'rental' && { campaign }), view, ...(platform && { platform }), ...(lead !== C.top && { lead }), ...(q && { q }), ...next })
     for (const [k, v] of Array.from(p.entries())) if (!v) p.delete(k)
     return `/admin/social?${p.toString()}`
   }
@@ -378,17 +401,27 @@ export default async function SocialDataPage({ searchParams }: { searchParams: P
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
           <div className="flex flex-wrap items-end justify-between gap-6">
             <div className="min-w-0">
-              <p className="text-xs font-medium text-muted">Private · {user.email}</p>
-              <h1 className="mt-1 text-3xl md:text-4xl font-semibold tracking-tight text-ink">Rental seekers · Phnom Penh</h1>
-              <p className="mt-1.5 text-sm text-muted max-w-xl">People looking for a house, apartment, room or shophouse to rent, from public comments on rental posts. Every post is rated 0–100 % by how worth following up it is. Names are never stored.</p>
+              <nav className="inline-flex rounded-full border border-line bg-paper p-1" aria-label="Lead type">
+                {(Object.keys(CAMPAIGNS) as CampaignId[]).map((id) => (
+                  <Link key={id} href={id === 'rental' ? '/admin/social' : `/admin/social?campaign=${id}`}
+                    aria-current={campaign === id ? 'page' : undefined}
+                    className={clsx('rounded-full px-4 py-1.5 text-sm font-semibold transition-colors',
+                      campaign === id ? 'bg-ink text-white' : 'text-muted hover:text-ink')}>
+                    {CAMPAIGNS[id].tab}
+                  </Link>
+                ))}
+              </nav>
+              <h1 className="mt-4 text-3xl md:text-4xl font-semibold tracking-tight text-ink">{C.title}</h1>
+              <p className="mt-1.5 text-sm text-muted max-w-xl">{C.blurb}</p>
+              <p className="mt-1 text-xs text-subtle">Private · {user.email}</p>
             </div>
             <dl className="flex items-stretch divide-x divide-line rounded-xl border border-line bg-surface">
               <div className="px-5 py-3">
-                <dt className="text-[11px] uppercase tracking-wider text-muted">Rental seekers</dt>
+                <dt className="text-[11px] uppercase tracking-wider text-muted">{C.topLabel}</dt>
                 <dd className="text-3xl font-semibold tnum text-ink leading-tight">{counts.seekers}</dd>
               </div>
               <div className="px-5 py-3">
-                <dt className="text-[11px] uppercase tracking-wider text-muted">On rental posts</dt>
+                <dt className="text-[11px] uppercase tracking-wider text-muted">{C.postsLabel}</dt>
                 <dd className="text-3xl font-semibold tnum text-ink leading-tight">{counts.posts}</dd>
               </div>
               {bestPost && scoreOf(bestPost) != null && (
@@ -462,6 +495,7 @@ export default async function SocialDataPage({ searchParams }: { searchParams: P
           {view === 'leads' && (
             <form className="flex flex-1 flex-wrap items-center justify-end gap-2" action="/admin/social">
               <input type="hidden" name="view" value="leads" />
+              {campaign !== 'rental' && <input type="hidden" name="campaign" value={campaign} />}
               {platform && <input type="hidden" name="platform" value={platform} />}
               <label className="relative flex-1 min-w-[180px] max-w-xs">
                 <span className="sr-only">Search comment text</span>
@@ -470,9 +504,9 @@ export default async function SocialDataPage({ searchParams }: { searchParams: P
                   className="w-full rounded-lg border border-line bg-surface py-1.5 pl-9 pr-3 text-sm focus:outline-none focus:border-brand" />
               </label>
               <select name="lead" defaultValue={lead} className="rounded-lg border border-line bg-surface px-2.5 py-1.5 text-sm">
-                <option value="rental_seeker">Rental seekers</option>
-                <option value="buyers">+ maybe renting</option>
-                <option value="seller_or_dealer">Landlords / agents</option>
+                <option value={C.top}>{C.topLabel}</option>
+                <option value="buyers">{C.fitLabel}</option>
+                <option value="seller_or_dealer">{C.sellerLabel}</option>
                 <option value="all">Everything</option>
               </select>
               <button className="rounded-lg bg-ink px-3.5 py-1.5 text-sm font-semibold text-white hover:bg-brand transition-colors">Apply</button>
@@ -496,8 +530,8 @@ export default async function SocialDataPage({ searchParams }: { searchParams: P
             </div>
             {!tablesMissing && leads.length === 0 && (
               <div className="rounded-2xl border border-dashed border-line bg-surface p-10 text-center">
-                <p className="text-ink font-medium">No rental seekers{platform ? ` on ${PLATFORM_LABEL[platform]}` : ''} yet</p>
-                <p className="mt-1 text-sm text-muted">New people looking to rent appear here as the worker finds them.</p>
+                <p className="text-ink font-medium">{C.empty}{platform ? ` on ${PLATFORM_LABEL[platform]}` : ''} yet</p>
+                <p className="mt-1 text-sm text-muted">{C.emptyHint}</p>
               </div>
             )}
           </>
